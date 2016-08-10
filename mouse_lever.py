@@ -96,7 +96,7 @@ class Mouse_lever(object):
         file_order = list(np.array(file_order)[indexes])
         event_files = list(np.array(event_files)[indexes])
             
-        #LOAD LEVER FILES NAMES
+        #LOAD LEVER FILES NAMES; REMOVE ONES THAT DONT" HAVE CORRESPONDING LEVER POS FILES
         lever_files = []
         del_file_counter = []
         counter=0
@@ -601,27 +601,28 @@ class Session(object):
             self.aligned_images = np.load(self.tif_file[:-4]+"_aligned.npy")
         
         #FIND BEGINNING AND END OF IMAGING
-        #First ensure the imaging doesn't start with light on; if it does, cut off the part that does:
-        if np.average(self.aligned_images[0])> 400:
+        blue_light_threshold = 400
+        #Case #1: imaging starts with light on; only need to remove end
+        if np.average(self.aligned_images[0])> blue_light_threshold:
             for k in range(len(self.aligned_images)):
-                if np.average(self.aligned_images[k])< 400:
+                if np.average(self.aligned_images[k])< blue_light_threshold:
                     self.aligned_images = self.aligned_images[k:]
                     break
-                    
-        #Find first light on
-        for k in range(len(self.aligned_images)):
-            if np.average(self.aligned_images[k])> 400:
-                self.aligned_images = self.aligned_images[k:]
-                break
+        #Case #2: imaging starts with light off; need to remove starting and end chunk;
+        else:
+            #Find first light on
+            for k in range(len(self.aligned_images)):
+                if np.average(self.aligned_images[k])> blue_light_threshold:
+                    self.aligned_images = self.aligned_images[k:]
+                    break
 
-        #Find light off - count backwards from end of imaging data
-        for k in range(len(self.aligned_images)-1,0,-1):
-            if np.average(self.aligned_images[k])> 400:
-                self.aligned_images = self.aligned_images[:k]
-                #print k
-                break
-        #print len(self.aligned_images)
-        #quit()
+            #Find light off - count backwards from end of imaging data
+            for k in range(len(self.aligned_images)-1,0,-1):
+                if np.average(self.aligned_images[k])> blue_light_threshold:
+                    self.aligned_images = self.aligned_images[:k]
+                    #print k
+                    break
+
         self.n_images=len(self.aligned_images)
 
         #CHECK img_rate 
@@ -826,11 +827,6 @@ class Session(object):
             np.save(self.tif_file[:-4]+"_aligned", aligned)
             self.aligned_images = aligned
 
-    def filter_images(self):
-        print "... TODO filtering images function..."
-        
-        #Start with aligned images everytime; proceed to filter images.
-
     def empty_session(self):
         
         self.locs_44threshold=[]
@@ -854,27 +850,8 @@ class Session(object):
             trial = Trial(self.traces[k])
             self.trials.append(trial)
 
-    def find_previous(self, array, value):
-        #Returns previous most closest index
-        temp = (np.abs(array-value)).argmin()
-        if array[temp]>value: return temp-1
-        else: return temp
-
-    def find_nearest(self, array, value):
-        #Returns closest index
-        temp = (np.abs(array-value)).argmin()
         return temp
         
-    #def load_DFF(self):
-        #''' NOT USED ''' 
-        #print " session: ", self.event_file
-
-        #self.DFF = np.load(self.DFF_fname+'.npy')                
-        
-        #for k in range(len(self.DFF)):
-            #self.trials[k].DFF = self.DFF[k]
-      
-
 
 class Trial(object):
     ''' Make individual trial swithin each session representing individual DF/F stacks and lever position traces'''

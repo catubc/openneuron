@@ -11,7 +11,7 @@ import matplotlib as mpl
 from matplotlib.path import Path
 import matplotlib.animation as animation
 import scipy.ndimage as ndimage
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, cheby1
 
 
 class Object_empty(object):
@@ -104,6 +104,265 @@ def save_tsf(tsf,file_name):
 
         
 
+def convert_video(self):
+    
+    print "Loading file: ", self.choice2
+    import cv2
+
+    vid = cv2.VideoCapture(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2)
+    length = vid.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+    width  = vid.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
+    height = vid.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
+    fps    = vid.get(cv2.cv.CV_CAP_PROP_FPS)
+
+    #NB: CAN ALSO INDEX DIRECTLY INTO .WMV FILES:
+    #time_length = 30.0
+    #fps=25
+    #frame_seq = 749
+    #frame_no = (frame_seq /(time_length*fps))
+
+    ##The first argument of cap.set(), number 2 defines that parameter for setting the frame selection.
+    ##Number 2 defines flag CV_CAP_PROP_POS_FRAMES which is a 0-based index of the frame to be decoded/captured next.
+    ##The second argument defines the frame number in range 0.0-1.0
+    #cap.set(2,frame_no);
+
+    print length, width, height, fps
+    time.sleep(.5)
+    #Show video
+    if True:
+        data = []
+        ctr=0
+        now = time.time()
+        while True:
+            vid.grab()
+            retval, image = vid.retrieve()
+            if not retval: break
+            #cv2.imshow("Test", image)
+            #cv2.waitKey(1)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            
+            data.append(image)
+            ctr+=1; print ctr
+
+        np.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4], data)
+        #np.save(self.choice2[:-4]+'_uint8', np.uint8(data))
+
+
+def find_start_end(self):
+    
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    
+    if os.path.exists(self.blue_light_filename)==True: 
+        print "...Blue Light Boundaries already found... returning..."
+        return
+
+    global coords, images_temp, ax, fig, cid
+    
+    #Re-Compute frames per second relative session.reclength; ensure makes sense ~15Hz
+    #First, load movie data
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    print movie_data.shape
+    
+    #Second, load imaging data
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.choice2[:-4]+'/'+self.choice2[:-4]
+    
+    print "...loading .npy img file..."
+    data = np.load(temp_file+'_aligned.npy')
+    print data.shape
+
+    #********Check to see if img_rate was ~30.00Hz; otherwise skip
+    self.img_rate = np.load(temp_file+'_img_rate.npy') #LOAD IMG_RATE
+    self.abstimes = np.load(temp_file+'_abstimes.npy')
+    
+    print "...movie fps: ", float(movie_data.shape[0])/self.abstimes[-1]
+    
+    #Select pixels from 2 pics: 30th frame and 300th frame; should be able to see light differences
+    images_temp = movie_data[300]
+    coords=[]
+    self.coords = coords
+    fig = plt.figure()
+    
+    ax=plt.subplot(1,2,1)
+    plt.imshow(movie_data[30],cmap=plt.get_cmap('gray') )
+
+    ax = plt.subplot(1,2,2)
+    ax.imshow(images_temp, cmap=plt.get_cmap('gray') )
+    ax.set_title("Click blue light")
+    cid = fig.canvas.mpl_connect('button_press_event', on_click_single_frame)
+    plt.show()
+    
+
+def plot_blue_light_roi(self):
+    
+    plotting = True
+    
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    print movie_data.shape
+    
+    t = np.arange(0,movie_data.shape[0],1)/15.
+    blue_light_roi = []
+    for k in range(len(movie_data)):
+        blue_light_roi.append(np.sum(movie_data[k, int(self.coords[0][0])-1:int(self.coords[0][0])+1, 
+                                int(self.coords[0][1])-1:int(self.coords[0][1])+1]))
+    
+    blight_ave = np.average(blue_light_roi)
+    blight_std = np.std(blue_light_roi)
+    
+    if plotting: 
+        ax = plt.subplot(2,1,1)
+        plt.plot(t, blue_light_roi)
+        plt.plot([t[0],t[-1]], [blight_ave,blight_ave], color='red')
+        plt.plot([t[0],t[-1]], [blight_ave-blight_std,blight_ave-blight_std], color='green')
+    
+    blue_light_roi = np.int32(blue_light_roi)
+    indexes = np.where(blue_light_roi>(blight_ave-blight_std))[0]
+    blue_light_roi= blue_light_roi[indexes[0]:indexes[-1]]  #SOME OF THE FRAMES DIP BELOW SO JUST ASSUME OK 
+    
+    print indexes[0], indexes[-1]
+    print "...no of frames w. blue light: ", len(indexes)
+    movie_rate = float(len(blue_light_roi))/self.abstimes[-1]
+    print "...movie fps: ", movie_rate
+    
+    if abs(15-movie_rate)>0.01: 
+        print ".... movie frame rate incorrect *************"
+    else:
+        #Save frames for blue light
+        np.save(self.blue_light_filename, np.arange(indexes[0],indexes[-1],1))
+
+    if plotting: 
+        ax = plt.subplot(2,1,2)
+        plt.plot(blue_light_roi)
+        plt.ylim(bottom=0)
+        plt.show()
+        
+
+def event_triggered_movies(self):
+    
+    #Load imaging data
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.choice2[:-4]+'/'+self.choice2[:-4]
+    
+    self.img_rate = np.load(temp_file+'_img_rate.npy') #LOAD IMG_RATE
+    self.abstimes = np.load(temp_file+'_abstimes.npy')
+
+    self.abstimes = np.load(temp_file+'_abstimes.npy')
+    self.abspositions = np.load(temp_file+'_abspositions.npy')
+    self.abscodes = np.load(temp_file+'_abscodes.npy')
+    self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+    self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+
+    print self.abspositions
+    print self.abscodes
+    print self.locs_44threshold
+    print self.code_44threshold
+
+
+    #Load original .npy movie data and index only during blue_light_frames
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    movie_data = movie_data[np.load(self.blue_light_filename)]
+    print "... movie_data.shape: ", movie_data.shape
+    
+    movie_times = np.linspace(0, self.abstimes[-1], movie_data.shape[0])
+    print movie_times
+    
+    indexes_02 = np.where(self.code_44threshold=='02')
+    indexes_04 = np.where(self.code_44threshold=='04')
+    
+    times_02 = self.locs_44threshold[indexes_02]
+    times_04 = self.locs_44threshold[indexes_04]
+    
+    print times_02
+    print times_04
+    
+    from mouse_lever_analysis import find_nearest
+    
+    movie_04frame_locations = []
+    for time_index in times_04: 
+        movie_04frame_locations.append(find_nearest(movie_times, time_index))
+    
+    self.movie_04frame_locations = movie_04frame_locations
+    
+
+def make_44movies(self):
+
+    print "... 04 frame event triggers: ", self.movie_04frame_locations
+    
+    #Load original .npy movie data and index only during blue_light_frames
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    self.movie_data = movie_data[np.load(self.blue_light_filename)]
+    print "... movie_data.shape: ", self.movie_data.shape
+    
+    temp_img_rate = 15
+    self.movie_stack = []
+    for frame in self.movie_04frame_locations:
+        self.movie_stack.append(self.movie_data[frame-3*temp_img_rate: frame+3*temp_img_rate])
+
+    
+    make_movies_from_triggers(self)
+
+def make_movies_from_triggers(self):
+    
+    #***********GENERATE ANIMATIONS
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+
+    self.movie_stack = self.movie_stack[:36]
+
+    fig = plt.figure()
+    im=[]
+    for k in range(len(self.movie_stack)):
+        im.append([])
+        ax = plt.subplot(4,3,k+1)
+        
+        ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+        
+        im[k] = plt.imshow(self.movie_stack[k][0], cmap=plt.get_cmap('gray'), interpolation='none')
+        
+    def updatefig(j):
+        print j
+        plt.suptitle("Frame: "+str(j)+"  " +str(format(float(j)/15-3.,'.2f'))+"sec", fontsize = 20)
+
+        # set the data in the axesimage object
+        for k in range(len(self.movie_stack)):
+            im[k].set_array(self.movie_stack[k][j])
+
+        # return the artists set
+        return im
+        
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.movie_stack[0])), interval=100, blit=False, repeat=True)
+
+    if True:
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_'+str(len(self.movie_stack))+'.mp4', writer=writer)
+    plt.show()
+
+    
+
+def cheby_filter(self):
+#def cheby_filter(frames, low_limit, high_limit, frame_rate):
+
+    frames = self.parent.animal.data
+    low_limit = self.parent.filter_low
+    high_limit = self.parent.filter_high
+    frame_rate = self.parent.animal.img_rate
+    
+    
+    nyq = frame_rate / 2.0
+    low_limit = low_limit / nyq
+    high_limit = high_limit / nyq
+    order = 4
+    rp = 0.1
+    Wn = [low_limit, high_limit]
+
+    b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
+    print("Filtering...")
+    frames = filtfilt(b, a, frames, axis=0)
+    
+    return frames
+                    
+            
+        
 def synchrony_index(data, SampleFrequency, si_limit):
 
     """Calculate an LFP synchrony index, using potentially overlapping windows of width
@@ -772,149 +1031,12 @@ def compute_sta(self, ptcs_file):
     #if len(img_times)< max_len: max_len=len(img_times)
     #print "len(ontimes): ", len(ontimes), "  len(img_times): ", len(img_times)
 
-
-def compute_sta_OLD(animal, ptcs_file):
-
-    #PARAMETERS
-    overwrite = False   #overwrite previous results
-    n_procs=5
-    window = 3          #number of secs frames pre- and post- spiking to compute STMTDs for
-    min_spikes = 0  #Min number of spikes in unit 
-    spike_mode = 'all'     #Trigger off all spkes
-    compress_factor = 1.    #for normal .ptcs file sampled at 25Khz
-    images_file_name = ptcs_file.replace('tsf_files','tif_files').replace('_hp.ptcs','').replace('_lp_compressed.ptcs','')+'.npy'
-    rec_name = images_file_name.replace('.npy','').replace(animal.home_dir+animal.name+'/tif_files/','')
-    file_extension = ptcs_file.replace('tsf_files','tif_files').replace(images_file_name[:-4],'').replace('.ptcs','')
-    
-    if 'compress' in ptcs_file:    
-        if '07_11' in ptcs_file: compress_factor = 40.  #for july 11th timecompressed files
-        else: compress_factor = 50.  #for all other files should be correct.
-
-    print "compression: ", compress_factor
-    #LOAD SORT
-    print ptcs_file
-    if (os.path.exists(ptcs_file)==False): return
-    Sort = Ptcs(ptcs_file) #Auto load flag for Nick's data
-    n_units = len(Sort.units); print "# units: ", n_units
-    print np.float32(Sort.units[0])/(float(Sort.samplerate)/compress_factor)
-
-    #LOAD CAMERA ON/OFF TIMES
-    camera_file_name = ptcs_file.replace('tsf_files','camera_files').replace(file_extension+'.ptcs','')+'_camera_onoff.npy'
-    print camera_file_name
-    camera_onoff = np.load(camera_file_name)
-    print len(camera_onoff)
-
-    #FIND START/END OF IMAGING (from ephys data; find where camera val goes to '1')
-    indexes = np.where(camera_onoff==1)[0]
-    start_offset = float(indexes[0])/25000      #NB: THIS NEEDS TO BE LOADED FROM tsf.SampleFrequency or highpass Sort.samplerate
-    end_offset = float(indexes[-1])/25000       #NB: compressed data samplerate is 50Khz or other so not reliable.
-    print "start/end: ", start_offset, end_offset
-
-    #LOAD RAW IMAGES; FILTERED OR NOT
-    if False:
-        print "...loading: ", images_file_name[:-4]+'_filtered.npy'
-        images_raw = np.load(images_file_name[:-4]+'_filtered.npy')    #Zero out images before loading - might free up memory first;
-    else:
-        print "...loading: ", images_file_name
-        images_raw = np.load(images_file_name)    #Zero out images before loading - might free up memory first;
-        print images_raw.shape
-        print type(images_raw[0][0])
-        #print "...converting int16 to float32..."; images_raw = images_raw.astype(np.float32)#, copy=False)
-
-    print images_raw.shape
-    if len(images_raw.shape)<3:
-        print "..reshaping..."
-        images_raw = images_raw.reshape(-1, 128, 128)
-        print images_raw.shape
-       
-    
-    #COMPUTE AVE FRAME - FOR BASELINE
-    print "... skipping baseline ..."
-    #baseline = np.average(images_raw, axis=0)
-    
-    #make_vids([(images_raw[1000:2000]-baseline)/baseline], images_file_name[:-4]+'_filtered.npy')
-    #quit()
-
-    
-    #COMPUTE IMG RATE
-    if ('2016_07_20_vsd' in ptcs_file) and ('2nd' not in ptcs_file):        #SPECIAL CASE: Forgot to turn off imaging and it maxed out... was working on rig while recording...
-        img_rate = 150.640913245
-        img_times = np.arange(0, float(end_offset-start_offset), 1./img_rate)   
-    else: #Compute img_rate and img_times normally:
-        img_rate = float(len(images_raw))/float(end_offset-start_offset)
-        img_times = np.linspace(0, float(end_offset-start_offset), len(images_raw))
-
-    print "img_rate: ", img_rate
-    print "# Interpolated img_times: ", len(img_times)
-    
-        
-    for unit in range(n_units):
-        print "\n\n****************"
-        print "Processing Unit: ", unit
-        #REMOVE TIME TO CAMERA ON FROM EPHYS TIMES; Even for triggered data, there is still ~1sec of buffered ephys data saved
-        #spikes = np.array(Sort.units[unit])/Sort.samplerate - start_offset 
-        spikes = np.float32(Sort.units[unit])/(float(Sort.samplerate)/compress_factor) - start_offset 
-        #if unit != 1: continue
-
-        channel = Sort.maxchan[unit]
-    
-        Compute_spike_triggered_average( unit, channel, spikes, images_raw, window, img_times, animal.home_dir+animal.name+'/', overwrite, img_rate, n_procs, spike_mode, ptcs_file, rec_name+file_extension)
-
-    ##OPTIONAL: DON'T ERASE
-    ##Load camera triggers to determine precision of interpolated frame times to saved pulse times.
-    #camera_pulses = np.int32(np.load(animal.filenames[rec].replace('rhd_files','camera_files')+'_camera_pulses.npy'))
-    #print len(camera_pulses) 
-    #camera_pulses = camera_pulses[indexes[0]:indexes[-1]] #Look at pulses only between ON and OFF times...
-
-    #if (os.path.exists(self.home_dir + camera_pulse_times)==False):
-        #ctr = 0
-        #ontimes = []
-        #betweentimes = []
-        #for k in range(len(camera_pulses)-1):
-            #if ((camera_pulses[k] - camera_pulses[k+1])==-1): 
-                #ontimes.append(k)
-                #betweentimes.append(k-ctr)
-                #ctr = k
-        #np.save(self.home_dir + camera_pulse_times[:-4], ontimes)
-        #np.save(self.home_dir + camera_pulse_times[:-4]+'_betweentimes',betweentimes)
-
-    #ontimes = np.load(self.home_dir + camera_pulse_times)
-    ##betweentimes = np.load(main_dir + camera_pulse_times[:-4]+'_betweentimes.npy')
-    #print "Number of camera_pulses: ", len(ontimes)
-
-    #max_len = len(ontimes)
-    #if len(img_times)< max_len: max_len=len(img_times)
-    #print "len(ontimes): ", len(ontimes), "  len(img_times): ", len(img_times)
-
-
 def wavelet(data, wname="db4", maxlevel=6):
     """Perform wavelet multi-level decomposition and reconstruction (WMLDR) on data.
     See Wiltschko2008. Default to Daubechies(4) wavelet"""
     import pywt
 
-    data = np.atleast_2d(data)
-    # filter data in place:
-
-    #TODO: PARALLELIZE THIS CODE
-    #n_procs = 10
-    #pool = mp.Pool(n_procs)
-    ##print "Removing average of all pre spike frames - (time: -", window, "sec .. 0sec)"
-    #images_triggered_temp.extend(pool.map(Spike_averages_parallel_prespike_3sec, temp4))
-    
-    #pool.close()
-    #print "... done "
-
-    ##Sum over all spikes
-    #print "Summing Number of chunks: ", len(images_triggered_temp)
-
-    #temp_images = np.zeros((int(window*img_rate)*2, n_pixels, n_pixels), dtype=np.float16)
-    #for i in range(len(images_triggered_temp)):
-        #temp_images += images_triggered_temp[i]
-    
-    ##DIVIDE BY NUMBER OF CHUNKS; Note used to be divided by number of spikes; also residue is being thrown out...
-    #images_processed = temp_images/float(len(images_triggered_temp))
-
-
+    data = np.atleast_2d(data)  #TODO***************************PARALLELIZE THIS***********
 
     for i in range(len(data)):
         print "Wavelet filtering channel: ", i
@@ -1132,78 +1254,6 @@ def sta_maps(self):
 
 
 
-def sta_maps_OLD(animal, s, prefix):
-
-    print "\nGenerating STMs:\n ", animal.filenames[s]
-
-    start_time = -.2  #1 sec before t=0
-    end_time = +.2   #3 seconds after t=0
-
-    #**** LOAD GENERIC MASK
-    generic_mask_file = animal.home_dir+animal.name + '/genericmask.txt'
-    if (os.path.exists(generic_mask_file)==True):
-        generic_coords = np.int32(np.loadtxt(generic_mask_file))
-    else:
-        fname = glob.glob(animal.filenames[s].replace('rhd_files/','tif_files/')[:animal.filenames[s].find('rhd_files/')+10]+"*std*")[0]
-        images_temp = np.load(fname)
-        #Define_generic_mask(images_temp, animal.home_dir)
-        Define_generic_mask_single_frame(images_temp, animal)
-        generic_coords = np.int32(np.loadtxt(generic_mask_file))
-        
-    generic_mask_indexes=np.zeros((128,128))
-    for i in range(len(generic_coords)):
-        generic_mask_indexes[generic_coords[i][0]][generic_coords[i][1]] = True
-
-    #**** MAKE STATIC FIGS
-    if prefix=='':   Sort = Ptcs(animal.filenames[s].replace('rhd_files','tsf_files')+'_hp.ptcs')
-    else: Sort = Ptcs(animal.filenames[s].replace('rhd_files','tsf_files')+prefix+'.ptcs')
-    #select_units = [0]
-    select_units = np.arange(0,min(10,len(Sort.units)),1)
-
-    min_spikes = 0
-    plot_img = []
-    for ctr, k in enumerate(select_units):
-        if len(Sort.units[k])<min_spikes: continue
-        print "Loading saved .npy files: ", k
-        channel = Sort.maxchan[k]
-        #print glob.glob(animal.filenames[k].replace('rhd_files/','stm_files/img_avg_') +'_unit'+str(0).zfill(3)+"*")
-        temp_name = glob.glob(animal.filenames[s].replace('rhd_files/','stm_files/img_avg_') +prefix+'_unit'+str(k).zfill(3)+"*")[0]
-        STM = np.load(temp_name)
-        
-        #Apply mask
-        n_pixels=128
-        temp_array = np.ma.array(np.zeros((len(STM),n_pixels,n_pixels),dtype=np.float32), mask=True)
-        for i in range(len(STM)):
-            temp_array[i] = np.ma.array(STM[i], mask=generic_mask_indexes, fill_value = 0., hard_mask = True)
-        
-        ax = plt.subplot(len(select_units), 1, ctr+1)
-        img_out = []
-        block_save = 1
-        img_rate = float(len(STM))/6.
-        #for i in range(0,len(STM),block_save):
-        for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-            img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
-        img_out = np.ma.hstack((img_out))
-        
-        v_abs = max(np.ma.max(img_out),-np.ma.min(img_out))
-        plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
-        #plt.imshow(img_out)
-
-        plt.ylabel("U: " + str(k) + ", #spk: " + str(len(Sort.units[k])), rotation='horizontal',  labelpad=50, fontsize=10)
-        ax.yaxis.set_ticks([])
-        ax.xaxis.set_ticks([])
-
-        if ctr==(len(select_units)-1): 
-            plt.xlabel("Time from spike (sec)", fontsize=25)
-            old_xlabel = np.linspace(0,img_out.shape[1], 11)
-            new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
-            plt.xticks(old_xlabel, new_xlabel, fontsize=18)
-        
-        #plt.ylabel("U: " + str(k) + ", #spk: " + str(len(Sort.units[k]))+"\nDepth: "+str(Sort.chanpos[Sort.maxchan[k]][1])+"um", fontsize=15)
-    
-    plt.suptitle(animal.filenames[s]+"  "+prefix)
-    plt.show()
-    #quit()
 
 #def sta_maps_lfp(animal, k):
 
@@ -2623,6 +2673,9 @@ def make_vids(data, file_):
     plt.show()
 
 
+#def on_click_single_frame_light(event):
+    
+    
 def on_click_single_frame(event):
     global coords, images_temp, ax, fig, cid
     
@@ -2636,14 +2689,12 @@ def on_click_single_frame(event):
                     images_temp[min(n_pix,int(coords[j][0])-1+k)][min(n_pix,int(coords[j][1])-1+l)]=0
 
         ax.imshow(images_temp)
-        #plt.show()
         fig.canvas.draw()
-                    #figManager = plt.get_current_fig_manager()
-                    #figManager.window.showMaximized()
     else:
         print 'Exiting'
         plt.close()
         fig.canvas.mpl_disconnect(cid)
+        
 
 
 def on_click(event):

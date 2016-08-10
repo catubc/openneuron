@@ -1038,9 +1038,6 @@ def multi_dim_scaling(mouse, method):
 
     return Y
     
-    
-    
-
 
 
 
@@ -1052,68 +1049,4 @@ def find_previous(array,value):
     temp = (np.abs(array-value)).argmin()
     if array[temp]>value: return temp-1
     else: return temp
-    
-
-
-
-#def plot_traces(mouse, all_traces, cluster_labels, n_clusters):
-
-    #temp_std = []
-    #temp_ave = []
-    #trace_time = []
-    #n_traces = []
-    #for k in range(n_clusters):
-        #temp_event_times = []
-        #ave_trace = []
-        #for j in range(len(all_traces)):
-            #if cluster_labels[j]==k:
-                #ave_trace.append(all_traces[j])
-                #temp_event_times.append(j)
-        
-        #if len(ave_trace)==0: continue
-
-        #trace_time.append(((np.array(temp_event_times)/float(len(all_traces)))*.84)-.42)
-
-        #n_traces.append(len(ave_trace))
-        #temp_std.append(np.std(np.array(ave_trace), axis=0))
-        #temp_ave.append(np.average(np.array(ave_trace),axis=0))
-
-    ##SORT CURVES
-    ##cc = []
-    ##for k in range(len(temp_ave)):
-        ##cc.append(np.corrcoef(temp_ave[0], temp_ave[k])[0][1])
-
-    ##indexes = np.argsort(cc[::-1])
-    ##temp_std = np.array(temp_std)[indexes]
-    ##temp_ave = np.array(temp_ave)[indexes]
-    ##n_traces = np.array(n_traces)[indexes]
-
-
-    ##PLOT CURVES
-    #print "Plotting curves..."
-    #xx = np.linspace(-.42,.42,100)
-    #for k in range(len(n_traces)):
-        #ax1=plt.subplot(np.sqrt(n_clusters),np.sqrt(n_clusters),k+1)
-        #plt.plot([0,0],[-1,1], color='black')
-        #plt.plot([-3,3],[0,0], color='black')
-        #plt.ylim(0,80)
-        #plt.xlim(-.42,.42)        
-            
-        #for p in range(len(trace_time[k])):
-            #ax1.axvline(trace_time[k][p], ymin=0.25, ymax=0.75, color = 'black', alpha=0.3)
-        
-        #ax1.plot([0,0],[0,80], 'r--', linewidth=2, color='black', alpha=0.5)
-        #ax1.plot([-.42,.42],[11,11], 'r--', linewidth=2, color='black', alpha=0.5)
-        #ax1.plot([-.42,.42],[59,59], 'r--', linewidth=2, color='black', alpha=0.5)
-
-        #ax1.fill_between(xx, temp_ave[k]+temp_std[k], temp_ave[k]-temp_std[k], facecolor=colors[k%10], alpha=0.55)
-        #ax1.plot(xx, temp_ave[k], color=colors[k%10], linewidth=4, alpha=1.0)
-        #plt.title("Cluster: "+str(k+1)+ "  #traces: "+str(n_traces[k]), fontsize=10)
-        #ax1.tick_params(axis='x', which='both', labelsize=10)
-
-        #if k<(n_clusters-np.sqrt(n_clusters)): ax1.xaxis.set_ticks([])
-
-    #plt.suptitle(mouse.name + " tot reward pulls: " + str(len(all_traces)), fontsize = 25)
-
-    #plt.show()
     
