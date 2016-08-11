@@ -362,7 +362,8 @@ def filter_data(self):
     images_aligned = np.load(images_file)
     
     #Save mean of images_aligned if not already done
-    if os.path.exists(images_file[:-4]+'_mean.npy')==False: np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
+    if os.path.exists(images_file[:-4]+'_mean.npy')==False: 
+        np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
             
     #Load mask for display:
     n_pixels = len(images_aligned[0])
@@ -411,17 +412,21 @@ def filter_data(self):
         
 
 def compute_dff_mouse_lever(self):
-    
-    plotting = True
-    #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
+    print "... dff computation..."
 
-    rec_name = self.choice111.replace(self.parent.root_dir+self.parent.animal.name+'/tif_files/','')
+    #Load average frame
+    rec_name = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+
+    images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+rec_name+'/'+rec_name+'_aligned.npy'
+    data_mean = np.load(images_file[:-4]+'_mean.npy' )
+    print data_mean.shape; plt.imshow(data_mean); plt.show()
     
-    filter_type = self.choice0
-    lowcut = float(self.parent.filter_low.text())
-    highcut = float(self.parent.filter_high.text())
+    #Check for filtered version of imaging data w. current filtering params
+    filter_type = self.choice0; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     fs = self.parent.animal.img_rate
     print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
+    
+    return
 
     #Load aligned images
     print "... loading aligned imgs..."

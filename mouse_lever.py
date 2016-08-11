@@ -38,7 +38,7 @@ class Mouse_lever(object):
         self.trial_times = []
         self.days_counter = []
 
-        print self.img_rate, "...hz"
+        print "...img rate: ", self.img_rate, "hz"
 
     def preprocess_mouse_lever(self):
 
