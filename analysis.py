@@ -206,7 +206,9 @@ def plot_blue_light_roi(self):
                                 int(self.coords[0][1])-1:int(self.coords[0][1])+1]))
     
     blight_ave = np.average(blue_light_roi)
-    blight_std = np.std(blue_light_roi)
+    print "std...", self.blue_light_std.text()
+    blight_std = np.std(blue_light_roi)*float(self.blue_light_std.text())
+    print blight_std
     
     if plotting: 
         ax = plt.subplot(2,1,1)
@@ -223,7 +225,7 @@ def plot_blue_light_roi(self):
     movie_rate = float(len(blue_light_roi))/self.abstimes[-1]
     print "...movie fps: ", movie_rate
     
-    if abs(15-movie_rate)>0.01: 
+    if abs(15-movie_rate)>0.05: 
         print ".... movie frame rate incorrect *************"
     else:
         #Save frames for blue light
@@ -307,13 +309,16 @@ def make_movies_from_triggers(self):
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
 
-    self.movie_stack = self.movie_stack[:36]
+    self.movie_stack = self.movie_stack[:int(self.n_trials_movies.text())]
+    
+    n_cols = int(np.sqrt(len(self.movie_stack))+0.999999); n_rows = n_cols-1    #Assume on less row needed (always the case unless perfect square
+    if (n_rows*n_cols)<(len(self.movie_stack)): n_rows = n_cols                 #If not enough rows, add 1
 
     fig = plt.figure()
     im=[]
     for k in range(len(self.movie_stack)):
         im.append([])
-        ax = plt.subplot(4,3,k+1)
+        ax = plt.subplot(n_rows,n_cols,k+1)
         
         ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
         

@@ -38,6 +38,8 @@ class Mouse_lever(object):
         self.trial_times = []
         self.days_counter = []
 
+        print self.img_rate, "...hz"
+
     def preprocess_mouse_lever(self):
 
         self.load_filenames()   #Loads tif files, event_files, lever_files
