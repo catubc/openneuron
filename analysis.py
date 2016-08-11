@@ -344,28 +344,101 @@ def make_movies_from_triggers(self):
 
     
 
-def cheby_filter(self):
-#def cheby_filter(frames, low_limit, high_limit, frame_rate):
+def filter_data(self):
+    plotting = True
+    #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
-    frames = self.parent.animal.data
-    low_limit = self.parent.filter_low
-    high_limit = self.parent.filter_high
-    frame_rate = self.parent.animal.img_rate
+    rec_name = self.choice111.replace(self.parent.root_dir+self.parent.animal.name+'/tif_files/','')
     
-    
-    nyq = frame_rate / 2.0
-    low_limit = low_limit / nyq
-    high_limit = high_limit / nyq
-    order = 4
-    rp = 0.1
-    Wn = [low_limit, high_limit]
+    filter_type = self.choice0
+    lowcut = float(self.parent.filter_low.text())
+    highcut = float(self.parent.filter_high.text())
+    fs = self.parent.animal.img_rate
+    print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
 
-    b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
-    print("Filtering...")
-    frames = filtfilt(b, a, frames, axis=0)
+    #Load aligned images
+    print "... loading aligned imgs..."
+    images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+rec_name+'/'+rec_name+'_aligned.npy'
+    images_aligned = np.load(images_file)
     
-    return frames
-                    
+    #Save mean of images_aligned if not already done
+    if os.path.exists(images_file[:-4]+'_mean.npy')==False: np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
+            
+    #Load mask for display:
+    n_pixels = len(images_aligned[0])
+    generic_coords = np.loadtxt(self.parent.animal.home_dir + self.parent.animal.name+'/genericmask.txt')
+    generic_mask_indexes=np.zeros((n_pixels,n_pixels))
+    for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+        
+    if plotting: f = plt.figure(); ax = f.gca(); f.show()
+    
+    #Butter
+    if filter_type == 'Butterworth':
+        data_out = images_aligned.copy()*0.0
+        for row in range(len(images_aligned[0])):
+            print "...filtering row: ", row
+            for col in range(len(images_aligned[0,row])):
+                data_out[:,row,col] = butter_bandpass_filter(images_aligned[:,row,col], lowcut, highcut, fs, order = 2)
+            
+            if plotting: 
+                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
+                ax.set_xticks([]); ax.set_yticks([]); ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+str(highcut)+"hz \nFrame: 1000 / "+str(len(images_aligned)))
+                plt.pause(0.000001) 
+                
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float32(data_out))
+        
+    #Cheby
+    elif filter_type == 'Chebyshev':
+
+        nyq = fs / 2.0
+        order = 4
+        rp = 0.1
+        Wn = [lowcut / nyq, highcut / nyq]
+        b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
+        
+        data_out = images_aligned.copy()*0.0
+        for row in range(len(images_aligned[0])):
+            print "...filtering row: ", row
+            for col in range(len(images_aligned[0,row])):
+                data_out[:,row,col] = filtfilt(b, a, images_aligned[:,row,col], axis=0)
+            
+            if plotting: 
+                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
+                ax.set_xticks([]); ax.set_yticks([]); ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+str(highcut)+"hz \nFrame: 1000 / "+str(len(images_aligned)))
+                plt.pause(0.000001) 
+                
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float32(data_out))
+        
+
+def compute_dff_mouse_lever(self):
+    
+    plotting = True
+    #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
+
+    rec_name = self.choice111.replace(self.parent.root_dir+self.parent.animal.name+'/tif_files/','')
+    
+    filter_type = self.choice0
+    lowcut = float(self.parent.filter_low.text())
+    highcut = float(self.parent.filter_high.text())
+    fs = self.parent.animal.img_rate
+    print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
+
+    #Load aligned images
+    print "... loading aligned imgs..."
+    images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+rec_name+'/'+rec_name+'_aligned.npy'
+    images_aligned = np.load(images_file)
+    
+    #Save mean of images_aligned if not already done
+    if os.path.exists(images_file[:-4]+'_mean.npy')==False: np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
+            
+    #Load mask for display:
+    n_pixels = len(images_aligned[0])
+    generic_coords = np.loadtxt(self.parent.animal.home_dir + self.parent.animal.name+'/genericmask.txt')
+    generic_mask_indexes=np.zeros((n_pixels,n_pixels))
+    for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+        
+    if plotting: f = plt.figure(); ax = f.gca(); f.show()
+
             
         
 def synchrony_index(data, SampleFrequency, si_limit):

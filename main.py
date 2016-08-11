@@ -155,11 +155,7 @@ class MouseLeverTools(QtGui.QWidget):
 
         #Mouse IA1 as default experiment for Greg experiments
         self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/yuki/' 
-        self.parent.animal_name_text='AI3' 
         self.parent.n_sec = 3
-        
-        self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
-        self.parent.setWindowTitle(self.parent.animal.name)
         self.parent.exp_type = 'mouse_lever'
         
         row_index = 0   #Keep track of button/box row
@@ -175,23 +171,29 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.select_lbl, row_index,0)
 
         self.comboBox11 = QtGui.QComboBox(self)
-        file_names = glob.glob(self.parent.root_dir+"*")
-        for file_name in sorted(file_names):
+        file_names = sorted(glob.glob(self.parent.root_dir+"*"))
+        for file_name in file_names:
             self.comboBox11.addItem(file_name.replace(self.parent.root_dir,''))
         layout.addWidget(self.comboBox11, row_index,1)
-        self.comboBox11.activated[str].connect(self.style_choice11); self.choice11 = ""
+        self.comboBox11.activated[str].connect(self.style_choice11); self.choice11 = file_names[0]
 
         self.select_lbl = QLabel('Select Session----->', self)
         self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         layout.addWidget(self.select_lbl, row_index,2)
 
         self.comboBox111 = QtGui.QComboBox(self)
-        file_names = glob.glob(self.parent.root_dir+self.parent.animal_name_text+"/tif_files/*")
-        for file_name in sorted(file_names):
-            self.comboBox111.addItem(file_name.replace(self.parent.root_dir+self.parent.animal_name_text+"/tif_files/",''))
+        file_names = sorted(glob.glob(self.choice11+"/tif_files/*"))
+        for file_name in file_names:
+            self.comboBox111.addItem(file_name.replace(self.choice11+"/tif_files/",''))
         layout.addWidget(self.comboBox111, row_index,3)
-        self.comboBox111.activated[str].connect(self.style_choice111); self.choice111 = ""
+        self.comboBox111.activated[str].connect(self.style_choice111); self.choice111 = file_names[0]
         
+        #Load Mouse from default
+        self.parent.animal_name_text=self.choice11.replace(self.parent.root_dir,'')
+        self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
+        self.parent.setWindowTitle(self.parent.animal.name)
+
+        #Quick pre-processing steps
         self.button1 = QPushButton('Convert .tif -> .npy')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.cvrt_tif_npy)
@@ -202,16 +204,17 @@ class MouseLeverTools(QtGui.QWidget):
         self.button1.clicked.connect(self.algn_images)
         layout.addWidget(self.button1, row_index, 5); row_index +=1
         
-        
-        #FILTERING
+
+
+        #****************FILTERING
         self.button2 = QPushButton('Pre-Filter Images')
         self.button2.setMaximumWidth(200)
         self.button2.clicked.connect(self.fltr_mouse_lever)
         layout.addWidget(self.button2, row_index, 0)
 
+        self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
         self.comboBox0 = QtGui.QComboBox(self)
-        self.comboBox0.addItem("Butterworth")
-        self.comboBox0.addItem("Chebyshev")
+        for filter_ in self.filter_list[1:]: self.comboBox0.addItem(filter_)
         layout.addWidget(self.comboBox0, row_index,1)
         self.comboBox0.activated[str].connect(self.style_choice0); self.choice0 = "Butterworth" #Set default
 
@@ -227,31 +230,42 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(filter_high_lbl, row_index,4)
         layout.addWidget(parent.filter_high, row_index,5); row_index+=1
         
-        #DFF Drop down box choices
         self.button3 = QPushButton('Compute DFF Pipe ====>')
         self.button3.setMaximumWidth(200)
         self.button3.clicked.connect(self.dff_mouse_lever)
         layout.addWidget(self.button3, row_index, 0)
-        
 
         self.comboBox21 = QtGui.QComboBox(self)
-        self.comboBox21.addItem("No Filter")
-        self.comboBox21.addItem("Butterworth")
-        self.comboBox21.addItem("Chebyshev")
+        for filter_ in self.filter_list: self.comboBox21.addItem(filter_)
         layout.addWidget(self.comboBox21, row_index,1)
         self.comboBox21.activated[str].connect(self.style_choice01); self.choice01 = "No Filter" #Set default
 
-
+        dff_list = ['Global Average', "Window: -6sec to -3sec)", "User Defined Periods"]
         self.comboBox1 = QtGui.QComboBox(self)
-        self.comboBox1.addItem("Global Average")
-        self.comboBox1.addItem("Window: -6sec to -3sec)")
-        self.comboBox1.addItem("User Defined Periods")
+        for dff_ in dff_list: self.comboBox1.addItem(dff_)
         layout.addWidget(self.comboBox1, row_index,2)
         self.comboBox1.activated[str].connect(self.style_choice1); self.choice1 = "Global Average"
         
         
+        #Load codes; self.choice111 contains full file name including session name
+        self.code_list = ['02', '04', '07']
+        self.locs_44threshold = []
+        self.code_44threshold = []
+        temp_file = self.choice111+'/'+self.choice111.replace(self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/','')
+        if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
+            self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+            self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+
+            print self.locs_44threshold
+            print self.code_44threshold
         
-        row_index+=1
+        self.comboBox211 = QtGui.QComboBox(self)
+        for code_ in self.code_list: self.comboBox211.addItem(code_)
+        layout.addWidget(self.comboBox211, row_index, 2)
+        self.comboBox211.activated[str].connect(self.style_choice211); self.choice1 = '02'
+        
+        self.n_codes_lbl = QLabel(str(len(self.code_44threshold)), self)
+        layout.addWidget(self.n_codes_lbl, row_index, 3); row_index+=1
         
         #*********************************** VIDEO TOOLS **************************************
         for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
@@ -426,17 +440,15 @@ class MouseLeverTools(QtGui.QWidget):
         self.button15.clicked.connect(self.make_movies_mouse_lever)
         layout.addWidget(self.button15, row_index, 2)   ; row_index+=1
         
-                 
-                
+        
         self.setLayout(layout)
 
 
     def fltr_mouse_lever(self):
         print "...filtering aligned images..."
-        
-        print self.choice0
-        
-        cheby_filter(self)
+
+        filter_data(self)
+        #cheby_filter(self)
 
     def style_choice11(self, text):
         self.choice11=text
@@ -447,14 +459,15 @@ class MouseLeverTools(QtGui.QWidget):
         self.parent.setWindowTitle(self.parent.animal.name)
 
         self.comboBox111.clear()
-        
-        file_names = glob.glob(self.parent.root_dir+self.parent.animal.name+"/tif_files/*")
+        file_names = sorted(glob.glob(self.parent.root_dir+self.parent.animal.name+"/tif_files/*"))
         for file_name in sorted(file_names):
             self.comboBox111.addItem(file_name.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",''))
-            
-            
+        self.choice111 = file_names[0]
+        
+        #self.style_choice111(self)
+        
         self.comboBox2.clear()
-        file_names = glob.glob(self.parent.root_dir+self.parent.animal.name+"/video_files/*.m4v")
+        file_names = sorted(glob.glob(self.parent.root_dir+self.parent.animal.name+"/video_files/*.m4v"))
         file_names = file_names
         for file_name in sorted(file_names):
             self.comboBox2.addItem(file_name.replace(self.parent.root_dir+self.parent.animal.name+"/video_files/",''))
@@ -473,7 +486,29 @@ class MouseLeverTools(QtGui.QWidget):
 
     def style_choice2(self, text):
         self.choice2 = text
+    
+    def style_choice211(self, text):
+        self.choice211 = text
+        
+        temp_file = self.choice111+'/'+self.choice111.replace(self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/','')
+        print temp_file
+        if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
+            self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+            self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
 
+            print self.locs_44threshold
+            print self.code_44threshold
+        
+        self.comboBox211.clear()
+        for code_ in self.code_list: self.comboBox211.addItem(code_)
+        #self.comboBox211.activated[str].connect(self.style_choice211); self.choice1 = '02'
+        
+        print "...code selected: ", text
+        
+        #self.n_codes_lbl = QLabel(str(len(self.code_44threshold)), self)
+       
+        
+        
     def style_choice3(self, text):
         self.choice3 = text
 
@@ -554,7 +589,7 @@ class MouseLeverTools(QtGui.QWidget):
     def dff_mouse_lever(self):
         print "... dff computation..."
         
-        #NB: COMPUTE DFF ON FILTERED DATA IF IT EXISTS; OTHERWISE ALIGNED DATA....
+        compute_dff_mouse_lever(self)
 
     def convert_files(self):
         self.parent.animal.preprocess_mouse_lever()
