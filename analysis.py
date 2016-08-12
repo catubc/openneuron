@@ -383,7 +383,9 @@ def filter_data(self):
             
             if plotting: 
                 ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
-                ax.set_xticks([]); ax.set_yticks([]); ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+str(highcut)+"hz \nFrame: 1000 / "+str(len(images_aligned)))
+                ax.set_xticks([]); ax.set_yticks([]) 
+                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" + #, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
+                            "\nFrame: 1000 / "+str(len(images_aligned)))
                 plt.pause(0.000001) 
         
         print "... saving filtered data..."
@@ -406,7 +408,9 @@ def filter_data(self):
             
             if plotting: 
                 ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
-                ax.set_xticks([]); ax.set_yticks([]); ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+str(highcut)+"hz \nFrame: 1000 / "+str(len(images_aligned)))
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" +#, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
+                            "\nFrame: 1000 / "+str(len(images_aligned)))
                 plt.pause(0.000001) 
                 
         print "... saving filtered data..."
@@ -414,30 +418,28 @@ def filter_data(self):
         
 
 def compute_dff_mouse_lever(self):
-    print "... dff computation..."
+    print "\n\n... dff computation..."
 
     #Load average frame
     self.rec_filename = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
 
     images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned.npy'
     data_mean = np.load(images_file[:-4]+'_mean.npy' )
-    print data_mean.shape #; plt.imshow(data_mean); plt.show()
+    print "... data_mean.shape: ", data_mean.shape #; plt.imshow(data_mean); plt.show()
     
     #Check for filtered version of imaging data w. current filtering params
     self.lowcut = float(self.parent.filter_low.text()); self.highcut = float(self.parent.filter_high.text())
     fs = self.parent.animal.img_rate
     print "... frame rate: ", fs, "  low_cutoff: ", self.lowcut, "  high_cutoff: ", self.highcut
     
-    print self.locs_44threshold
-    print self.code_44threshold
-    print self.selected_code
+    print "...self.locs_44threshold: "; print self.locs_44threshold
+    print "...self.code_44threshold: "; print self.code_44threshold
+    print "...self.selected_code: ", self.selected_code
     
     indexes = np.where(self.code_44threshold==self.selected_code)[0]
-    print indexes
-    self.code_44threshold = self.code_44threshold[indexes]
-    self.locs_44threshold = self.locs_44threshold[indexes]
-    print self.code_44threshold
-    print self.locs_44threshold
+    print "...indexes: "; print indexes
+    self.code_44threshold_selected = self.code_44threshold[indexes]
+    self.locs_44threshold_selected = self.locs_44threshold[indexes]
     
     compute_DFF_function(self)
 
@@ -445,13 +447,13 @@ def compute_dff_mouse_lever(self):
 def compute_DFF_function(self):
 
     #Check if already done
-    print self.selected_dff_filter
+    print "... selected filter: ", self.selected_dff_filter
     if self.selected_dff_filter == 'nofilter':
         self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+"_"+ \
-            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_choice+'_'+str(self.selected_code)+"code_traces.npy"
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
     else:
         self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+"_"+ \
-            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_choice+'_'+str(self.lowcut)+"hz_"+str(self.highcut)+"hz_"+str(self.selected_code)+"code_traces.npy"
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+str(self.lowcut)+"hz_"+str(self.highcut)+"hz_"+str(self.selected_code)+"code_traces.npy"
     
     if os.path.exists(self.traces_filename): 
         print "... DFF already computed ...skiping processing..."
@@ -461,12 +463,15 @@ def compute_DFF_function(self):
     images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned.npy'
     self.lowcut = float(self.parent.filter_low.text())
     self.highcut = float(self.parent.filter_high.text())
-    print self.selected_dff_filter
-    
+        
     if self.selected_dff_filter == 'nofilter':
         self.aligned_images = np.load(images_file)
     else:
-        self.aligned_images = np.load(images_file[:-4]+'_'+self.selected_dff_filter+'_'+str(self.lowcut)+'hz_'+str(self.highcut)+'hz.npy')
+        filtered_filename = images_file[:-4]+'_'+self.selected_dff_filter+'_'+str(self.lowcut)+'hz_'+str(self.highcut)+'hz.npy'
+        if os.path.exists(self.traces_filename): self.aligned_images = np.load(filtered_filename)
+        else: 
+            print "***filtered file does not exist*** "
+            return
 
     
     #Find blue light ON and OFF
@@ -543,17 +548,17 @@ def compute_DFF_function(self):
             continue  #Skip if too close to start/end
 
         #add locs and codes
-        locs.append(self.locs_44threshold[counter])
-        codes.append(self.code_44threshold[counter])
+        locs.append(self.locs_44threshold_selected[counter])
+        codes.append(self.code_44threshold_selected[counter])
 
-        print "...self.dff_choice: ", self.dff_choice
+        print "...self.dff_method: ", self.dff_method
         #dff_list = ['Global Average', 'Sliding Window: -6s..-3s']
     
-        if self.dff_choice == 'globalAverage':
+        if self.dff_method == 'globalAverage':
             data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
             data_stm.append((data_chunk-global_mean)/global_mean)
             
-        elif self.dff_choice == 'slidingWindow':
+        elif self.dff_method == 'slidingWindow':
             data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
             #Use baseline -2*window .. -window
             baseline = np.average(self.aligned_images[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
@@ -576,7 +581,7 @@ def compute_DFF_function(self):
 
     #Save traces, and 44 threshold locations and codes for trials within boundaries
     np.save(self.traces_filename, traces)
-    #np.save(self.tif_file[:-4]+'_locs44threshold', locs)        #MAY WISH TO OVERRIDE THE ORIGINAL TIMES AND LOCS - CHANGES # OF TRIALS**** MAY AFFECT OTHER STATS!?
+    #np.save(self.tif_file[:-4]+'_locs44threshold', locs)        #MAY WISH TO OVERRIDE ORIGINAL TIMES AND LOCS - FEW TRIALS OUTOF BOUNDS MAY AFFECT OTHER ANALYSIS
     #np.save(self.tif_file[:-4]+'_code44threshold', codes)       #i.e. some of the original values may be out-of-bounds
 
     #Save individual trial time dynamics

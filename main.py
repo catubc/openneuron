@@ -170,7 +170,7 @@ class MouseLeverTools(QtGui.QWidget):
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
-        #Select experiment
+        #Select animal
         self.select_lbl = QLabel('Select Experiment----->', self)
         self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         layout.addWidget(self.select_lbl, row_index,0)
@@ -180,7 +180,7 @@ class MouseLeverTools(QtGui.QWidget):
         for file_name in file_names:
             self.comboBox_select_animal.addItem(file_name.replace(self.parent.root_dir,''))
         layout.addWidget(self.comboBox_select_animal, row_index,1)
-        self.comboBox_select_animal.activated[str].connect(self.select_animal); self.selected_animal = file_names[0]
+        self.comboBox_select_animal.activated[str].connect(self.select_animal); self.selected_animal = file_names[0].replace(self.parent.root_dir,'')
 
         #Select session
         self.select_lbl = QLabel('Select Session----->', self)
@@ -188,11 +188,12 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.select_lbl, row_index,2)
 
         self.comboBox_select_session = QtGui.QComboBox(self)
-        file_names = sorted(glob.glob(self.selected_animal+"/tif_files/*"))
+        file_names = sorted(glob.glob(self.parent.root_dir + self.selected_animal + "/tif_files/*"))
         for file_name in file_names:
-            self.comboBox_select_session.addItem(file_name.replace(self.selected_animal+"/tif_files/",''))
+            self.comboBox_select_session.addItem(file_name.replace(self.parent.root_dir+self.selected_animal+"/tif_files/",''))
         layout.addWidget(self.comboBox_select_session, row_index,3)
-        self.comboBox_select_session.activated[str].connect(self.select_session); self.selected_session = file_names[0]
+        self.comboBox_select_session.activated[str].connect(self.select_session); self.selected_session = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')
+        
         
         #Load Mouse from default values
         self.parent.animal_name_text=self.selected_animal.replace(self.parent.root_dir,'')
@@ -238,10 +239,18 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(filter_high_lbl, row_index,4)
         layout.addWidget(parent.filter_high, row_index,5); row_index+=1
         
+        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
+        row_index+=1
+        
         
         #**************************************************************************************
         #************************************ COMPUTE DFF *************************************
         #**************************************************************************************
+        self.preprocess_lbl = QLabel('DFF-COMPUTATION', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
         self.button3 = QPushButton('Compute DFF Pipe ====>')
         self.button3.setMaximumWidth(200)
         self.button3.clicked.connect(self.dff_mouse_lever)
@@ -256,12 +265,13 @@ class MouseLeverTools(QtGui.QWidget):
         self.comboBox_select_dff_method = QtGui.QComboBox(self)
         for dff_ in dff_list: self.comboBox_select_dff_method.addItem(dff_)
         layout.addWidget(self.comboBox_select_dff_method, row_index,2)
-        self.comboBox_select_dff_method.activated[str].connect(self.select_dff); self.dff_choice = "globalAverage"
+        self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
         
         #Select reward code; self.selected_session contains full file name including session name
         self.code_list = ['02', '04', '07']
         self.locs_44threshold = []; self.code_44threshold = []
-        temp_file = self.selected_session+'/'+self.selected_session.replace(self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/','')
+        temp_file = self.parent.root_dir+self.selected_animal + '/tif_files/'+self.selected_session+'/'+self.selected_session
+        print temp_file
         if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
             self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
             self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
@@ -276,6 +286,34 @@ class MouseLeverTools(QtGui.QWidget):
         self.n_codes_lbl = QLabel(str(self.n_codes), self)
         layout.addWidget(self.n_codes_lbl, row_index, 4); row_index+=1
         
+        
+        self.button31 = QPushButton('Static STM')
+        self.button31.setMaximumWidth(200)
+        self.button31.clicked.connect(self.static_stm_mouse_lever)
+        layout.addWidget(self.button31, row_index, 0)
+        
+        self.button32 = QPushButton('Video STM')
+        self.button32.setMaximumWidth(200)
+        self.button32.clicked.connect(self.video_stm_mouse_lever)
+        layout.addWidget(self.button32, row_index, 1)        
+        
+        trial_lbl = QLabel('Select Trial:', self)
+        layout.addWidget(trial_lbl, row_index,2)
+        
+        
+        self.comboBox_select_trial = QtGui.QComboBox(self)
+        n_trials_in = self.load_stm_name()
+        self.selected_trial = ''
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #Redundant method
+        layout.addWidget(self.comboBox_select_trial, row_index,3)
+        self.comboBox_select_trial.activated[str].connect(self.select_trial)
+        row_index+=1
+        
+        
+        
+
         
         #**************************************************************************************
         #*********************************** VIDEO TOOLS **************************************
@@ -318,21 +356,19 @@ class MouseLeverTools(QtGui.QWidget):
         self.button43 = QPushButton('Find Events for Movies')
         self.button43.setMaximumWidth(200)
         self.button43.clicked.connect(self.evt_movies)
-        layout.addWidget(self.button43, 7, 0)
+        layout.addWidget(self.button43, row_index, 0)
 
         self.button43 = QPushButton('Make Event Triggered Movies')
         self.button43.setMaximumWidth(200)
         self.button43.clicked.connect(self.show_44movies)
-        layout.addWidget(self.button43, 7, 2)
+        layout.addWidget(self.button43, row_index, 2)
         
         self.n_trials_movies = QLineEdit('12')
         self.n_trials_movies.setMaximumWidth(50)
         self.n_trials_movies_lbl = QLabel('# of trials:', self)
-        layout.addWidget(self.n_trials_movies_lbl, 7,3)
-        layout.addWidget(self.n_trials_movies, 7,4); row_index+=1
+        layout.addWidget(self.n_trials_movies_lbl, row_index,3)
+        layout.addWidget(self.n_trials_movies, row_index,4); row_index+=1
 
-        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
-        row_index+=1
         for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
         row_index+=1
 
@@ -490,16 +526,18 @@ class MouseLeverTools(QtGui.QWidget):
             self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
             self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
 
-        self.select_reward_code('02')
-
-        #self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)
-        #print "# of codes: ", self.n_codes
-        #self.n_codes_lbl.setText(str(self.n_codes))
+        self.select_reward_code('02')   #Reset reward code to '02' for new animal load
     
         print self.selected_animal
         print self.selected_session
         print self.selected_code
-    
+
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
      
         #Reset video lists
         self.comboBox_select_video.clear()
@@ -507,7 +545,7 @@ class MouseLeverTools(QtGui.QWidget):
         file_names = file_names
         for file_name in sorted(file_names):
             self.comboBox_select_video.addItem(file_name.replace(self.parent.root_dir+self.parent.animal.name+"/video_files/",''))
-
+        print "\n\n"
 
     #SELECT SESSION
     def select_session(self, text):
@@ -530,36 +568,96 @@ class MouseLeverTools(QtGui.QWidget):
         self.comboBox_select_code.setCurrentIndex(0)
         self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
         self.n_codes_lbl.setText(str(self.n_codes))
-        
+        print "\n\n"
 
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
+            
+            
     #SELECT REWARD CODE
     def select_reward_code(self, text):
-        print "...code selected: ", text, " # of trials: ", 
+        print "...code selected: ", text 
         self.selected_code = text
         
         #CALL CODE COUNTING FUNCTIONS
         self.locs_44threshold = []; self.code_44threshold = []
         temp_file = self.parent.root_dir + self.parent.animal.name + "/tif_files/"+ self.selected_session+'/'+self.selected_session
-        print temp_file
+        print "...temp_file: ", temp_file
         
         if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
             self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
             self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
 
+    
         print self.code_44threshold     
         self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
         self.n_codes_lbl.setText(str(self.n_codes))
         
-        print self.n_codes
+        print "..reseting reward code, # codes: ", self.n_codes
+        print "\n\n"
+
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
+        
+
+    def select_trial(self, text):
+        print "...selecting trial: ", text
+
+    def load_stm_name(self):        
+    
+
+        if self.selected_dff_filter == 'nofilter':
+            self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+                str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
+        else:
+            self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+                str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+str(self.parent.filter_low)+"hz_"+str(self.parent.filter_high)+"hz_"+str(self.selected_code)+"code_traces.npy"
+
+        filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
+
+        print "...resetting stm_name to: ", filename
+
+
+        if os.path.exists(filename)==True: 
+            data = np.load(filename,  mmap_mode='r+')
+            print data.shape
+            return data.shape[0]
+        
+        return 0
+        
 
     def select_dff_filter(self,text):
         self.selected_dff_filter=text
         
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
+            
+        
     def select_filter(self, text):
         self.selected_filter = text
 
-    def select_dff(self, text):
-        self.dff_choice = text
+    def select_dff_method(self, text):
+        self.dff_method = text
+        
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
+            
 
     def style_choice2(self, text):
         self.choice2 = text
@@ -567,13 +665,17 @@ class MouseLeverTools(QtGui.QWidget):
     def style_choice3(self, text):
         self.choice3 = text
 
-        
+    def static_stm_mouse_lever(self):
+        pass
+
+    def video_stm_mouse_lever(self):
+        pass
+
 
     def algn_images(self):
         
         #load specific session .npy images and align to 1000 frame of 1st session
         print "... alligning session ... NOT CURRENTLY IMPLEMENTED..."
-        #self.parent.align_img()
         
         
     def conv_video(self):
