@@ -176,6 +176,34 @@ class Mouse_lever(object):
         np.save(self.home_dir+self.name+ '/tif_files', self.tif_files)
         np.save(self.home_dir+self.name+ '/session_realtime', self.file_order)
 
+    def load_reclength(self, filename):
+        """ Load realtime length of a single session. Probably should be in session, but was quicker to dump here"""
+
+        text_file = open(filename, "r")
+        lines = text_file.read().splitlines()
+        event_text = []
+        for line in lines:
+            event_text.append(re.split(r'\t+',line))
+        
+        #Delete false starts from event file
+        for k in range(len(event_text)-1,-1,-1):        #Search backwards for the 1st occurence of "date" indicating last imaging start
+                                                        #NB: There can be multiple false starts WHICH DON"T LINE UP - NEED TO IGNORE SUCH SESSIONS
+            if event_text[k][0]=='date': 
+                event_text = event_text[k+2:]         #Remove first 2 lines
+                break
+        
+        if len(event_text)==0:
+            print "empty session"
+            self.reclength = 0
+        else:
+            if event_text[-1][2] != "None": 
+                print "Missing event data end ...skipping session"
+                self.reclength = 0
+            else: 
+                self.reclength = float(event_text[-1][3])
+        
+        return self.reclength
+                
     
     def process_sessions(self):
 
@@ -409,7 +437,6 @@ class Session(object):
         self.empty_session()                #Remove data already saved to disk; otherwise object too large
         
         #self.make_trials()                  #Make and populate individual reward trials for each session
-
 
     def load_lever(self):
 

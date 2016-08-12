@@ -1038,15 +1038,3 @@ def multi_dim_scaling(mouse, method):
 
     return Y
     
-
-
-
-
-def find_nearest(array,value):
-    return (np.abs(array-value)).argmin()
-
-def find_previous(array,value):
-    temp = (np.abs(array-value)).argmin()
-    if array[temp]>value: return temp-1
-    else: return temp
-    
