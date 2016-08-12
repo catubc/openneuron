@@ -40,6 +40,9 @@ class Mouse_lever(object):
 
         print "...img rate: ", self.img_rate, "hz"
 
+        #self.preprocess_mouse_lever()      #***************MAY WISH TO RUN THIS AT LEAST ONCE PER FILE AS PREPROCESSING STEP TO INITIALIZE REALTIME FILES **********
+
+
     def preprocess_mouse_lever(self):
 
         self.load_filenames()   #Loads tif files, event_files, lever_files
@@ -48,7 +51,7 @@ class Mouse_lever(object):
 
         self.stroke = Stroke(self.sessions, self.home_dir, self.name)      #Load stroke information; need to have processed session info first to place location of stroke
 
-        self.save_mouse()       #Save mouse file names and trace data to pickle object (NB: no DFF data saved)
+        #self.save_mouse()       #Save mouse file names and trace data to pickle object (NB: no DFF data saved)
         
 
     def load_traces(self):
@@ -431,10 +434,10 @@ class Session(object):
 
         self.align_images()                 #Align raw_images to first session frame 1000
 
-        #REMOVE OUT OF PRE-PROCESSING
+        #REMOVED OUT OF PRE-PROCESSING
         #self.compute_DFF()                  #Compute DFF on aligned images
 
-        self.empty_session()                #Remove data already saved to disk; otherwise object too large
+        #self.empty_session()                #Remove data already saved to disk; otherwise object too large
         
         #self.make_trials()                  #Make and populate individual reward trials for each session
 
@@ -602,8 +605,8 @@ class Session(object):
         np.save(self.tif_file[:-4]+'_abstimes', self.abstimes)
         np.save(self.tif_file[:-4]+'_abspositions', self.abspositions)
         np.save(self.tif_file[:-4]+'_abscodes', self.abscodes)
-        #np.save(self.tif_file[:-4]+'_locs44threshold', self.locs_44threshold)  #DON'T SAVE THESE HERE AS SOME OF THE TRIALS ARE OUT OF BOUNDS;
-        #np.save(self.tif_file[:-4]+'_code44threshold', self.code_44threshold)  #Save them in the computation of DFF below where we know which trials are OOB
+        np.save(self.tif_file[:-4]+'_locs44threshold', self.locs_44threshold)  #***** NEED TO SAVE LOCS and CODES FOR ANALYSIS BELOW ****** 
+        np.save(self.tif_file[:-4]+'_code44threshold', self.code_44threshold)  #Analysis of DFF will automatically exclude triggers that are out of bounds.
 
     
     def convert_tif(self):
@@ -614,6 +617,8 @@ class Session(object):
 
             print "... saving .npy"
             np.save(self.tif_file[:-4], images_raw)
+        else:
+            print "... *_aligned.npy file exists...skipping conversion..."
 
 
     def compute_DFF(self):
@@ -706,19 +711,15 @@ class Session(object):
             #***PROCESS IMAGING; load data before and after pull
             data_chunk = self.aligned_images[trigger-self.window:trigger+self.window]
             
-            
             #DF/F computation; uses baseline -2*window .. -window; e.g. for 3sec windows, baseline: average(-6sec..-3sec)
             baseline = np.average(self.aligned_images[trigger-2*self.window:trigger-self.window], axis=0)
             data_3sec.append((data_chunk-baseline)/baseline)
             data_global.append((data_chunk-global_DFF)/global_DFF)
             
              
-            #***PROCESS TRACES - WORKING IN DIFFERENT TIME SCALE
-            #lever_window = 50
+            #***PROCESS TRACES - WORKING IN DIFFERENT TIME SCALE *************
             lever_window = 120*3    #NB: Lever window is computing in real time steps @120Hz; and the trigger_indexes are discontinuous;
             t = np.linspace(-lever_window*0.0082,lever_window*0.0082, lever_window*2)
-            #lever_position_index = np.where(np.logical_and(np.array(self.abstimes)>=self.locs_44threshold[counter], 
-            #                                               np.array(self.abstimes)<=self.locs_44threshold[counter]))[0]
             lever_position_index = self.find_nearest(np.array(self.abstimes), self.locs_44threshold[counter])
             
             lever_trace = self.abspositions[lever_position_index-lever_window:lever_position_index+lever_window]
@@ -946,7 +947,7 @@ class Stroke(object):
                     print "Stroke trial: ", self.trial, " session: ", self.session
                     break
 
-            trial_counter+=len(session.traces)
+            trial_counter+=len(session.locs_44threshold)
             session_counter+=1
     
        

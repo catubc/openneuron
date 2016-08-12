@@ -220,11 +220,11 @@ class MouseLeverTools(QtGui.QWidget):
         self.button2.clicked.connect(self.fltr_mouse_lever)
         layout.addWidget(self.button2, row_index, 0)
 
-        self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
-        self.comboBox0 = QtGui.QComboBox(self)
-        for filter_ in self.filter_list[1:]: self.comboBox0.addItem(filter_)
-        layout.addWidget(self.comboBox0, row_index,1)
-        self.comboBox0.activated[str].connect(self.select_filter); self.choice0 = "Butterworth" #Set default
+        self.filter_list = ['nofilter', 'butterworth', 'chebyshev']
+        self.comboBox_filter = QtGui.QComboBox(self)
+        for filter_ in self.filter_list[1:]: self.comboBox_filter.addItem(filter_)
+        layout.addWidget(self.comboBox_filter, row_index,1)
+        self.comboBox_filter.activated[str].connect(self.select_filter); self.selected_filter = "butterworth" #Set default
 
         parent.filter_low = QLineEdit('0.1')
         parent.filter_low.setMaximumWidth(50)
@@ -247,16 +247,16 @@ class MouseLeverTools(QtGui.QWidget):
         self.button3.clicked.connect(self.dff_mouse_lever)
         layout.addWidget(self.button3, row_index, 0)
 
-        self.comboBox21 = QtGui.QComboBox(self)
-        for filter_ in self.filter_list: self.comboBox21.addItem(filter_)
-        layout.addWidget(self.comboBox21, row_index,1)
-        self.comboBox21.activated[str].connect(self.style_choice01); self.choice01 = "No Filter" #Set default
+        self.comboBox_select_dff_filter = QtGui.QComboBox(self)
+        for filter_ in self.filter_list: self.comboBox_select_dff_filter.addItem(filter_)
+        layout.addWidget(self.comboBox_select_dff_filter, row_index,1)
+        self.comboBox_select_dff_filter.activated[str].connect(self.select_dff_filter); self.selected_dff_filter = "nofilter" #Set default
 
-        dff_list = ['Global Average', 'Sliding Window: -6s..-3s']
-        self.comboBox1 = QtGui.QComboBox(self)
-        for dff_ in dff_list: self.comboBox1.addItem(dff_)
-        layout.addWidget(self.comboBox1, row_index,2)
-        self.comboBox1.activated[str].connect(self.select_dff); self.dff_choice = "Global Average"
+        dff_list = ['globalAverage', 'slidingWindow']
+        self.comboBox_select_dff_method = QtGui.QComboBox(self)
+        for dff_ in dff_list: self.comboBox_select_dff_method.addItem(dff_)
+        layout.addWidget(self.comboBox_select_dff_method, row_index,2)
+        self.comboBox_select_dff_method.activated[str].connect(self.select_dff); self.dff_choice = "globalAverage"
         
         #Select reward code; self.selected_session contains full file name including session name
         self.code_list = ['02', '04', '07']
@@ -460,7 +460,8 @@ class MouseLeverTools(QtGui.QWidget):
         print "...convert .tif to .npy... NOT IMPLEMENTED..."
         
     def fltr_mouse_lever(self):
-        print "...filtering aligned images... NOT IMPLEMENTED"
+        
+        filter_data(self)
 
 
     #SELECT ANIMAL
@@ -551,11 +552,11 @@ class MouseLeverTools(QtGui.QWidget):
         
         print self.n_codes
 
-    def style_choice01(self,text):
-        self.choice01=text
+    def select_dff_filter(self,text):
+        self.selected_dff_filter=text
         
     def select_filter(self, text):
-        self.choice0 = text
+        self.selected_filter = text
 
     def select_dff(self, text):
         self.dff_choice = text
