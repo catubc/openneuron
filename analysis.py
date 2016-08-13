@@ -106,10 +106,12 @@ def save_tsf(tsf,file_name):
 
 def convert_video(self):
     
-    print "Loading file: ", self.choice2
+    print "Loading file: ", self.selected_session
     import cv2
 
-    vid = cv2.VideoCapture(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2)
+    print self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v'
+    
+    vid = cv2.VideoCapture(self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v')
     length = vid.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
     width  = vid.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
     height = vid.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
@@ -127,6 +129,8 @@ def convert_video(self):
     #cap.set(2,frame_no);
 
     print length, width, height, fps
+    if length==0: print "... no movie file... returning..."; return
+        
     time.sleep(.5)
     #Show video
     if True:
@@ -144,13 +148,12 @@ def convert_video(self):
             data.append(image)
             ctr+=1; print ctr
 
-        np.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4], data)
-        #np.save(self.choice2[:-4]+'_uint8', np.uint8(data))
+        np.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session, data)
 
 
 def find_start_end(self):
     
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
     
     if os.path.exists(self.blue_light_filename)==True: 
         print "...Blue Light Boundaries already found... returning..."
@@ -160,11 +163,11 @@ def find_start_end(self):
     
     #Re-Compute frames per second relative session.reclength; ensure makes sense ~15Hz
     #First, load movie data
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
     print movie_data.shape
     
     #Second, load imaging data
-    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.choice2[:-4]+'/'+self.choice2[:-4]
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session
     
     print "...loading .npy img file..."
     data = np.load(temp_file+'_aligned.npy')
@@ -196,7 +199,7 @@ def plot_blue_light_roi(self):
     
     plotting = True
     
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
     print movie_data.shape
     
     t = np.arange(0,movie_data.shape[0],1)/15.
@@ -241,8 +244,7 @@ def plot_blue_light_roi(self):
 def event_triggered_movies(self):
     
     #Load imaging data
-    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.choice2[:-4]+'/'+self.choice2[:-4]
-    
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
     self.img_rate = np.load(temp_file+'_img_rate.npy') #LOAD IMG_RATE
     self.abstimes = np.load(temp_file+'_abstimes.npy')
 
@@ -259,21 +261,17 @@ def event_triggered_movies(self):
 
 
     #Load original .npy movie data and index only during blue_light_frames
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
     movie_data = movie_data[np.load(self.blue_light_filename)]
     print "... movie_data.shape: ", movie_data.shape
     
     movie_times = np.linspace(0, self.abstimes[-1], movie_data.shape[0])
     print movie_times
     
-    indexes_02 = np.where(self.code_44threshold=='02')
-    indexes_04 = np.where(self.code_44threshold=='04')
-    
-    times_02 = self.locs_44threshold[indexes_02]
+    #NB: indexes are not just for '04' codes but for value in selected_code 
+    indexes_04 = np.where(self.code_44threshold==self.selected_code)
     times_04 = self.locs_44threshold[indexes_04]
-    
-    print times_02
     print times_04
     
     #from mouse_lever_analysis import find_nearest
@@ -284,14 +282,11 @@ def event_triggered_movies(self):
     
     self.movie_04frame_locations = movie_04frame_locations
     
-
-def make_44movies(self):
-
-    print "... 04 frame event triggers: ", self.movie_04frame_locations
+    print "... frame event triggers: ", self.movie_04frame_locations
     
     #Load original .npy movie data and index only during blue_light_frames
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_blue_light_frames.npy'
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
     self.movie_data = movie_data[np.load(self.blue_light_filename)]
     print "... movie_data.shape: ", self.movie_data.shape
     
@@ -300,7 +295,6 @@ def make_44movies(self):
     for frame in self.movie_04frame_locations:
         self.movie_stack.append(self.movie_data[frame-3*temp_img_rate: frame+3*temp_img_rate])
 
-    
     make_movies_from_triggers(self)
 
 def make_movies_from_triggers(self):
@@ -339,16 +333,81 @@ def make_movies_from_triggers(self):
     ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.movie_stack[0])), interval=100, blit=False, repeat=True)
 
     if True:
-        ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.choice2[:-4]+'_'+str(len(self.movie_stack))+'.mp4', writer=writer)
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'.mp4', writer=writer)
     plt.show()
 
+def event_triggered_movies_Ca(self):
     
+    #Load imaging data
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.img_rate = np.load(temp_file+'_img_rate.npy') #LOAD IMG_RATE
+
+    #self.abstimes = np.load(temp_file+'_abstimes.npy')
+    #self.abspositions = np.load(temp_file+'_abspositions.npy')
+    #self.abscodes = np.load(temp_file+'_abscodes.npy')
+    
+    self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+    self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+    print self.locs_44threshold
+    print self.code_44threshold
+
+
+    print "...self.selected_code: ", self.selected_code
+    print "...self.selected_trial: ", self.selected_trial
+    
+    indexes = np.where(self.code_44threshold==self.selected_code)[0]
+    print indexes
+    print self.locs_44threshold[indexes]
+    print self.locs_44threshold[indexes][int(self.selected_trial)]
+
+    print self.code_44threshold[indexes]
+    print self.code_44threshold[indexes][int(self.selected_trial)]
+
+
+    #Load original .npy movie data and index only during blue_light_frames
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
+    movie_data = movie_data[np.load(self.blue_light_filename)]
+    print "... movie_data.shape: ", movie_data.shape
+    
+    movie_times = np.linspace(0, self.abstimes[-1], movie_data.shape[0])
+    print movie_times
+    
+    #NB: indexes are not just for '04' codes but for value in selected_code 
+    indexes_04 = np.where(self.code_44threshold==self.selected_code)
+    times_04 = self.locs_44threshold[indexes_04]
+    print times_04
+    
+    #from mouse_lever_analysis import find_nearest
+    
+    movie_04frame_locations = []
+    for time_index in times_04: 
+        movie_04frame_locations.append(find_nearest(movie_times, time_index))
+    
+    self.movie_04frame_locations = movie_04frame_locations
+    
+    print "... frame event triggers: ", self.movie_04frame_locations
+    
+    #Load original .npy movie data and index only during blue_light_frames
+    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
+    self.movie_data = movie_data[np.load(self.blue_light_filename)]
+    print "... movie_data.shape: ", self.movie_data.shape
+    
+    temp_img_rate = 15
+    self.movie_stack = []
+    for frame in self.movie_04frame_locations:
+        self.movie_stack.append(self.movie_data[frame-3*temp_img_rate: frame+3*temp_img_rate])
+
+    make_movies_from_triggers(self)
+
 
 def filter_data(self):
-    plotting = True
+    plotting = False
     #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
     rec_name = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+    images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+rec_name+'/'+rec_name+'_aligned.npy'
     
     filter_type = self.selected_filter
     lowcut = float(self.parent.filter_low.text())
@@ -356,9 +415,13 @@ def filter_data(self):
     fs = self.parent.animal.img_rate
     print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
 
+    #Check to see if data already exists
+    if os.path.exists(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'):
+        print "...data already filtered..."
+        return
+
     #Load aligned images
     print "... loading aligned imgs..."
-    images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+rec_name+'/'+rec_name+'_aligned.npy'
     images_aligned = np.load(images_file)
     
     #Save mean of images_aligned if not already done
@@ -389,8 +452,10 @@ def filter_data(self):
                 plt.pause(0.000001) 
         
         print "... saving filtered data..."
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float32(data_out))
-        
+        temp_out = np.float32(data_out+np.mean(images_aligned, axis=0))
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', temp_out)
+        print "...DONE..."
+
     #Cheby
     elif filter_type == 'chebyshev':
 
@@ -413,10 +478,11 @@ def filter_data(self):
                             "\nFrame: 1000 / "+str(len(images_aligned)))
                 plt.pause(0.000001) 
                 
-        print "... saving filtered data..."
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float32(data_out))
+        print "... saving filtered data...",
+        temp_out = np.float32(data_out+np.mean(images_aligned, axis=0))
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', temp_out)
+        print "...DONE..."
         
-
 def compute_dff_mouse_lever(self):
     print "\n\n... dff computation..."
 
@@ -459,41 +525,51 @@ def compute_DFF_function(self):
         print "... DFF already computed ...skiping processing..."
         return
 
-    #Load aligned/filtered data
+    #Load aligned/filtered data and find ON/OFF light
     images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned.npy'
-    self.lowcut = float(self.parent.filter_low.text())
-    self.highcut = float(self.parent.filter_high.text())
-        
-    if self.selected_dff_filter == 'nofilter':
-        self.aligned_images = np.load(images_file)
-    else:
-        filtered_filename = images_file[:-4]+'_'+self.selected_dff_filter+'_'+str(self.lowcut)+'hz_'+str(self.highcut)+'hz.npy'
-        if os.path.exists(self.traces_filename): self.aligned_images = np.load(filtered_filename)
-        else: 
-            print "***filtered file does not exist*** "
-            return
-
-    
-    #Find blue light ON and OFF
+    self.aligned_images = np.load(images_file)
     blue_light_threshold = 400  #Intensity threshold; when this value is reached - imaging light was turned on
+    start_blue = 0; end_blue = len(self.aligned_images)
+    
     if np.average(self.aligned_images[0])> blue_light_threshold:    #Case #1: imaging starts with light on; need to remove end chunk; though likely bad recording
         for k in range(len(self.aligned_images)):
             if np.average(self.aligned_images[k])< blue_light_threshold:
-                self.aligned_images = self.aligned_images[k:]
+                #self.aligned_images = self.aligned_images[k:]
+                end_blue = k
                 break
     else:                                                           #Case #2: start with light off; remove starting and end chunks;
         #Find first light on
         for k in range(len(self.aligned_images)):
             if np.average(self.aligned_images[k])> blue_light_threshold:
-                self.aligned_images = self.aligned_images[k:]
+                #self.aligned_images = self.aligned_images[k:]
+                start_blue = k
                 break
 
         #Find light off - count backwards from end of imaging data
         for k in range(len(self.aligned_images)-1,0,-1):
             if np.average(self.aligned_images[k])> blue_light_threshold:
-                self.aligned_images = self.aligned_images[:k]
-                #print k
+                #self.aligned_images = self.aligned_images[:k]
+                end_blue= k
                 break
+                
+                
+    self.lowcut = float(self.parent.filter_low.text())
+    self.highcut = float(self.parent.filter_high.text())
+        
+    if self.selected_dff_filter == 'nofilter':
+        pass; #already loaded nonfiltered self.aligned_images above
+    else:
+        filtered_filename = images_file[:-4]+'_'+self.selected_dff_filter+'_'+str(self.lowcut)+'hz_'+str(self.highcut)+'hz.npy'
+        if os.path.exists(filtered_filename): self.aligned_images = np.load(filtered_filename)
+        else: 
+            print filtered_filename
+            print "***filtered file does not exist*** "
+            return
+    
+    self.aligned_images = self.aligned_images[start_blue:end_blue]
+    print "...images_file.shape: ",  self.aligned_images.shape
+    
+    
     self.n_images=len(self.aligned_images)
 
 
@@ -519,7 +595,7 @@ def compute_DFF_function(self):
 
 
     #Find times of triggers from lever pull threshold times
-    trigger_times = self.locs_44threshold
+    trigger_times = self.locs_44threshold_selected
     frame_times = np.linspace(0, self.reclength, self.n_images)             #Divide up reclength in number of images
     img_frame_triggers = []
     for i in range(len(trigger_times)):
@@ -554,13 +630,12 @@ def compute_DFF_function(self):
         print "...self.dff_method: ", self.dff_method
         #dff_list = ['Global Average', 'Sliding Window: -6s..-3s']
     
+        data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
+
         if self.dff_method == 'globalAverage':
-            data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
-            data_stm.append((data_chunk-global_mean)/global_mean)
+            data_stm.append((data_chunk-global_mean)/global_mean)    #Only need to divide by global mean as original data_chunk did not have mean img added in
             
-        elif self.dff_method == 'slidingWindow':
-            data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
-            #Use baseline -2*window .. -window
+        elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
             baseline = np.average(self.aligned_images[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
             data_stm.append((data_chunk-baseline)/baseline)
         
@@ -594,7 +669,164 @@ def compute_DFF_function(self):
     self.aligned_images = []
 
 
+
+def view_static_stm(self):
+    
+    block_save = int(self.block_save.text())
+
+    if self.selected_dff_filter == 'nofilter':
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
+    else:
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_traces.npy"
+
+    filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
+    print "...stm_name: ", filename
+
+    data = np.load(filename)
+    print data.shape
+    
+    #Mask data
+    print "...selected trial for stm: ", self.selected_trial
+    temp_array = quick_mask(self, data[int(self.selected_trial)])
+
+    plt.close()
+    ax = plt.subplot(1,1,1)
+    img_rate = self.parent.animal.img_rate
+    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    
+    img_out = []
+    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+        print i
+        img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+    img_out = np.ma.hstack((img_out))
+    
+    v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+
+    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    ax.yaxis.set_ticks([])
+    ax.xaxis.set_ticks([])
+
+    #if ctr==(len(select_units)-1): 
+    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    old_xlabel = np.linspace(0,img_out.shape[1], 11)
+    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+
+    plt.title(self.traces_filename)
+    #plt.suptitle(animal.ptcsName)
+    plt.show()
+
+    
+      
+
+def view_video_stm(self):
+
+    block_save = int(self.block_save.text())
+
+    if self.selected_dff_filter == 'nofilter':
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
+    else:
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_traces.npy"
+
+    filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
+    print "...stm_name: ", filename
+
+    data = np.load(filename)
+    print data.shape
+    
+    #Mask data
+    print "...selected trial for stm: ", self.selected_trial
+    vid_array = quick_mask(self, data[int(self.selected_trial)])
+    
+    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+
+    #***********GENERATE ANIMATIONS
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+
+    
+    fig = plt.figure()
+    #fig.tight_layout()
+
+    ax = plt.subplot(1,1,1)
+    v_max = np.ma.max(np.ma.abs(vid_array)); v_min = -v_max
+    print v_max, v_min
+    print vid_array.shape
+    
+    ax.get_xaxis().set_visible(False)
+    ax.yaxis.set_ticks([])
+    plt.ylabel(str(int(v_max*100))+ ".."+str(int(v_min*100)), labelpad=-1, fontsize=6)
+    
+    im = plt.imshow(vid_array[0], cmap=plt.get_cmap('jet'), vmin=v_min, vmax=v_max, interpolation='none')#, vmin=0, vmax=v_max)
         
+    #function to update figure
+    def updatefig(j):
+        print j
+        plt.suptitle("  Frame: "+str(j)+"  " +str(format(float(j)/self.parent.animal.img_rate+start_time,'.2f'))+"sec", fontsize = 15)
+
+        # set the data in the axesimage object
+        im.set_array(vid_array[j])
+
+        # return the artists set
+        return im
+        
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(vid_array)), interval=100, blit=False, repeat=True)
+
+    if True:
+    #if save_animation:
+        ani.save(filename+'_.mp4', writer=writer)
+
+    plt.show()
+
+    #quit()
+
+  
+    
+
+
+def quick_mask(self, data):
+        
+    generic_mask_file = self.parent.animal.home_dir+self.parent.animal.name + '/genericmask.txt'
+    if (os.path.exists(generic_mask_file)==True):
+        generic_coords = np.int32(np.loadtxt(generic_mask_file))
+    else:
+        print "...generic mask not found..."
+        return
+        #fname = glob.glob(animal.filenames[0].replace('rhd_files/','tif_files/')[:animal.filenames[0].find('rhd_files/')+10]+"*std*")[0]
+        #images_temp = np.load(fname)
+        #Define_generic_mask_single_frame(images_temp, animal)
+        #generic_coords = np.int32(np.loadtxt(generic_mask_file))
+                        
+    generic_mask_indexes=np.zeros((128,128))
+    for i in range(len(generic_coords)):
+        generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+
+    for i in range(int(self.midline_mask.text())):
+        generic_mask_indexes[:,64+int(int(self.midline_mask.text())/2)-i]=True
+
+    n_pixels = 128
+    temp_array = np.ma.array(np.zeros((len(data),n_pixels,n_pixels),dtype=np.float32), mask=True)
+        
+    #Mask all frames; NB: PROBABLY FASTER METHOD
+    print "... masking data: ", data.shape
+    for i in range(0, len(data),1):
+        #if len(data)!=128:
+        temp_array[i] = np.ma.masked_array(data[i], mask=generic_mask_indexes, fill=np.nan)
+        #else:
+        #    temp_array[i] = np.ma.masked_array(data, mask=generic_mask_indexes)
+        #    print "single frame"
+        #    return temp_array[0]
+    
+    return temp_array
+    
+      
 def synchrony_index(data, SampleFrequency, si_limit):
 
     """Calculate an LFP synchrony index, using potentially overlapping windows of width
@@ -2315,140 +2547,6 @@ def sta_movies(self):
     #plt.show()
 
 
-def sta_movies_OLD(animal, s, prefix):
-    import matplotlib.animation as animation
-    from math import sqrt
-
-    #Set parameters
-    start_time = -0.3  #1 sec before t=0
-    end_time = +0.3 #3 seconds after t=0
-    img_rate = 150.64
-    block_save = 1
-    spike_mode = 'all'
-
-    #**** LOAD GENERIC MASK
-    generic_mask_file = animal.home_dir+animal.name + '/genericmask.txt'
-    if (os.path.exists(generic_mask_file)==True):
-        generic_coords = np.int32(np.loadtxt(generic_mask_file))
-    else:
-        fname = glob.glob(animal.filenames[s].replace('rhd_files/','tif_files/')[:animal.filenames[s].find('rhd_files/')+10]+"*std*")[0]
-        images_temp = np.load(fname)
-        Define_generic_mask_single_frame(images_temp, animal)
-        generic_coords = np.int32(np.loadtxt(generic_mask_file))
-        
-        
-    generic_mask_indexes=np.zeros((128,128))
-    for i in range(len(generic_coords)):
-        generic_mask_indexes[generic_coords[i][0]][generic_coords[i][1]] = True
-
-    min_spikes = 0
-
-    #**** MAKE STATIC FIGS
-    if prefix=='':   Sort = Ptcs(animal.filenames[s].replace('rhd_files','tsf_files')+'_hp.ptcs')
-    else: Sort = Ptcs(animal.filenames[s].replace('rhd_files','tsf_files')+prefix+'.ptcs')
-    #select_units = [0]
-    #select_units = np.arange(0,min(9,len(Sort.units)),1)
-    #select_units = np.arange(0,len(Sort.units),1)
-    select_units = [0,3,6]
-    print "... # units loading: ", select_units
-
-
-    vid_array = []
-    spikes_array = []
-    for k in select_units:
-        if len(Sort.units[k])<min_spikes: continue
-        #if k !=4: continue
-        print "Loading saved .npy files: ", k
-        channel = Sort.maxchan[k]
-        temp_name = glob.glob(animal.filenames[s].replace('rhd_files/','stm_files/img_avg_') +prefix+'_unit'+str(k).zfill(3)+"*")[0]
-        print temp_name
-        criteria_spikes = int(temp_name[temp_name.find('spikes')-6:temp_name.find('spikes')-1])
-        print "Criteria_spikes: ", criteria_spikes
-        spikes_array.append(criteria_spikes)
-        STM = np.load(temp_name)
-
-        for v in range(len(STM)):
-            STM[v]= ndimage.gaussian_filter(STM[v], sigma=2)
-            
-        #Apply mask
-        n_pixels=128
-        #temp_array = np.ma.array(np.zeros((len(STM),n_pixels,n_pixels),dtype=np.float32), mask=True)
-        temp_array=[]
-        for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-        #for i in range(len(STM)):
-            temp_array.append(np.ma.array(STM[i], mask=generic_mask_indexes, fill_value = 0., hard_mask = True))
-        
-        vid_array.append(temp_array)
-
-    if os.path.exists(animal.filenames[s].replace('rhd_files','movie_files')+'_units_'+str(len(vid_array))+'.mp4'): return
-
-
-    #**** INITIALIZE ANIMATIONS
-    Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-
-    fig = plt.figure() # make figure
-
-    print "... generating animation..." 
-
-    #Fix size of concatenated animations
-    extra_row = 0
-    x = int(sqrt(len(vid_array)))
-    if x*int(x*1.4)< len(vid_array): 
-        x+=1
-        if (x-1)*int(x*1.4)>=len(vid_array): extra_row=-1
-
-    im=[]
-    for k in range(len(vid_array)):
-        ax = plt.subplot(2,len(vid_array),k+1)
-        #ax = plt.subplot(x+extra_row,int(x*1.4),k+1)
-        
-        
-        #v_abs = max(np.ma.max(vid_array[k]),-np.ma.min(vid_array[k]))
-        #v_max = v_abs
-        #v_min = -v_abs
-        #v_max=np.ma.max(vid_array[k])
-        #v_min=np.ma.min(vid_array[k])
-        #v_max=0.10
-        #v_min=-0.10
-        
-        #print v_max, v_min
-        
-        ax.get_xaxis().set_visible(False)
-        ax.yaxis.set_ticks([])
-        ax.yaxis.labelpad = 0
-        #ax.set_ylabel("",fontsize=6)
-        ax.set_title(str(spikes_array[k])+", "+str(round(np.ma.min(vid_array[k])*100,2))+"%.."+str(round(np.ma.max(vid_array[k])*100,2))+"%", fontsize=5)
-
-        Ev_max = np.max(np.abs(vid_array[k]))#*.9
-        #v_min = -v_max 
-        print "Max/min DFF (%): ", Ev_max*100
-        
-        im.append([])
-        im[k] = plt.imshow(vid_array[k][0], cmap=plt.get_cmap('jet'), vmin=-Ev_max, vmax=Ev_max, interpolation='none')#, vmin=0, vmax=v_max)
-        #im[k] = plt.imshow(vid_array[k][0], cmap=blue_red1, vmin=v_min, vmax=v_max, interpolation='none')#, vmin=0, vmax=v_max)
-
-    #function to update figure
-    def updatefig(j):
-        print j,
-        plt.suptitle(animal.filenames[s].replace(animal.home_dir,'') +"\nFrame: "+str(j)+"  " +str(round((float(j)/img_rate+start_time),2))+"sec")
-
-        # set the data in the axesimage object
-        for k in range(len(vid_array)):
-            im[k].set_array(vid_array[k][j])
-
-        # return the artists set
-        return im
-        
-    # kick off the animation
-    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(vid_array[0])), interval=100, blit=False, repeat=True)
-
-    if True:
-    #if save_animation:
-        ani.save(animal.filenames[s].replace('rhd_files','movie_files')+'_units_'+str(len(vid_array))+'.mp4', writer=writer)
-
-    plt.show()
- 
 
 def dim_reduction(mouse, method):
     
