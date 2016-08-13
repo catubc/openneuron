@@ -845,30 +845,21 @@ def quick_mask(self, data):
     else:
         print "...generic mask not found..."
         return
-        #fname = glob.glob(animal.filenames[0].replace('rhd_files/','tif_files/')[:animal.filenames[0].find('rhd_files/')+10]+"*std*")[0]
-        #images_temp = np.load(fname)
-        #Define_generic_mask_single_frame(images_temp, animal)
-        #generic_coords = np.int32(np.loadtxt(generic_mask_file))
-                        
+    
+    #Load generic mask
     generic_mask_indexes=np.zeros((128,128))
     for i in range(len(generic_coords)):
         generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
 
+    #Load midline mask
     for i in range(int(self.midline_mask.text())):
         generic_mask_indexes[:,64+int(int(self.midline_mask.text())/2)-i]=True
 
+    #Apply full mask; probably FASTER METHOD
     n_pixels = 128
     temp_array = np.ma.array(np.zeros((len(data),n_pixels,n_pixels),dtype=np.float32), mask=True)
-        
-    #Mask all frames; NB: PROBABLY FASTER METHOD
-    print "... masking data: ", data.shape
     for i in range(0, len(data),1):
-        #if len(data)!=128:
         temp_array[i] = np.ma.masked_array(data[i], mask=generic_mask_indexes, fill=np.nan)
-        #else:
-        #    temp_array[i] = np.ma.masked_array(data, mask=generic_mask_indexes)
-        #    print "single frame"
-        #    return temp_array[0]
     
     return temp_array
     
