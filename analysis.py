@@ -228,8 +228,8 @@ def plot_blue_light_roi(self):
     movie_rate = float(len(blue_light_roi))/self.abstimes[-1]
     print "...movie fps: ", movie_rate
     
-    if abs(15-movie_rate)>0.05: 
-        print ".... movie frame rate incorrect *************"
+    if abs(15-movie_rate)>0.02: 
+        print "************* movie frame rate incorrect *************"
     else:
         #Save frames for blue light
         np.save(self.blue_light_filename, np.arange(indexes[0],indexes[-1],1))
@@ -242,6 +242,7 @@ def plot_blue_light_roi(self):
         
 
 def event_triggered_movies(self):
+    """ Make multiple mouse lever pull trials video"""
     
     #Load imaging data
     temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
@@ -263,10 +264,11 @@ def event_triggered_movies(self):
     #Load original .npy movie data and index only during blue_light_frames
     movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
     self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
-    movie_data = movie_data[np.load(self.blue_light_filename)]
-    print "... movie_data.shape: ", movie_data.shape
+    self.movie_data = movie_data[np.load(self.blue_light_filename)]
+
+    print "... movie_data.shape: ", self.movie_data.shape
     
-    movie_times = np.linspace(0, self.abstimes[-1], movie_data.shape[0])
+    movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
     print movie_times
     
     #NB: indexes are not just for '04' codes but for value in selected_code 
@@ -274,8 +276,7 @@ def event_triggered_movies(self):
     times_04 = self.locs_44threshold[indexes_04]
     print times_04
     
-    #from mouse_lever_analysis import find_nearest
-    
+    #Find movie frame centred on time_index
     movie_04frame_locations = []
     for time_index in times_04: 
         movie_04frame_locations.append(find_nearest(movie_times, time_index))
@@ -285,15 +286,14 @@ def event_triggered_movies(self):
     print "... frame event triggers: ", self.movie_04frame_locations
     
     #Load original .npy movie data and index only during blue_light_frames
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
-    self.movie_data = movie_data[np.load(self.blue_light_filename)]
     print "... movie_data.shape: ", self.movie_data.shape
-    
+  
     temp_img_rate = 15
     self.movie_stack = []
     for frame in self.movie_04frame_locations:
         self.movie_stack.append(self.movie_data[frame-3*temp_img_rate: frame+3*temp_img_rate])
+
+
 
     make_movies_from_triggers(self)
 
@@ -336,70 +336,118 @@ def make_movies_from_triggers(self):
         ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'.mp4', writer=writer)
     plt.show()
 
-def event_triggered_movies_Ca(self):
-    
-    #Load imaging data
-    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
-    self.img_rate = np.load(temp_file+'_img_rate.npy') #LOAD IMG_RATE
 
-    #self.abstimes = np.load(temp_file+'_abstimes.npy')
-    #self.abspositions = np.load(temp_file+'_abspositions.npy')
-    #self.abscodes = np.load(temp_file+'_abscodes.npy')
+def event_triggered_movies_Ca(self):
+    """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
+
+    #**************************************
+    #Read [Ca] data
+    #**************************************
+    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.img_rate = np.load(temp_file+'_img_rate.npy') #imaging rate
     
+    if self.selected_dff_filter == 'nofilter':
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_stm.npy"
+    else:
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_stm.npy"
+    print "...stm_name: ", self.traces_filename
+    
+    data = np.load(self.traces_filename, mmap_mode='r+')
+    print data.shape
+    
+    #Mask [Ca] stack
+    print "...selected trial for stm: ", self.selected_trial
+    self.ca_stack = quick_mask(self, data[int(self.selected_trial)])
+    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
+    
+    
+    #**************************************
+    #Load behaviour camera data
+    #**************************************
+    self.abstimes = np.load(temp_file+'_abstimes.npy')
     self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
     self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
     print self.locs_44threshold
     print self.code_44threshold
-
 
     print "...self.selected_code: ", self.selected_code
     print "...self.selected_trial: ", self.selected_trial
     
     indexes = np.where(self.code_44threshold==self.selected_code)[0]
     print indexes
-    print self.locs_44threshold[indexes]
-    print self.locs_44threshold[indexes][int(self.selected_trial)]
+    self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
+    self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
 
-    print self.code_44threshold[indexes]
-    print self.code_44threshold[indexes][int(self.selected_trial)]
-
-
-    #Load original .npy movie data and index only during blue_light_frames
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
-    movie_data = movie_data[np.load(self.blue_light_filename)]
-    print "... movie_data.shape: ", movie_data.shape
-    
-    movie_times = np.linspace(0, self.abstimes[-1], movie_data.shape[0])
-    print movie_times
-    
-    #NB: indexes are not just for '04' codes but for value in selected_code 
-    indexes_04 = np.where(self.code_44threshold==self.selected_code)
-    times_04 = self.locs_44threshold[indexes_04]
-    print times_04
-    
-    #from mouse_lever_analysis import find_nearest
-    
-    movie_04frame_locations = []
-    for time_index in times_04: 
-        movie_04frame_locations.append(find_nearest(movie_times, time_index))
-    
-    self.movie_04frame_locations = movie_04frame_locations
-    
-    print "... frame event triggers: ", self.movie_04frame_locations
-    
-    #Load original .npy movie data and index only during blue_light_frames
+    #Load original movie data and index only during blue_light_frames
     movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
     self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
     self.movie_data = movie_data[np.load(self.blue_light_filename)]
-    print "... movie_data.shape: ", self.movie_data.shape
     
-    temp_img_rate = 15
-    self.movie_stack = []
-    for frame in self.movie_04frame_locations:
-        self.movie_stack.append(self.movie_data[frame-3*temp_img_rate: frame+3*temp_img_rate])
+    #Find movie frame corresponding to lever pull trigger
+    movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
+    self.movie_04frame_locations = find_nearest(movie_times, self.selected_locs_44threshold)
+    print "... frame event triggers: ", self.movie_04frame_locations
 
-    make_movies_from_triggers(self)
+    #Make movie stack
+    temp_img_rate = 15
+    self.movie_stack = self.movie_data[self.movie_04frame_locations-3*temp_img_rate: self.movie_04frame_locations+3*temp_img_rate]
+
+    #Interpolate movie stack to match [Ca] imaging rate
+    new_stack = []
+    for frame in range(len(self.movie_stack)-1):
+        new_stack.append(self.movie_stack[frame])
+        new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)
+        
+    new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
+    self.movie_stack = np.uint8(new_stack)
+    
+    print self.ca_stack.shape
+    print self.movie_stack.shape
+
+    make_movies_ca(self)
+
+
+def make_movies_ca(self):
+    
+    #***********GENERATE ANIMATIONS
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+
+  
+    fig = plt.figure()
+    im = []
+
+    #[Ca] stack
+    ax = plt.subplot(2,1,1)
+    v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.ca_stack[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+    #Camera stack
+    ax = plt.subplot(2,1,2)
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+
+    def updatefig(j):
+        print j
+        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/30-3.,'.2f'))+"sec", fontsize = 15)
+
+        # set the data in the axesimage object
+        im[0].set_array(self.ca_stack[j])
+        im[1].set_array(self.movie_stack[j])
+
+        # return the artists set
+        return im
+        
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.movie_stack)), interval=100, blit=False, repeat=True)
+
+    if True:
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer)
+    plt.show()
+
 
 
 def filter_data(self):
@@ -785,9 +833,7 @@ def view_video_stm(self):
 
     plt.show()
 
-    #quit()
-
-  
+    #quit() 
     
 
 

@@ -664,7 +664,7 @@ class MouseLeverTools(QtGui.QWidget):
 
         filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
 
-        print "...resetting stm_name to: ", filename
+        #print "...resetting stm_name to: ", filename
 
         if os.path.exists(filename)==True: 
             data = np.load(filename,  mmap_mode='r+')
