@@ -18,6 +18,185 @@ class Object_empty(object):
     def __init__(self):
         pass
             
+
+
+
+class Ptcs(object):
+    """Polytrode clustered spikes file neuron record"""
+    def __init__(self, file_name):
+        
+        f = open(file_name, "rb")
+        self.sorted_file = file_name
+        self.name = file_name
+        self.full_path =file_name
+        # call the appropriate method:
+        self.VER2FUNC = {1: self.readHeader, 2: self.readHeader, 3: self.readHeader}
+
+        self.readHeader(f)
+        
+        self.nid = []  #Make unique unit id list for loading later.
+        
+        self.loadData(self.nsamplebytes, f)
+        
+        f.close()
+
+    def __getstate__(self):
+        """Instance methods must be excluded when pickling"""
+        d = self.__dict__.copy()
+        try: del d['VER2FUNC']
+        except KeyError: pass
+        return d
+
+    def readHeader(self, f):
+        """Read in neuron record of .ptcs file version 3. 'zpos' field was replaced
+        by 'sigma' field.
+        nid: int64 (signed neuron id, could be -ve, could be non-contiguous with previous)
+        ndescrbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment, defaults to 0)
+        descr: ndescrbytes of ASCII text
+        (padded with null bytes if needed for 8 byte alignment)
+        clusterscore: float64
+        xpos: float64 (um)
+        ypos: float64 (um)
+        sigma: float64 (um) (Gaussian spatial sigma)
+        nchans: uint64 (num chans in template waveforms)
+        chanids: nchans * uint64 (0 based IDs of channels in template waveforms)
+        maxchanid: uint64 (0 based ID of max channel in template waveforms)
+        nt: uint64 (num timepoints per template waveform channel)
+        nwavedatabytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
+        wavedata: nwavedatabytes of nsamplebytes sized floats
+        (template waveform data, laid out as nchans * nt, in uV,
+        padded with null bytes if needed for 8 byte alignment)
+        nwavestdbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
+        wavestd: nwavestdbytes of nsamplebytes sized floats
+        (template waveform standard deviation, laid out as nchans * nt, in uV,
+        padded with null bytes if needed for 8 byte alignment)
+        nspikes: uint64 (number of spikes in this neuron)
+        spike timestamps: nspikes * uint64 (us, should be sorted)
+        """
+
+        self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
+        self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
+        self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
+
+        if self.descr:
+            try:
+                self.descr = eval(self.descr) # might be a dict
+            except: pass
+
+        self.nneurons = int(np.fromfile(f, dtype=np.uint64, count=1)) # nneurons
+        self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
+        self.nsamplebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsamplebytes
+        self.samplerate = int(np.fromfile(f, dtype=np.uint64, count=1)) # samplerate
+        self.npttypebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # npttypebytes
+
+        self.pttype = f.read(self.npttypebytes).rstrip('\0 ') # pttype
+
+        self.nptchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nptchans
+        self.chanpos = np.fromfile(f, dtype=np.float64, count=self.nptchans*2) # chanpos
+        self.chanpos.shape = self.nptchans, 2 # reshape into rows of (x, y) coords
+        self.nsrcfnamebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsrcfnamebytes
+        self.srcfname = f.read(self.nsrcfnamebytes).rstrip('\0 ') # srcfname
+        # maybe convert this to a proper Python datetime object in the Neuron:
+        self.datetime = float(np.fromfile(f, dtype=np.float64, count=1)) # datetime (days)
+        self.ndatetimestrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndatetimestrbytes
+        self.datetimestr = f.read(self.ndatetimestrbytes).rstrip('\0 ') # datetimestr
+
+
+    def loadData(self, n_bytes, f):
+        #call the appropriate method:
+        #self.VER2FUNC = {1: self.read_ver_1, 2:self.read_ver_2, 3:self.read_ver_3}
+        self.nsamplebytes = n_bytes
+        self.wavedtype = {2: np.float16, 4: np.float32, 8: np.float64}[self.nsamplebytes]
+
+        self.n_units=self.nneurons
+        self.units=[None]*self.n_units
+        self.uid = [None]*self.n_units  #Unique id for full track sorts
+        self.n_sorted_spikes = [None]*self.n_units
+        self.ptp=np.zeros((self.n_units), dtype=np.float32)
+        self.size = []
+        self.maxchan = []
+        
+        for k in range(self.n_units):
+            self.readUnit(f)
+            self.units[k]= self.spikes
+
+            if 'martin' in self.full_path:
+                self.uid[k]= self.nid
+            else: #All other sorts are from Nick's SS so should be the same
+                self.uid[k]= self.nid-1
+               
+            #print "SAMPLERATE: ", self.samplerate
+            #if ptcs_flag: #Martin's data has wrong flag for saves
+            self.units[k]=[x*self.samplerate/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
+            #else:
+            #    self.units[k]=[x*self.samplerate/2/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
+
+            self.n_sorted_spikes[k] = len(self.units[k])
+            self.size.append(self.nspikes)
+            self.maxchan.append(self.maxchanu)
+            #self.ptp[k]=max(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) - \
+            #            min(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) #compute PTP of template;
+
+
+        f.close()
+
+
+    def readUnit(self,f):
+        self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
+        self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
+        self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
+
+        if self.descr:
+            try:
+                self.descr = eval(self.descr) # might be a dict
+            except: pass
+
+        self.clusterscore = float(np.fromfile(f, dtype=np.float64, count=1)) # clusterscore
+        self.xpos = float(np.fromfile(f, dtype=np.float64, count=1)) # xpos (um)
+        self.ypos = float(np.fromfile(f, dtype=np.float64, count=1)) # ypos (um)
+        self.zpos = float(np.fromfile(f, dtype=np.float64, count=1)) # zpos (um)
+        self.nchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nchans
+        self.chans = np.fromfile(f, dtype=np.uint64, count=self.nchans) #NB: Some errors here from older .ptcs formats
+        self.maxchanu = int(np.fromfile(f, dtype=np.uint64, count=1)) # maxchanid
+
+        self.nt = int(np.fromfile(f, dtype=np.uint64, count=1)) # nt: number of time points in template
+
+        self.nwavedatabytes, self.wavedata = self.read_wave(f) #TEMPLATE
+
+        self.nwavestdbytes, self.wavestd = self.read_wave(f) #STANDARD DEVIATION
+        self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
+
+        self.spikes = np.fromfile(f, dtype=np.uint64, count=self.nspikes) # spike timestamps (us):
+
+        # convert from unsigned to signed int for calculating intervals:
+        self.spikes = np.asarray(self.spikes, dtype=np.float64)
+
+            
+    def read_wave(self, f):
+        """Read wavedata/wavestd bytes"""
+        # nwavedata/nwavestd bytes, padded:
+        nbytes = int(np.fromfile(f, dtype=np.uint64, count=1))
+        fp = f.tell()
+        count = nbytes // self.nsamplebytes # trunc to ignore any pad bytes
+        X = np.fromfile(f, dtype=self.wavedtype, count=count) # wavedata/wavestd (uV)
+        if nbytes != 0:
+            X.shape = self.nchans, self.nt # reshape
+        f.seek(fp + nbytes) # skip any pad bytes
+        return nbytes, X
+
+    def rstrip(s, strip):
+        """What I think str.rstrip should really do"""
+        if s.endswith(strip):
+            return s[:-len(strip)] # strip it
+        else:
+            return s
+
+    def read(self):
+        self.nid = self.parse_id()
+        with open(self.fname, 'rb') as f:
+            self.spikes = np.fromfile(f, dtype=np.int64) # spike timestamps (us)
+        self.nspikes = len(self.spikes)
+
 class Tsf_file(object):
 
     def __init__(self, file_name):
@@ -73,7 +252,7 @@ class Tsf_file(object):
         self.fin.seek(indent+channel*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
         self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_vd_samples)
         self.fin.close()
-        
+
 def save_tsf(tsf,file_name):
     
     fout = open(file_name, 'wb')
@@ -2671,188 +2850,7 @@ def dim_reduction(mouse, method):
 
     return Y
     
-    
-    
-
-
-
-
-class Ptcs(object):
-    """Polytrode clustered spikes file neuron record"""
-    def __init__(self, file_name):
-        
-        f = open(file_name, "rb")
-        self.sorted_file = file_name
-        self.name = file_name
-        self.full_path =file_name
-        # call the appropriate method:
-        self.VER2FUNC = {1: self.readHeader, 2: self.readHeader, 3: self.readHeader}
-
-        self.readHeader(f)
-        
-        self.nid = []  #Make unique unit id list for loading later.
-        
-        self.loadData(self.nsamplebytes, f)
-        
-        f.close()
-
-    def __getstate__(self):
-        """Instance methods must be excluded when pickling"""
-        d = self.__dict__.copy()
-        try: del d['VER2FUNC']
-        except KeyError: pass
-        return d
-
-    def readHeader(self, f):
-        """Read in neuron record of .ptcs file version 3. 'zpos' field was replaced
-        by 'sigma' field.
-        nid: int64 (signed neuron id, could be -ve, could be non-contiguous with previous)
-        ndescrbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment, defaults to 0)
-        descr: ndescrbytes of ASCII text
-        (padded with null bytes if needed for 8 byte alignment)
-        clusterscore: float64
-        xpos: float64 (um)
-        ypos: float64 (um)
-        sigma: float64 (um) (Gaussian spatial sigma)
-        nchans: uint64 (num chans in template waveforms)
-        chanids: nchans * uint64 (0 based IDs of channels in template waveforms)
-        maxchanid: uint64 (0 based ID of max channel in template waveforms)
-        nt: uint64 (num timepoints per template waveform channel)
-        nwavedatabytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
-        wavedata: nwavedatabytes of nsamplebytes sized floats
-        (template waveform data, laid out as nchans * nt, in uV,
-        padded with null bytes if needed for 8 byte alignment)
-        nwavestdbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
-        wavestd: nwavestdbytes of nsamplebytes sized floats
-        (template waveform standard deviation, laid out as nchans * nt, in uV,
-        padded with null bytes if needed for 8 byte alignment)
-        nspikes: uint64 (number of spikes in this neuron)
-        spike timestamps: nspikes * uint64 (us, should be sorted)
-        """
-
-        self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
-        self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
-        self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
-
-        if self.descr:
-            try:
-                self.descr = eval(self.descr) # might be a dict
-            except: pass
-
-        self.nneurons = int(np.fromfile(f, dtype=np.uint64, count=1)) # nneurons
-        self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
-        self.nsamplebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsamplebytes
-        self.samplerate = int(np.fromfile(f, dtype=np.uint64, count=1)) # samplerate
-        self.npttypebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # npttypebytes
-
-        self.pttype = f.read(self.npttypebytes).rstrip('\0 ') # pttype
-
-        self.nptchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nptchans
-        self.chanpos = np.fromfile(f, dtype=np.float64, count=self.nptchans*2) # chanpos
-        self.chanpos.shape = self.nptchans, 2 # reshape into rows of (x, y) coords
-        self.nsrcfnamebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsrcfnamebytes
-        self.srcfname = f.read(self.nsrcfnamebytes).rstrip('\0 ') # srcfname
-        # maybe convert this to a proper Python datetime object in the Neuron:
-        self.datetime = float(np.fromfile(f, dtype=np.float64, count=1)) # datetime (days)
-        self.ndatetimestrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndatetimestrbytes
-        self.datetimestr = f.read(self.ndatetimestrbytes).rstrip('\0 ') # datetimestr
-
-
-    def loadData(self, n_bytes, f):
-        #call the appropriate method:
-        #self.VER2FUNC = {1: self.read_ver_1, 2:self.read_ver_2, 3:self.read_ver_3}
-        self.nsamplebytes = n_bytes
-        self.wavedtype = {2: np.float16, 4: np.float32, 8: np.float64}[self.nsamplebytes]
-
-        self.n_units=self.nneurons
-        self.units=[None]*self.n_units
-        self.uid = [None]*self.n_units  #Unique id for full track sorts
-        self.n_sorted_spikes = [None]*self.n_units
-        self.ptp=np.zeros((self.n_units), dtype=np.float32)
-        self.size = []
-        self.maxchan = []
-        
-        for k in range(self.n_units):
-            self.readUnit(f)
-            self.units[k]= self.spikes
-
-            if 'martin' in self.full_path:
-                self.uid[k]= self.nid
-            else: #All other sorts are from Nick's SS so should be the same
-                self.uid[k]= self.nid-1
-               
-            #print "SAMPLERATE: ", self.samplerate
-            #if ptcs_flag: #Martin's data has wrong flag for saves
-            self.units[k]=[x*self.samplerate/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
-            #else:
-            #    self.units[k]=[x*self.samplerate/2/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
-
-            self.n_sorted_spikes[k] = len(self.units[k])
-            self.size.append(self.nspikes)
-            self.maxchan.append(self.maxchanu)
-            #self.ptp[k]=max(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) - \
-            #            min(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) #compute PTP of template;
-
-
-        f.close()
-
-
-    def readUnit(self,f):
-        self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
-        self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
-        self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
-
-        if self.descr:
-            try:
-                self.descr = eval(self.descr) # might be a dict
-            except: pass
-
-        self.clusterscore = float(np.fromfile(f, dtype=np.float64, count=1)) # clusterscore
-        self.xpos = float(np.fromfile(f, dtype=np.float64, count=1)) # xpos (um)
-        self.ypos = float(np.fromfile(f, dtype=np.float64, count=1)) # ypos (um)
-        self.zpos = float(np.fromfile(f, dtype=np.float64, count=1)) # zpos (um)
-        self.nchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nchans
-        self.chans = np.fromfile(f, dtype=np.uint64, count=self.nchans) #NB: Some errors here from older .ptcs formats
-        self.maxchanu = int(np.fromfile(f, dtype=np.uint64, count=1)) # maxchanid
-
-        self.nt = int(np.fromfile(f, dtype=np.uint64, count=1)) # nt: number of time points in template
-
-        self.nwavedatabytes, self.wavedata = self.read_wave(f) #TEMPLATE
-
-        self.nwavestdbytes, self.wavestd = self.read_wave(f) #STANDARD DEVIATION
-        self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
-
-        self.spikes = np.fromfile(f, dtype=np.uint64, count=self.nspikes) # spike timestamps (us):
-
-        # convert from unsigned to signed int for calculating intervals:
-        self.spikes = np.asarray(self.spikes, dtype=np.float64)
-
-            
-    def read_wave(self, f):
-        """Read wavedata/wavestd bytes"""
-        # nwavedata/nwavestd bytes, padded:
-        nbytes = int(np.fromfile(f, dtype=np.uint64, count=1))
-        fp = f.tell()
-        count = nbytes // self.nsamplebytes # trunc to ignore any pad bytes
-        X = np.fromfile(f, dtype=self.wavedtype, count=count) # wavedata/wavestd (uV)
-        if nbytes != 0:
-            X.shape = self.nchans, self.nt # reshape
-        f.seek(fp + nbytes) # skip any pad bytes
-        return nbytes, X
-
-    def rstrip(s, strip):
-        """What I think str.rstrip should really do"""
-        if s.endswith(strip):
-            return s[:-len(strip)] # strip it
-        else:
-            return s
-
-    def read(self):
-        self.nid = self.parse_id()
-        with open(self.fname, 'rb') as f:
-            self.spikes = np.fromfile(f, dtype=np.int64) # spike timestamps (us)
-        self.nspikes = len(self.spikes)
-
+   
 def Define_generic_mask_single_frame(images_processed, animal):
 
     global coords, images_temp, ax, fig, cid
