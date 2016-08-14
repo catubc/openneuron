@@ -1,2 +1,2 @@
 # openneuron
-Image and ephys processing tools
+Imaging and electrophysiology processing tools

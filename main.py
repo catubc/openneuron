@@ -1547,20 +1547,22 @@ class Window(QtGui.QMainWindow):
         fileMenu.addAction(loadRecording)
         fileMenu.addAction(exitApplication)
 
-        fileMenu = mainMenu.addMenu('Experiment Tools')
-        fileMenu.addAction(mouseTools)
-        fileMenu.addAction(mouseLeverTools)
-        fileMenu.addAction(catTools)
-        fileMenu.addAction(ratTools)
-
-
         fileMenu = mainMenu.addMenu('Pre-Process')
         fileMenu.addAction(trackTools)
         fileMenu.addAction(seamansData)
         fileMenu.addAction(filterData)
         #fileMenu.addAction(preprocessExperiment)
 
-        fileMenu = mainMenu.addMenu('Analysis')
+        fileMenu = mainMenu.addMenu('Imaging Analysis')
+        fileMenu.addAction(mouseTools)
+        fileMenu.addAction(mouseLeverTools)
+        
+        #fileMenu.addAction(catTools)
+        #fileMenu.addAction(ratTools)
+
+
+
+        fileMenu = mainMenu.addMenu('Ephys Analysis')
         fileMenu.addAction(Cell_Analysis)
         fileMenu.addAction(LFP_Analysis)
         fileMenu.addAction(MSL_Analysis)
