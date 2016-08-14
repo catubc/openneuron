@@ -118,27 +118,145 @@ class Load(QtGui.QWidget):
 
 
 
-class MouseTools(QtGui.QWidget):
+class VSDGCampTools(QtGui.QWidget):
     def __init__(self, parent):
-        super(MouseTools, self).__init__(parent)
+        super(VSDGCampTools, self).__init__(parent)
         self.parent = parent
+        layout = QtGui.QGridLayout()    
 
-        self.styleChoice = QtGui.QLabel("Cat's VSD and GCAMP recording tools", self)
 
-        comboBox = QtGui.QComboBox(self)
-        comboBox.addItem("motif")
+        #Default: july 11, 2016 experiment
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/' 
+        self.parent.root_dir = '/media/cat/500GB/in_vivo/tim/cat/'
+        self.parent.n_sec = 3
         
-        #self.styleChoice.move(50,150)
-        comboBox.activated[str].connect(self.style_choice)
+        row_index = 0   #Keep track of button/box row
+        
+        #**************************************************************************************
+        #******************************** SELECT ANIMAL & SESSION *****************************
+        #**************************************************************************************
+        #Select animal
+        self.select_lbl = QLabel('Select Animal----->', self)
+        self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        layout.addWidget(self.select_lbl, row_index,1)
 
-        self.show()
+        self.comboBox_select_animal = QtGui.QComboBox(self)
+        file_names = sorted(glob.glob(self.parent.root_dir+"*"))
+        for file_name in file_names:
+            self.comboBox_select_animal.addItem(file_name.replace(self.parent.root_dir,''))
+        layout.addWidget(self.comboBox_select_animal, row_index,2)
+        self.comboBox_select_animal.activated[str].connect(self.select_animal); self.selected_animal = file_names[0].replace(self.parent.root_dir,'')
+
+        ##Select session
+        self.select_lbl = QLabel('Select Recording----->', self)
+        self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        layout.addWidget(self.select_lbl, row_index,4)
+
+        self.comboBox_select_recording = QtGui.QComboBox(self)
+        file_names = sorted(glob.glob(self.parent.root_dir + self.selected_animal + "/tif_files/*.bin"))
+        for file_name in file_names:
+            self.comboBox_select_recording.addItem(file_name.replace(self.parent.root_dir+self.selected_animal+"/tif_files/",'')[:-4])
+        layout.addWidget(self.comboBox_select_recording, row_index,5)
+        self.comboBox_select_recording.activated[str].connect(self.select_recording); self.selected_recording = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')[:-4]
+        row_index+=1
+              
+        #Load Mouse from default values
+        #self.parent.animal_name_text=self.selected_animal.replace(self.parent.root_dir,'')
+        #self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
+        #self.parent.setWindowTitle(self.parent.animal.name)
+
+        
+        #**************************************************************************************
+        #***************************** PRE-PROCESSING HEADER **********************************
+        #**************************************************************************************
+
+        self.preprocess_lbl = QLabel('PRE-PROCESSING', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
 
-    def style_choice(self, text):
-        print "...text: ", text
-        self.styleChoice.setText(text)
-        QtGui.QApplication.setStyle(QtGui.QStyleFactory.create(text))
+        #**************************************************************************************
+        #************************************ FILTERING ***************************************
+        #**************************************************************************************
+        
+        self.button_bin_to_npy = QPushButton('Convert .bin -> .npy')
+        self.button_bin_to_npy.setMaximumWidth(200)
+        self.button_bin_to_npy.clicked.connect(self.bn_to_npy)
+        layout.addWidget(self.button_bin_to_npy, row_index, 0)
 
+
+        self.button2 = QPushButton('Filter ==>')
+        self.button2.setMaximumWidth(200)
+        self.button2.clicked.connect(self.fltr_npy)
+        layout.addWidget(self.button2, row_index, 1)
+        
+
+        self.filter_list = ['nofilter', 'butterworth', 'chebyshev']
+        self.comboBox_filter = QtGui.QComboBox(self)
+        for filter_ in self.filter_list[1:]: self.comboBox_filter.addItem(filter_)
+        layout.addWidget(self.comboBox_filter, row_index, 2)
+        self.comboBox_filter.activated[str].connect(self.select_filter); self.selected_filter = "butterworth" #Set default
+
+
+        parent.filter_low = QLineEdit('0.1')
+        parent.filter_low.setMaximumWidth(50)
+        filter_low_lbl = QLabel('Low Cutoff (HZ):', self)
+        layout.addWidget(filter_low_lbl, row_index, 3)
+        layout.addWidget(parent.filter_low, row_index, 4)
+
+       
+        parent.filter_high = QLineEdit('6.0')
+        parent.filter_high.setMaximumWidth(50)
+        filter_high_lbl = QLabel('High Cutoff (HZ):', self)
+        layout.addWidget(filter_high_lbl, row_index, 5)
+        layout.addWidget(parent.filter_high, row_index, 6); row_index+=1
+        
+        
+
+        for o in range(4):
+            for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
+            row_index+=1
+        
+        
+        self.setLayout(layout)
+
+
+    #SELECT ANIMAL
+    def select_animal(self, text):
+        print "...animal: ", text
+        self.selected_animal=text
+        self.parent.animal_name_text = text
+        
+        #Reload animal object; NOT SURE IF NEEDED YET
+        #self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
+        #self.parent.setWindowTitle(self.parent.animal.name)
+
+        ##Reload session list and reset session box
+        self.comboBox_select_recording.clear()
+        file_names = sorted(glob.glob(self.parent.root_dir + self.selected_animal + "/tif_files/*.bin"))
+        for file_name in file_names:
+            self.comboBox_select_recording.addItem(file_name.replace(self.parent.root_dir+self.selected_animal+"/tif_files/",'')[:-4])
+        self.selected_recording = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')[:-4]
+        self.select_recording(self.selected_recording)
+       
+
+    def select_recording(self, text):
+        self.selected_recording = text
+        print "...recording: ", self.selected_recording
+
+    
+    def bn_to_npy(self):
+        convert_bin_to_npy(self)
+            
+            
+    def fltr_npy(self):
+        filter_single_file(self)
+        
+        
+    def select_filter(self, text):
+        self.selected_filter = text
+        print self.selected_filter
 
 
 class MouseLeverTools(QtGui.QWidget):
@@ -520,8 +638,15 @@ class MouseLeverTools(QtGui.QWidget):
 
 
     def cvrt_tif_npy(self):
-        print "...convert .tif to .npy... NOT IMPLEMENTED..."
-        
+        print "...convert .tif to .npy... CODE BELOW (BUT NOT IMPLEMENTED)..."
+
+        if (os.path.exists(self.tif_file[:-4] +'.npy')==False) and (os.path.exists(self.tif_file[:-4] +'_aligned.npy')==False):
+            print "...read: ", self.tif_file
+            images_raw = tiff.imread(self.tif_file)
+
+            print "... saving .npy"
+            np.save(self.tif_file[:-4], images_raw)
+
     def fltr_mouse_lever(self):
         filter_data(self)
     
@@ -1342,7 +1467,6 @@ class Filter(QtGui.QWidget):
     def filter_imaging(self):
         print "...pop up window to batch select invidiual files..."
         
-        pass
         
 
 #LFP ANALYSIS TOOLBOX
@@ -1477,23 +1601,6 @@ class Window(QtGui.QMainWindow):
         loadRecording.triggered.connect(self.ld_rec)
 
 
-        #EXPERIMENT TOOLS MENUS
-        mouseTools = QtGui.QAction("&Mouse", self)
-        mouseTools.setStatusTip('Mouse')
-        mouseTools.triggered.connect(self.mouse_tools)
-
-        mouseLeverTools = QtGui.QAction("&Mouse-Lever", self)
-        mouseLeverTools.setStatusTip('Mouse-Lever')
-        mouseLeverTools.triggered.connect(self.mouse_lever_tools)
-
-        catTools = QtGui.QAction("&Cat", self)
-        catTools.setStatusTip('Cat')
-        catTools.triggered.connect(self.cat_tools)
-
-        ratTools = QtGui.QAction("&Rat", self)
-        ratTools.setStatusTip('Rat')
-        ratTools.triggered.connect(self.rat_tools)
-
         #PROCESSING MENUS
         trackTools = QtGui.QAction("&Track Tools", self)
         trackTools.setStatusTip('Track Tools')
@@ -1511,10 +1618,28 @@ class Window(QtGui.QMainWindow):
 
         filterData = QtGui.QAction("&Filter Data", self)
         filterData.setStatusTip('Filter Data')
-        filterData.triggered.connect(self.filter_data)
+        filterData.triggered.connect(self.fltr_data)
 
 
-        #ANALYSIS MENUS
+        #IMAGING TOOLS MENUS
+        mouseTools = QtGui.QAction("&VSD && GCamp Dynamics", self)
+        mouseTools.setStatusTip('Mouse')
+        mouseTools.triggered.connect(self.mouse_tools)
+
+        mouseLeverTools = QtGui.QAction("&Mouse-Lever", self)
+        mouseLeverTools.setStatusTip('Mouse-Lever')
+        mouseLeverTools.triggered.connect(self.mouse_lever_tools)
+
+        catTools = QtGui.QAction("&Cat", self)
+        catTools.setStatusTip('Cat')
+        catTools.triggered.connect(self.cat_tools)
+
+        ratTools = QtGui.QAction("&Rat", self)
+        ratTools.setStatusTip('Rat')
+        ratTools.triggered.connect(self.rat_tools)
+
+
+        #EPHYS TOOLS MENUS
         Cell_Analysis = QtGui.QAction("&Cell STM", self)
         Cell_Analysis.setStatusTip('Cell Analysis')
         Cell_Analysis.triggered.connect(self.cell_analysis)
@@ -1631,7 +1756,7 @@ class Window(QtGui.QMainWindow):
 
     #********** EXP TOOLS MENUS *******************
     def mouse_tools(self):
-        mouse_widget = MouseTools(self)
+        mouse_widget = VSDGCampTools(self)
         self.central_widget.addWidget(mouse_widget)  
         self.central_widget.setCurrentWidget(mouse_widget)
 
@@ -1695,7 +1820,7 @@ class Window(QtGui.QMainWindow):
         #MUST BE EXPERIMENT SPECIFIC
         
 
-    def filter_data(self):
+    def fltr_data(self):
         filter_widget = Filter(self)
         self.central_widget.addWidget(filter_widget)  
         self.central_widget.setCurrentWidget(filter_widget)

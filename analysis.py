@@ -281,7 +281,19 @@ def save_tsf(tsf,file_name):
     #    fake_spike_channels.tofile(fout) 
     fout.close()
 
-        
+def convert_bin_to_npy(self):
+    
+    filename = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording
+    print filename
+    if os.path.exists(filename+'.bin')==False: 
+        print "...loading .bin file..."
+        data = np.fromfile(file_out+'.bin', dtype=np.int16)
+        print "...reshaping array..."
+        data = data.reshape((-1, 128, 128))
+        print "...saving .npy array..."
+        np.save(file_out, data)
+    else:
+        print "... .npy file already exists..."
 
 def convert_video(self):
     
@@ -630,6 +642,10 @@ def make_movies_ca(self):
 
 
 def filter_data(self):
+    """ Filter _aligned.npy files for lever_pull analysis.  
+        NB: mean value of stack is added back into filtered data - so it isn't a purely filtered 
+    """
+    
     plotting = False
     #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
@@ -664,6 +680,45 @@ def filter_data(self):
     if plotting: f = plt.figure(); ax = f.gca(); f.show()
     
     #Butter
+    import parmap
+    if filter_type == 'butterworth':
+
+    #def butter_bandpass(lowcut, highcut, fs, order=5):
+        nyq = 0.5 * fs
+        low = lowcut / nyq
+        high = highcut / nyq
+        order = 2
+        b, a = butter(order, [low, high], btype='band')
+
+        #y_butterbandpassed = filtfilt(b, a, data)
+        ax=plt.subplot(1,2,1)
+        plt.imshow(images_aligned[1000])
+
+
+        pixel_list = []
+        for p1 in range(128):
+            for p2 in range(128):
+                pixel_list.append(images_aligned[:,p1,p2])
+        print "...in length: ", len(pixel_list)
+
+        y = parmap.map(parallel_filter_float16, pixel_list, b, a)
+        
+        print "...out length: ", len(y)
+        
+        #y_array = np.zeros(images_aligned.shape, dtype=np.float16)
+        #ctr=0
+        #for p1 in range(128):
+        #    #print y_array[:,p1,:].shape, y[p1*128:(p1+1)*128].shape
+        #    y_array[:,p1,:]=y[p1*128:(p1+1)*128]; ctr+=1; print ctr
+                
+        y_array = np.array(y).reshape(128,128, -1)
+        y_array = np.swapaxes(np.swapaxes(y_array, 0,2),1,2)
+        print y_array.shape
+        ax=plt.subplot(1,2,2)
+        plt.imshow(y_array[1000])
+        plt.show()
+        return
+    
     if filter_type == 'butterworth':
         data_out = images_aligned.copy()*0.0
         for row in range(len(images_aligned[0])):
@@ -709,7 +764,121 @@ def filter_data(self):
         temp_out = np.float32(data_out+np.mean(images_aligned, axis=0))
         np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', temp_out)
         print "...DONE..."
+
+
+def filter_single_file(self):
+    """ Filter a single file of data. 
+        Save mean of data separately - i.e. does NOT added it back to filtered data.
+    """
+    
+    
+    plotting = False
+    #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
+
+    #Load parameters
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter
+    lowcut = float(self.parent.filter_low.text())
+    highcut = float(self.parent.filter_high.text())
+    fs = np.loadtxt(self.parent.root_dir+self.selected_animal+'/img_rate.txt')
+    print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
+
+    #Check to see if data already exists
+    if os.path.exists(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'):
+        print "...data already filtered..."
+        return
+
+    #Load aligned images
+    print "... loading aligned imgs..."
+    images_aligned = np.load(images_file)
+    
         
+    #Save mean of images_aligned if not already done
+    if os.path.exists(images_file[:-4]+'_mean.npy')==False: 
+        np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
+    
+            
+    #Load mask for display:
+    if plotting:
+        n_pixels = len(images_aligned[0])
+        generic_coords = np.loadtxt(self.parent.animal.home_dir + self.parent.animal.name+'/genericmask.txt')
+        generic_mask_indexes=np.zeros((n_pixels,n_pixels))
+        for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+            
+        f = plt.figure(); ax = f.gca(); f.show()
+    
+    #Butter
+    import parmap
+    if filter_type == 'butterworth':
+
+    #def butter_bandpass(lowcut, highcut, fs, order=5):
+        nyq = 0.5 * fs
+        low = lowcut / nyq
+        high = highcut / nyq
+        order = 2
+        b, a = butter(order, [low, high], btype='band')
+
+        #y_butterbandpassed = filtfilt(b, a, data)
+        ax=plt.subplot(1,2,1)
+        plt.imshow(images_aligned[1000])
+
+
+        #USE UNRAVEL HERE!
+        pixel_list = []
+        for p1 in range(128):
+            for p2 in range(128):
+                pixel_list.append(images_aligned[:,p1,p2])
+        
+        print "...in length: ", len(pixel_list)
+
+        y = parmap.map(parallel_filter_float16, pixel_list, b, a)
+        
+        print "...out length: ", len(y)
+                
+        y_array = np.array(y).reshape(128,128, -1)
+        y_array = np.swapaxes(np.swapaxes(y_array, 0,2),1,2)
+        print y_array.shape
+        ax=plt.subplot(1,2,2)
+        plt.imshow(y_array[1000])
+        plt.show()
+        return
+        
+        print "... saving filtered data..."
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float16(data_out))
+        print "...DONE..."
+
+    #Cheby
+    elif filter_type == 'chebyshev':
+
+        nyq = fs / 2.0
+        order = 4
+        rp = 0.1
+        Wn = [lowcut / nyq, highcut / nyq]
+        b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
+        
+        data_out = np.zeros(images_aligned.shape, dtype=np.float32)
+        for row in range(len(images_aligned[0])):
+            print "...filtering row: ", row
+            for col in range(len(images_aligned[0,row])):
+                data_out[:,row,col] = filtfilt(b, a, images_aligned[:,row,col], axis=0)
+            
+            if plotting: 
+                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" +#, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
+                            "\nFrame: 1000 / "+str(len(images_aligned)))
+                plt.pause(0.000001) 
+                
+        print "... saving filtered data...",
+        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float16(data_out))
+        print "...DONE..."
+
+
+def parallel_filter_float16(data, b, a):
+    
+    return np.float16(filtfilt(b, a, data))
+    
+
 def compute_dff_mouse_lever(self):
     print "\n\n... dff computation..."
 

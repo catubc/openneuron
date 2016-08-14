@@ -290,9 +290,6 @@ class Mouse(object):
             #quit()
 
 
-
-
-
     def bin_to_npy(self):
         print "... converting .bin to .npy ..."
 
