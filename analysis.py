@@ -14,6 +14,9 @@ import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
 
 
+from openglclasses import *     #Custom plotting functions
+
+
 class Object_empty(object):
     def __init__(self):
         pass
@@ -605,7 +608,6 @@ def make_movies_ca(self):
     #***********GENERATE ANIMATIONS
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
-
   
     fig = plt.figure()
     im = []
@@ -646,7 +648,7 @@ def filter_data(self):
         NB: mean value of stack is added back into filtered data - so it isn't a purely filtered 
     """
     
-    plotting = False
+    plotting = True
     #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
     rec_name = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
@@ -669,109 +671,61 @@ def filter_data(self):
     
     #Save mean of images_aligned if not already done
     if os.path.exists(images_file[:-4]+'_mean.npy')==False: 
-        np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
+        images_aligned_mean = np.mean(images_aligned, axis=0)
+        np.save(images_file[:-4]+'_mean', images_aligned_mean)
+    else:
+        images_aligned_mean = np.load(images_file[:-4]+'_mean.npy')
             
-    #Load mask for display:
+    #Load mask - filter only datapoints inside mask
     n_pixels = len(images_aligned[0])
     generic_coords = np.loadtxt(self.parent.animal.home_dir + self.parent.animal.name+'/genericmask.txt')
     generic_mask_indexes=np.zeros((n_pixels,n_pixels))
     for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
-        
-    if plotting: f = plt.figure(); ax = f.gca(); f.show()
-    
-    #Butter
-    import parmap
-    if filter_type == 'butterworth':
 
-    #def butter_bandpass(lowcut, highcut, fs, order=5):
+    #Filter selection and parameters
+    if filter_type == 'butterworth':
         nyq = 0.5 * fs
         low = lowcut / nyq
         high = highcut / nyq
         order = 2
         b, a = butter(order, [low, high], btype='band')
-
-        #y_butterbandpassed = filtfilt(b, a, data)
-        ax=plt.subplot(1,2,1)
-        plt.imshow(images_aligned[1000])
-
-
-        pixel_list = []
-        for p1 in range(128):
-            for p2 in range(128):
-                pixel_list.append(images_aligned[:,p1,p2])
-        print "...in length: ", len(pixel_list)
-
-        y = parmap.map(parallel_filter_float16, pixel_list, b, a)
-        
-        print "...out length: ", len(y)
-        
-        #y_array = np.zeros(images_aligned.shape, dtype=np.float16)
-        #ctr=0
-        #for p1 in range(128):
-        #    #print y_array[:,p1,:].shape, y[p1*128:(p1+1)*128].shape
-        #    y_array[:,p1,:]=y[p1*128:(p1+1)*128]; ctr+=1; print ctr
-                
-        y_array = np.array(y).reshape(128,128, -1)
-        y_array = np.swapaxes(np.swapaxes(y_array, 0,2),1,2)
-        print y_array.shape
-        ax=plt.subplot(1,2,2)
-        plt.imshow(y_array[1000])
-        plt.show()
-        return
-    
-    if filter_type == 'butterworth':
-        data_out = images_aligned.copy()*0.0
-        for row in range(len(images_aligned[0])):
-            print "...filtering row: ", row
-            for col in range(len(images_aligned[0,row])):
-                data_out[:,row,col] = butter_bandpass_filter(images_aligned[:,row,col], lowcut, highcut, fs, order = 2)
-            
-            if plotting: 
-                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
-                ax.set_xticks([]); ax.set_yticks([]) 
-                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" + #, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
-                            "\nFrame: 1000 / "+str(len(images_aligned)))
-                plt.pause(0.000001) 
-        
-        print "... saving filtered data..."
-        temp_out = np.float32(data_out+np.mean(images_aligned, axis=0))
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', temp_out)
-        print "...DONE..."
-
-    #Cheby
     elif filter_type == 'chebyshev':
-
         nyq = fs / 2.0
         order = 4
         rp = 0.1
         Wn = [lowcut / nyq, highcut / nyq]
         b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
+    
+    
+    #Load individual pixel time courses; SWITCH TO UNRAVEL HERE****
+    import time
+   
+    filtered_array = np.zeros(images_aligned.shape, dtype=np.float16)
+    now = time.time(); start_time = now
+    cutoff=n_pixels
+    for p1 in range(n_pixels):
+        print "...row: ", p1, " ... time: ", time.time()-now,
+        now=time.time(); n_pixels_in=0
+        for p2 in range(n_pixels):
+            if generic_mask_indexes[p1,p2]==False:
+                filtered_array[:,p1,p2] = np.float16(filtfilt(b, a, images_aligned[:,p1,p2])); n_pixels_in+=1   #filter pixel inside mask
         
-        data_out = images_aligned.copy()*0.0
-        for row in range(len(images_aligned[0])):
-            print "...filtering row: ", row
-            for col in range(len(images_aligned[0,row])):
-                data_out[:,row,col] = filtfilt(b, a, images_aligned[:,row,col], axis=0)
-            
-            if plotting: 
-                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
-                ax.set_xticks([]); ax.set_yticks([])
-                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" +#, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
-                            "\nFrame: 1000 / "+str(len(images_aligned)))
-                plt.pause(0.000001) 
-                
-        print "... saving filtered data...",
-        temp_out = np.float32(data_out+np.mean(images_aligned, axis=0))
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', temp_out)
-        print "...DONE..."
+        print " # pixels filtered: ", n_pixels_in
+    print "...total filter time: ", time.time()-start_time
+
+    plt.imshow(filtered_array[1000]); plt.show()        #Check the 1000th frame see what it looks like
+
+    print "... saving filtered data...", filtered_array.shape
+    np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', filtered_array+np.float16(images_aligned_mean))
+    print "...DONE..."
 
 
 def filter_single_file(self):
     """ Filter a single file of data. 
-        Save mean of data separately - i.e. does NOT added it back to filtered data.
+        NB: Mean of data saved separately - i.e. does NOT added it back to filtered data.
+        NB: Very similar fucntion to filter_data; may wish to combine syntax eventually
     """
-    
-    
+        
     plotting = False
     #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
@@ -792,91 +746,140 @@ def filter_single_file(self):
     print "... loading aligned imgs..."
     images_aligned = np.load(images_file)
     
-        
     #Save mean of images_aligned if not already done
     if os.path.exists(images_file[:-4]+'_mean.npy')==False: 
-        np.save(images_file[:-4]+'_mean', np.mean(images_aligned, axis=0))
-    
-            
-    #Load mask for display:
-    if plotting:
-        n_pixels = len(images_aligned[0])
-        generic_coords = np.loadtxt(self.parent.animal.home_dir + self.parent.animal.name+'/genericmask.txt')
-        generic_mask_indexes=np.zeros((n_pixels,n_pixels))
-        for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
-            
-        f = plt.figure(); ax = f.gca(); f.show()
-    
-    #Butter
-    import parmap
-    if filter_type == 'butterworth':
+        images_aligned_mean = np.mean(images_aligned, axis=0)
+        np.save(images_file[:-4]+'_mean', images_aligned_mean)
+    else:
+        images_aligned_mean = np.load(images_file[:-4]+'_mean.npy')
 
-    #def butter_bandpass(lowcut, highcut, fs, order=5):
+
+    #Load mask - filter only datapoints inside mask
+    n_pixels = len(images_aligned[0])
+    generic_coords = np.loadtxt(self.parent.root_dir+self.selected_animal+'/genericmask.txt')
+    generic_mask_indexes=np.zeros((n_pixels,n_pixels))
+    for i in range(len(generic_coords)): generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+
+    #Filter selection and parameters
+    if filter_type == 'butterworth':
         nyq = 0.5 * fs
         low = lowcut / nyq
         high = highcut / nyq
         order = 2
         b, a = butter(order, [low, high], btype='band')
-
-        #y_butterbandpassed = filtfilt(b, a, data)
-        ax=plt.subplot(1,2,1)
-        plt.imshow(images_aligned[1000])
-
-
-        #USE UNRAVEL HERE!
-        pixel_list = []
-        for p1 in range(128):
-            for p2 in range(128):
-                pixel_list.append(images_aligned[:,p1,p2])
-        
-        print "...in length: ", len(pixel_list)
-
-        y = parmap.map(parallel_filter_float16, pixel_list, b, a)
-        
-        print "...out length: ", len(y)
-                
-        y_array = np.array(y).reshape(128,128, -1)
-        y_array = np.swapaxes(np.swapaxes(y_array, 0,2),1,2)
-        print y_array.shape
-        ax=plt.subplot(1,2,2)
-        plt.imshow(y_array[1000])
-        plt.show()
-        return
-        
-        print "... saving filtered data..."
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float16(data_out))
-        print "...DONE..."
-
-    #Cheby
     elif filter_type == 'chebyshev':
-
         nyq = fs / 2.0
         order = 4
         rp = 0.1
         Wn = [lowcut / nyq, highcut / nyq]
         b, a = cheby1(order, rp, Wn, 'bandpass', analog=False)
-        
-        data_out = np.zeros(images_aligned.shape, dtype=np.float32)
-        for row in range(len(images_aligned[0])):
-            print "...filtering row: ", row
-            for col in range(len(images_aligned[0,row])):
-                data_out[:,row,col] = filtfilt(b, a, images_aligned[:,row,col], axis=0)
-            
-            if plotting: 
-                ax.clear(); ax.imshow(np.ma.masked_array(data_out[1000], mask=generic_mask_indexes))
-                ax.set_xticks([]); ax.set_yticks([])
-                ax.set_title("Lowcut: "+str(lowcut)+"hz, highcut: "+ str(highcut)+ "hz" +#, maxDFF: " + str(round(np.nanmax(data_out[1000]),1)) + " minDFF: " + str(round(np.nanmin(data_out[1000]),1))+ 
-                            "\nFrame: 1000 / "+str(len(images_aligned)))
-                plt.pause(0.000001) 
-                
-        print "... saving filtered data...",
-        np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', np.float16(data_out))
-        print "...DONE..."
-
-
-def parallel_filter_float16(data, b, a):
     
-    return np.float16(filtfilt(b, a, data))
+    
+    #Load individual pixel time courses; SWITCH TO UNRAVEL HERE****
+    import time
+   
+    filtered_array = np.zeros(images_aligned.shape, dtype=np.float16)
+    now = time.time(); start_time = now
+    cutoff=n_pixels
+    for p1 in range(n_pixels):
+        print "...row: ", p1, " ... time: ", time.time()-now,
+        now=time.time(); n_pixels_in=0
+        for p2 in range(n_pixels):
+            if generic_mask_indexes[p1,p2]==False:
+                filtered_array[:,p1,p2] = np.float16(filtfilt(b, a, images_aligned[:,p1,p2])); n_pixels_in+=1   #filter pixel inside mask
+        
+        print " # pixels filtered: ", n_pixels_in
+    print "...total filter time: ", time.time()-start_time
+
+    plt.imshow(filtered_array[1000]); plt.show()        #Check the 1000th frame see what it looks like
+
+    print "... saving filtered data...", filtered_array.shape
+    np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', filtered_array)
+    print "...DONE..."
+
+
+def view_spontaneous_activity(self):
+    
+    start_frame = int(self.starting_frame.text())
+    n_frames = int(self.number_frame.text())
+    
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
+    filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
+        
+    data= np.load(filtered_file,  mmap_mode='r+')
+    print data.shape
+
+    #Load stack and mean of filtered data
+    self.stack = data[start_frame:start_frame+n_frames]
+    self.stack_mean = self.stack/np.load(images_file[:-4]+'_mean.npy')
+
+    make_spontaneous_movies(self)
+
+def make_spontaneous_movies(self):
+    
+    file_movie = self.parent.root_dir+self.selected_animal+"/movie_files/"+self.selected_recording+'.mp4'
+
+    
+    #***********GENERATE ANIMATIONS
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=50, metadata=dict(artist='Me'), bitrate=10000)
+  
+ 
+    fig = plt.figure()
+
+    im = [] 
+    #raw stack
+    ax = plt.subplot(1,2,1)
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    v_max1 = np.nanmax(np.ma.abs(self.stack)); v_min1 = -v_max1; print v_min1, v_max1
+    im.append(plt.imshow(self.stack[0], vmin = v_min1, vmax=v_max1, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+    #stack + mean frame
+    ax = plt.subplot(1,2,2)
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    v_max2 = np.nanmax(np.ma.abs(self.stack_mean)); v_min2 = -v_max2; print v_min2, v_max2
+    im.append(plt.imshow(self.stack_mean[0], vmin=v_min2, vmax=v_max2, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+    def updatefig(j):
+        print j
+        plt.suptitle("Frame: "+str(j)+"  " +str(format(float(j)/150,'.2f'))+"sec", fontsize = 15)
+
+        # set the data in the axesimage object
+        im[0].set_array(self.stack)
+        im[1].set_array(self.stack_mean)
+
+        # return the artists set
+        return im
+        
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.stack)), interval=100, blit=False, repeat=True)
+
+    if True:
+        ani.save(file_movie, writer=writer)
+    plt.show()
+
+def compute_dim_reduction(self):
+    
+    start_frame = int(self.starting_frame.text())
+    n_frames = int(self.number_frame.text())
+    
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
+    self.filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
+        
+    data= np.load(self.filtered_file,  mmap_mode='r+')
+    print data.shape
+
+    #Load stack and mean of filtered data
+    self.stack = data[start_frame:start_frame+n_frames]
+    print self.stack.shape
+    self.stack = self.stack.reshape(self.stack.shape[0],-1)
+    print self.stack.shape
+    
+
+    dim_reduction_stack(self)
+
     
 
 def compute_dff_mouse_lever(self):
@@ -921,7 +924,7 @@ def compute_DFF_function(self):
         print "... DFF already computed ...skiping processing..."
         return
 
-    #Load aligned/filtered data and find ON/OFF light
+    #Load aligned/filtered data and find ON/OFF light; #*******************SKIP THIS IF ALREADY SAVED ON FILE***************
     images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned.npy'
     self.aligned_images = np.load(images_file)
     blue_light_threshold = 400  #Intensity threshold; when this value is reached - imaging light was turned on
@@ -3018,7 +3021,191 @@ def dim_reduction(mouse, method):
         sammon(matrix_in)    
 
     return Y
+
+
+
+def dim_reduction_stack(self):
+    """ Input is 2D stack: (samples, dimension)
+    """
     
+    matrix_in = self.stack
+    method = self.selected_dim_red
+    file_out = self.filtered_file[:-4]
+    
+    
+    methods = ['PCA', 'MDS', 'tSNE', 'tSNE_Barnes_Hut']
+    
+    print "Computing dim reduction, size of array: ", matrix_in.shape
+    
+    if method==methods[1]:
+        #MDS Method - SMACOF implementation Nelle Varoquaux
+        if os.path.exists(file_out+'_MDS.npy')==False:
+            print "... MDS-SMACOF..."
+            print "... pairwise dist ..."
+            dists = sklearn.metrics.pairwise.pairwise_distances(matrix_in)
+            adist = np.array(dists)
+            amax = np.amax(adist)
+            adist /= amax
+            
+            print "... computing MDS ..."
+            mds_clf = manifold.MDS(n_components=3, metric=True, n_jobs=-1, dissimilarity="precomputed", random_state=6)
+            results = mds_clf.fit(adist)
+            Y = results.embedding_ 
+
+            np.save(file_out+'_MDS', Y)
+        else:
+            Y = np.load(file_out+'_MDS.npy')
+                
+    elif method==methods[2]:
+        ##t-Distributed Stochastic Neighbor Embedding; Laurens van der Maaten
+        if os.path.exists(file_out+'_tSNE.npy')==False:
+            print "... tSNE ..."
+            print "... pairwise dist ..."
+            
+            dists = sklearn.metrics.pairwise.pairwise_distances(matrix_in)
+            
+            adist = np.array(dists)
+            amax = np.amax(adist)
+            adist /= amax
+            
+            print "... computing tSNE ..."
+            model = manifold.TSNE(n_components=3, init='pca', random_state=0)
+            Y = model.fit_transform(adist)
+            #Y = model.fit(adist)
+        
+            np.save(file_out+'_tSNE', Y)
+        
+        else:
+            Y = np.load(file_out+'_tSNE.npy')
+
+    elif method==methods[0]:
+
+        Y, X = PCA(matrix_in, 3)
+        np.save(file_out+'_PCA.npy', Y)
+
+        if False: 
+            if os.path.exists(mouse.home_dir+mouse.name+'/PCA.npy')==False:
+                print "...computing PCA..."
+                Y, X = PCA(matrix_in, 3)
+
+                np.save(file_out+'_PCA', Y)
+            else:
+                Y = np.load(file_out+'_PCA.npy')
+            
+                
+    elif method==methods[3]:
+
+        if os.path.exists(file_out+'_tSNE_barnes_hut.npy')==False:
+            print "... computing Barnes-Hut tSNE..."
+            Y = bh_sne(np.array(matrix_in))
+        
+            np.save(file_out+'_tSNE_barnes_hut', Y)
+        else:
+            Y = np.load(file_out+'_tSNE_barnes_hut.npy')
+
+    print "...DONE..."
+    
+    self.dim_reduction_out = Y
+    
+
+def plot_3D_distribution(self):
+    
+    from math import sqrt
+    
+    main_widget = self.parent
+    
+    #Load saved dim_red data
+    temp_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filename = temp_file[:-4]+'_'+self.selected_filter+'_'+self.parent.filter_low.text()+'hz_'+self.parent.filter_high.text()+'hz_'+ self.selected_dim_red+'.npy'
+    print filename
+
+    data = np.load(filename)
+    print data.shape
+    
+    #CREATE PYRAMIDS FOR OPENGL DISPLAY
+    self.points=[]
+    self.colors=[]
+    for point in data[:1]:
+        soma_xyz=point
+
+        size=100  #Size of cell soma; CAN IMPLEMENT THIS TO BE CELL SPECIFIC EVENTUALLY
+
+        self.colors.extend([RED]*12) # uint8   
+
+        #Start making tetraheadrons;
+        #NB: Need to offset the start point to centre of tetrahaedron which is sqrt(1/6) x size higher
+        centre_offset = sqrt(1./6.)*size
+        
+        floats=[]
+        floats.append(soma_xyz[0])
+        floats.append(soma_xyz[1])
+        floats.append(soma_xyz[2])
+
+        #************************************************************************************
+        # Coordinate #1; 1st coordinate = top of tetraheadron; 1st side triangle
+        self.points.append(floats[:3])
+        floats[0]=floats[0]+size/2          
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2)) 
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        self.points.append(floats[:3])
+        floats[0]=floats[0]-size
+        floats[1]=floats[1]
+        floats[2]=floats[2]
+        self.points.append(floats[:3])
+
+        # Coordinate #2; Reset location first; 1st crd = top of tetraheadron; 2nd side 
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
+        self.points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        self.points.append(floats[:3])
+        floats[0]=floats[0]-size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
+        self.points.append(floats[:3])
+
+        # Coordinate #3; Reset location first; 1st coord = top of tetraheadron; 3rd side
+        floats[0]=floats[0]
+        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        self.points.append(floats[:3])
+        floats[0]=floats[0]
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
+        self.points.append(floats[:3])
+        floats[0]=floats[0]-size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
+        self.points.append(floats[:3])
+
+        # Coordinate #4; Use last location; bottom triangle
+        self.points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
+        self.points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
+        self.points.append(floats[:3])
+            
+    print len(self.points[0])
+    print len(self.colors[0])
+    
+    points = np.vstack([ self.points ])
+    colours = np.vstack([ self.colors ])
+
+
+    main_widget.glwindow = GLWindow(parent=None)
+
+    main_widget.glwindow.glWidget.soma_points = points
+    main_widget.glwindow.glWidget.soma_colours = colours   
+    
+    main_widget.glwindow.glWidget.updateGL()
+            
    
 def Define_generic_mask_single_frame(images_processed, animal):
 
@@ -3283,3 +3470,16 @@ def find_previous(array,value):
     else: return temp
     
 
+
+def PCA(X, n_components):
+    from sklearn import decomposition
+
+    pca = decomposition.PCA(n_components)
+    pca.fit(X)
+    X=pca.transform(X)
+
+    coords = []
+    for i in range(len(X)):
+         coords.append([X[i][0], X[i][1], X[i][2]])
+    
+    return X, np.array(coords).T #THIS IS REDUNDANT... REDUCE IT

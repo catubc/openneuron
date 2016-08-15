@@ -173,8 +173,9 @@ class VSDGCampTools(QtGui.QWidget):
         self.preprocess_lbl = QLabel('PRE-PROCESSING', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
-        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+        layout.addWidget(self.preprocess_lbl, row_index, 0)
 
+        row_index+=1
 
         #**************************************************************************************
         #************************************ FILTERING ***************************************
@@ -196,7 +197,7 @@ class VSDGCampTools(QtGui.QWidget):
         self.comboBox_filter = QtGui.QComboBox(self)
         for filter_ in self.filter_list[1:]: self.comboBox_filter.addItem(filter_)
         layout.addWidget(self.comboBox_filter, row_index, 2)
-        self.comboBox_filter.activated[str].connect(self.select_filter); self.selected_filter = "butterworth" #Set default
+        self.comboBox_filter.activated[str].connect(self.slct_filter); self.selected_filter = "butterworth" #Set default
 
 
         parent.filter_low = QLineEdit('0.1')
@@ -213,7 +214,55 @@ class VSDGCampTools(QtGui.QWidget):
         layout.addWidget(parent.filter_high, row_index, 6); row_index+=1
         
         
+        #**************************************************************************************
+        #************************************ VIEW ACTIVITY ***********************************
+        #**************************************************************************************
 
+        self.button_view_activity = QPushButton('View Spontaneous Activity')
+        self.button_view_activity.setMaximumWidth(200)
+        self.button_view_activity.clicked.connect(self.vw_activity)
+        layout.addWidget(self.button_view_activity, row_index, 0)
+
+        self.starting_frame = QLineEdit('500')
+        self.starting_frame.setMaximumWidth(50)
+        self.starting_frame_lbl = QLabel('Starting Frame:', self)
+        layout.addWidget(self.starting_frame_lbl, row_index, 1)
+        layout.addWidget(self.starting_frame, row_index, 2)
+        
+        self.number_frame = QLineEdit('1000')
+        self.number_frame.setMaximumWidth(50)
+        self.number_frame_lbl = QLabel('No. of Frames:', self)
+        layout.addWidget(self.number_frame_lbl, row_index, 3)
+        layout.addWidget(self.number_frame, row_index, 4)
+
+        row_index+=1
+        
+        #**************************************************************************************
+        #**************************** DIMENSIONALITY ANALYSIS *********************************
+        #**************************************************************************************
+
+        self.button_state_space = QPushButton('State Space Distributions')
+        self.button_state_space.setMaximumWidth(200)
+        self.button_state_space.clicked.connect(self.st_space)
+        layout.addWidget(self.button_state_space, row_index, 0)
+
+
+        self.dim_red_list = ['PCA', 'MDS', 'tSNE', 'tSNE_Barnes_Hut']
+        self.comboBox_dim_red = QtGui.QComboBox(self)
+        for dim_red in self.dim_red_list: 
+            self.comboBox_dim_red.addItem(dim_red)
+        layout.addWidget(self.comboBox_dim_red, row_index,1)
+        self.comboBox_dim_red.activated[str].connect(self.select_dim_red); self.selected_dim_red = self.dim_red_list[0] #Set default
+        
+
+        self.button_plot_distribution = QPushButton('Plot Distribution')
+        self.button_plot_distribution.setMaximumWidth(200)
+        self.button_plot_distribution.clicked.connect(self.plt_distribution)
+        layout.addWidget(self.button_plot_distribution, row_index, 2)
+        
+        
+        #*************************************************************************
+        row_index+=1
         for o in range(4):
             for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
             row_index+=1
@@ -240,7 +289,6 @@ class VSDGCampTools(QtGui.QWidget):
         self.selected_recording = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')[:-4]
         self.select_recording(self.selected_recording)
        
-
     def select_recording(self, text):
         self.selected_recording = text
         print "...recording: ", self.selected_recording
@@ -254,10 +302,24 @@ class VSDGCampTools(QtGui.QWidget):
         filter_single_file(self)
         
         
-    def select_filter(self, text):
+    def slct_filter(self, text):
         self.selected_filter = text
         print self.selected_filter
 
+    def vw_activity(self):
+        view_spontaneous_activity(self)
+        
+
+    def select_dim_red(self, text):
+        self.selected_dim_red = text
+        print text
+        
+    def st_space(self):
+        compute_dim_reduction(self)
+
+    def plt_distribution(self):
+        plot_3D_distribution(self)
+        
 
 class MouseLeverTools(QtGui.QWidget):
     def __init__(self, parent):
