@@ -14,7 +14,7 @@ import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
 
 
-from openglclasses_new import *     #Custom plotting functions
+from openglclasses import *     #Custom plotting functions
 
 
 class Object_empty(object):
