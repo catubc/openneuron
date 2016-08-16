@@ -14,7 +14,7 @@ import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
 
 
-from openglclasses import *     #Custom plotting functions
+from openglclasses_new import *     #Custom plotting functions
 
 
 class Object_empty(object):
@@ -3108,7 +3108,7 @@ def dim_reduction_stack(self):
     self.dim_reduction_out = Y
     
 
-def plot_3D_distribution(self):
+def plot_3D_distribution_old(self): #OLD NOT USED ANY LONGER
     
     from math import sqrt
     
@@ -3125,10 +3125,29 @@ def plot_3D_distribution(self):
     #CREATE PYRAMIDS FOR OPENGL DISPLAY
     self.points=[]
     self.colors=[]
-    for point in data[:1]:
+
+    RED = 255, 0, 0
+    ORANGE = 255, 127, 0
+    YELLOW = 255, 255, 0
+    GREEN = 0, 255, 0
+    CYAN = 0, 255, 255
+    LIGHTBLUE = 0, 127, 255
+    BLUE = 0, 0, 255
+    VIOLET = 127, 0, 255
+    MAGENTA = 255, 0, 255  
+    GREY = 85, 85, 85
+    WHITE = 255, 255, 255
+    DARK_GREY = 30, 30, 30
+    PURPLE = 154, 44, 209
+    CMAP = np.array([RED, ORANGE, YELLOW, GREEN, CYAN, LIGHTBLUE, BLUE, VIOLET, MAGENTA,
+                     GREY, WHITE, PURPLE], dtype=np.uint8)
+
+    RED = '#ff0000'
+    for point in data:
         soma_xyz=point
 
-        size=100  #Size of cell soma; CAN IMPLEMENT THIS TO BE CELL SPECIFIC EVENTUALLY
+        size=3.  #Size of cell soma; CAN IMPLEMENT THIS TO BE CELL SPECIFIC EVENTUALLY
+
 
         self.colors.extend([RED]*12) # uint8   
 
@@ -3191,13 +3210,10 @@ def plot_3D_distribution(self):
         floats[1]=floats[1]
         floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
         self.points.append(floats[:3])
-            
-    print len(self.points[0])
-    print len(self.colors[0])
+
     
     points = np.vstack([ self.points ])
     colours = np.vstack([ self.colors ])
-
 
     main_widget.glwindow = GLWindow(parent=None)
 
@@ -3205,8 +3221,128 @@ def plot_3D_distribution(self):
     main_widget.glwindow.glWidget.soma_colours = colours   
     
     main_widget.glwindow.glWidget.updateGL()
-            
-   
+    
+    
+def plot_3D_distribution_new(self):
+
+    #main_widget = self.parent
+    
+    #Load saved dim_red data
+    temp_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filename = temp_file[:-4]+'_'+self.selected_filter+'_'+self.parent.filter_low.text()+'hz_'+self.parent.filter_high.text()+'hz_'+ self.selected_dim_red+'.npy'
+    print filename
+
+    data = np.load(filename)
+    print data.shape
+    
+    #Start window
+    self.parent.glwindow = ClusterWindow(pos=(0, 0), size=(500, 500))
+    self.parent.glwindow.show()
+    
+    #Load data as points
+    X = data
+    X = np.float32(X)
+    sids = np.arange(len(data))
+    nids = sids % len(CLUSTERCOLOURSRGB)
+
+    #Load data as triangles
+    points, colours = points_to_triangles(data)
+    
+    self.parent.glwindow.glWidget.soma_points = points
+    self.parent.glwindow.glWidget.soma_colours = colours   
+    self.parent.glwindow.glWidget.points_selected=[]
+    
+    self.parent.glwindow.plot(X, sids, nids)
+    
+    
+def points_to_triangles(data):
+    
+    from math import sqrt
+
+    import matplotlib as mpl
+    import matplotlib.cm as cm
+
+    norm = mpl.colors.Normalize(vmin=0, vmax=len(data))
+    cmap = cm.jet
+    m = cm.ScalarMappable(norm=norm, cmap=cmap)
+    
+
+    points=[]
+    colors=[]
+    for ctr, point in enumerate(data):
+        soma_xyz=point
+
+        size=3.  #Size of cell soma; CAN IMPLEMENT THIS TO BE CELL SPECIFIC EVENTUALLY
+        
+        colors.extend([[x*255 for x in m.to_rgba(ctr)[:3]]]*12) # uint8   
+        #print [int(x*255) for x in m.to_rgba(ctr)[:3]]
+        #return
+        
+        #Start making tetraheadrons;
+        #NB: Need to offset the start point to centre of tetrahaedron which is sqrt(1/6) x size higher
+        centre_offset = sqrt(1./6.)*size
+        
+        floats=[]
+        floats.append(soma_xyz[0])
+        floats.append(soma_xyz[1])
+        floats.append(soma_xyz[2])
+
+        #************************************************************************************
+        # Coordinate #1; 1st coordinate = top of tetraheadron; 1st side triangle
+        points.append(floats[:3])
+        floats[0]=floats[0]+size/2          
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2)) 
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        points.append(floats[:3])
+        floats[0]=floats[0]-size
+        floats[1]=floats[1]
+        floats[2]=floats[2]
+        points.append(floats[:3])
+
+        # Coordinate #2; Reset location first; 1st crd = top of tetraheadron; 2nd side 
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
+        points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        points.append(floats[:3])
+        floats[0]=floats[0]-size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
+        points.append(floats[:3])
+
+        # Coordinate #3; Reset location first; 1st coord = top of tetraheadron; 3rd side
+        floats[0]=floats[0]
+        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
+        points.append(floats[:3])
+        floats[0]=floats[0]
+        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
+        points.append(floats[:3])
+        floats[0]=floats[0]-size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
+        points.append(floats[:3])
+
+        # Coordinate #4; Use last location; bottom triangle
+        points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
+        points.append(floats[:3])
+        floats[0]=floats[0]+size/2
+        floats[1]=floats[1]
+        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
+        points.append(floats[:3])
+
+    points = np.vstack([ points ])
+    colours = np.uint8(np.vstack([ colors ]))
+    
+    return points, colours
+    
 def Define_generic_mask_single_frame(images_processed, animal):
 
     global coords, images_temp, ax, fig, cid

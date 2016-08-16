@@ -261,6 +261,12 @@ class VSDGCampTools(QtGui.QWidget):
         layout.addWidget(self.button_plot_distribution, row_index, 2)
         
         
+        
+        self.button_list_points = QPushButton('List Selected Points')
+        self.button_list_points.setMaximumWidth(200)
+        self.button_list_points.clicked.connect(self.list_points)
+        layout.addWidget(self.button_list_points, row_index, 3)
+        
         #*************************************************************************
         row_index+=1
         for o in range(4):
@@ -306,6 +312,7 @@ class VSDGCampTools(QtGui.QWidget):
         self.selected_filter = text
         print self.selected_filter
 
+
     def vw_activity(self):
         view_spontaneous_activity(self)
         
@@ -313,13 +320,22 @@ class VSDGCampTools(QtGui.QWidget):
     def select_dim_red(self, text):
         self.selected_dim_red = text
         print text
-        
+
+
     def st_space(self):
         compute_dim_reduction(self)
 
+
     def plt_distribution(self):
-        plot_3D_distribution(self)
+        #plot_3D_distribution_old(self)
         
+        plot_3D_distribution_new(self)
+        
+
+    def list_points(self):
+        print     self.parent.glwindow.glWidget.points_selected
+
+
 
 class MouseLeverTools(QtGui.QWidget):
     def __init__(self, parent):
