@@ -802,6 +802,85 @@ def view_spontaneous_activity(self):
     
     start_frame = int(self.starting_frame.text())
     n_frames = int(self.number_frame.text())
+    print "...start frame: ", start_frame, "   n_frames: ", n_frames
+
+    #Load data from disk
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
+    filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
+        
+    data= np.load(filtered_file,  mmap_mode='r+')
+    print data.shape
+
+    #Load stack and mean of filtered data
+    self.stack = data[start_frame:start_frame+n_frames]
+    self.stack_mean = self.stack/np.load(images_file[:-4]+'_mean.npy')
+
+    print self.stack.shape
+
+    make_spontaneous_movies(self)
+
+def view_ave_points(self):
+
+    #Load dim reduced filename and data
+    start_frame = int(self.starting_frame.text())
+    n_frames = int(self.number_frame.text())
+    print "...selected frames: ", start_frame, "   n_frames: ", n_frames
+    
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
+    filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
+        
+    data= np.load(filtered_file,  mmap_mode='r+')
+    print data.shape
+
+    #Select only clustered frames
+    selected_frames = np.int16(self.parent.glwindow.glWidget.points_selected)
+    self.stack = data[selected_frames]
+    self.stack_mean = np.average(self.stack, axis=0)
+    plt.imshow(self.stack_mean)
+    plt.show()
+
+def view_all_points(self):
+    
+    #Load dim reduced filename and data
+    start_frame = int(self.starting_frame.text())
+    n_frames = int(self.number_frame.text())
+    print "...selected frames: ", start_frame, "   n_frames: ", n_frames
+    
+    images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
+    filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
+    filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
+        
+    data= np.load(filtered_file,  mmap_mode='r+')
+    print data.shape
+
+    #Select only clustered frames
+    selected_frames = np.int16(self.parent.glwindow.glWidget.points_selected)
+    data = data[selected_frames]
+    
+
+    n_cols = int(np.sqrt(len(data))+0.999999); n_rows = n_cols-1    #Assume on less row needed (always the case unless perfect square
+    if (n_rows*n_cols)<(len(data)): n_rows = n_cols                 #If not enough rows, add 1
+    
+    v_max = np.nanmax(np.ma.abs(data)); v_min = -v_max; print v_min, v_max
+    
+    for k in range(len(data)):
+        ax = plt.subplot(n_rows,n_cols,k+1)
+        ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+              
+        #plt.imshow(data[k], vmin=v_min, vmax=v_max, interpolation='none')
+        plt.imshow(data[k], interpolation='none')
+        plt.title(str(selected_frames[k]),fontsize=10)
+    plt.show()
+    
+
+def video_points(self):
+    
+    start_frame = int(self.parent.glwindow.glWidget.points_selected[0])
+    n_frames = int(self.number_frame.text())
+    
+    print "...start frame: ", start_frame, "   n_frames: ", n_frames
     
     images_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
@@ -814,8 +893,11 @@ def view_spontaneous_activity(self):
     self.stack = data[start_frame:start_frame+n_frames]
     self.stack_mean = self.stack/np.load(images_file[:-4]+'_mean.npy')
 
-    make_spontaneous_movies(self)
+    print self.stack.shape
 
+    make_spontaneous_movies(self)
+    
+    
 def make_spontaneous_movies(self):
     
     file_movie = self.parent.root_dir+self.selected_animal+"/movie_files/"+self.selected_recording+'.mp4'
@@ -841,13 +923,15 @@ def make_spontaneous_movies(self):
     v_max2 = np.nanmax(np.ma.abs(self.stack_mean)); v_min2 = -v_max2; print v_min2, v_max2
     im.append(plt.imshow(self.stack_mean[0], vmin=v_min2, vmax=v_max2, cmap=plt.get_cmap('jet'), interpolation='none'))
 
+    frame_offset = int(self.parent.glwindow.glWidget.points_selected[0])+int(self.starting_frame.text())
+
     def updatefig(j):
         print j
-        plt.suptitle("Frame: "+str(j)+"  " +str(format(float(j)/150,'.2f'))+"sec", fontsize = 15)
+        plt.suptitle("Frame: "+str(j+frame_offset)+"  " +str(format(float(j)/150,'.2f'))+"sec", fontsize = 15)
 
         # set the data in the axesimage object
-        im[0].set_array(self.stack)
-        im[1].set_array(self.stack_mean)
+        im[0].set_array(self.stack[j])
+        im[1].set_array(self.stack_mean[j])
 
         # return the artists set
         return im
@@ -858,6 +942,9 @@ def make_spontaneous_movies(self):
     if True:
         ani.save(file_movie, writer=writer)
     plt.show()
+
+
+
 
 def compute_dim_reduction(self):
     
@@ -877,7 +964,6 @@ def compute_dim_reduction(self):
     self.stack = self.stack.reshape(self.stack.shape[0],-1)
     print self.stack.shape
     
-
     dim_reduction_stack(self)
 
     
@@ -1457,13 +1543,12 @@ def concatenate_tsf(self):
                 temp_tsf.read_ec_traces()
                 
                 temp_ec_traces=[]
-                print "...updating ch: ",
                 for ch in range(len(tsf.ec_traces)):
-                    print ch,
                     temp_ec_traces.append(np.append(tsf.ec_traces[ch],temp_tsf.ec_traces[ch]))
                 
                 tsf.ec_traces=np.int16(temp_ec_traces)
                 tsf.n_vd_samples += temp_tsf.n_vd_samples
+                print "...total n_vd_samples: ", tsf.n_vd_samples
         
         print ''; print "...saving alltrack .tsf..."
         file_name = self.parent.animal.tsf_files[0][:-4]+"_alltrack.tsf"
@@ -1486,14 +1571,13 @@ def concatenate_tsf(self):
                 print len(temp_tsf.ec_traces)
                 
                 temp_ec_traces=[]
-                print "...updating chs: ",
                 for ch in range(len(tsf.ec_traces)):
-                    print ch,
                     temp_ec_traces.append(np.append(tsf.ec_traces[ch],temp_tsf.ec_traces[ch]))
                 
                 tsf.ec_traces=np.int16(temp_ec_traces)
                 tsf.n_vd_samples += temp_tsf.n_vd_samples
-        
+                print "...total n_vd_samples: ", tsf.n_vd_samples
+
         print ''; print "...saving alltrack .tsf..."
         file_name = self.parent.animal.tsf_files[0] + "_alltrack.tsf"
         save_tsf(tsf, file_name)    
@@ -3027,19 +3111,22 @@ def dim_reduction(mouse, method):
 def dim_reduction_stack(self):
     """ Input is 2D stack: (samples, dimension)
     """
+    import sklearn
+
     
     matrix_in = self.stack
     method = self.selected_dim_red
-    file_out = self.filtered_file[:-4]
     
+    file_out = self.filtered_file[:-4]+'_'+method+'_'+self.starting_frame.text()+"start_"+self.number_frame.text()+"frames"
     
+
     methods = ['PCA', 'MDS', 'tSNE', 'tSNE_Barnes_Hut']
     
     print "Computing dim reduction, size of array: ", matrix_in.shape
     
     if method==methods[1]:
         #MDS Method - SMACOF implementation Nelle Varoquaux
-        if os.path.exists(file_out+'_MDS.npy')==False:
+        if os.path.exists(file_out+'.npy')==False:
             print "... MDS-SMACOF..."
             print "... pairwise dist ..."
             dists = sklearn.metrics.pairwise.pairwise_distances(matrix_in)
@@ -3048,17 +3135,17 @@ def dim_reduction_stack(self):
             adist /= amax
             
             print "... computing MDS ..."
-            mds_clf = manifold.MDS(n_components=3, metric=True, n_jobs=-1, dissimilarity="precomputed", random_state=6)
+            mds_clf = sklearn.manifold.MDS(n_components=3, metric=True, n_jobs=-1, dissimilarity="precomputed", random_state=6)
             results = mds_clf.fit(adist)
             Y = results.embedding_ 
 
-            np.save(file_out+'_MDS', Y)
+            np.save(file_out, Y)
         else:
-            Y = np.load(file_out+'_MDS.npy')
+            Y = np.load(file_out+'.npy')
                 
     elif method==methods[2]:
         ##t-Distributed Stochastic Neighbor Embedding; Laurens van der Maaten
-        if os.path.exists(file_out+'_tSNE.npy')==False:
+        if os.path.exists(file_out+'.npy')==False:
             print "... tSNE ..."
             print "... pairwise dist ..."
             
@@ -3069,158 +3156,43 @@ def dim_reduction_stack(self):
             adist /= amax
             
             print "... computing tSNE ..."
-            model = manifold.TSNE(n_components=3, init='pca', random_state=0)
+            model = sklearn.manifold.TSNE(n_components=3, init='pca', random_state=0)
             Y = model.fit_transform(adist)
             #Y = model.fit(adist)
         
-            np.save(file_out+'_tSNE', Y)
+            np.save(file_out, Y)
         
         else:
-            Y = np.load(file_out+'_tSNE.npy')
+            Y = np.load(file_out+'.npy')
 
     elif method==methods[0]:
 
         Y, X = PCA(matrix_in, 3)
-        np.save(file_out+'_PCA.npy', Y)
+        np.save(file_out+'.npy', Y)
 
         if False: 
             if os.path.exists(mouse.home_dir+mouse.name+'/PCA.npy')==False:
                 print "...computing PCA..."
                 Y, X = PCA(matrix_in, 3)
 
-                np.save(file_out+'_PCA', Y)
+                np.save(file_out, Y)
             else:
-                Y = np.load(file_out+'_PCA.npy')
+                Y = np.load(file_out+'.npy')
             
                 
     elif method==methods[3]:
 
-        if os.path.exists(file_out+'_tSNE_barnes_hut.npy')==False:
+        if os.path.exists(file_out+'.npy')==False:
             print "... computing Barnes-Hut tSNE..."
             Y = bh_sne(np.array(matrix_in))
         
-            np.save(file_out+'_tSNE_barnes_hut', Y)
+            np.save(file_out, Y)
         else:
-            Y = np.load(file_out+'_tSNE_barnes_hut.npy')
+            Y = np.load(file_out+'.npy')
 
     print "...DONE..."
     
     self.dim_reduction_out = Y
-    
-
-def plot_3D_distribution_old(self): #OLD NOT USED ANY LONGER
-    
-    from math import sqrt
-    
-    main_widget = self.parent
-    
-    #Load saved dim_red data
-    temp_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
-    filename = temp_file[:-4]+'_'+self.selected_filter+'_'+self.parent.filter_low.text()+'hz_'+self.parent.filter_high.text()+'hz_'+ self.selected_dim_red+'.npy'
-    print filename
-
-    data = np.load(filename)
-    print data.shape
-    
-    #CREATE PYRAMIDS FOR OPENGL DISPLAY
-    self.points=[]
-    self.colors=[]
-
-    RED = 255, 0, 0
-    ORANGE = 255, 127, 0
-    YELLOW = 255, 255, 0
-    GREEN = 0, 255, 0
-    CYAN = 0, 255, 255
-    LIGHTBLUE = 0, 127, 255
-    BLUE = 0, 0, 255
-    VIOLET = 127, 0, 255
-    MAGENTA = 255, 0, 255  
-    GREY = 85, 85, 85
-    WHITE = 255, 255, 255
-    DARK_GREY = 30, 30, 30
-    PURPLE = 154, 44, 209
-    CMAP = np.array([RED, ORANGE, YELLOW, GREEN, CYAN, LIGHTBLUE, BLUE, VIOLET, MAGENTA,
-                     GREY, WHITE, PURPLE], dtype=np.uint8)
-
-    RED = '#ff0000'
-    for point in data:
-        soma_xyz=point
-
-        size=3.  #Size of cell soma; CAN IMPLEMENT THIS TO BE CELL SPECIFIC EVENTUALLY
-
-
-        self.colors.extend([RED]*12) # uint8   
-
-        #Start making tetraheadrons;
-        #NB: Need to offset the start point to centre of tetrahaedron which is sqrt(1/6) x size higher
-        centre_offset = sqrt(1./6.)*size
-        
-        floats=[]
-        floats.append(soma_xyz[0])
-        floats.append(soma_xyz[1])
-        floats.append(soma_xyz[2])
-
-        #************************************************************************************
-        # Coordinate #1; 1st coordinate = top of tetraheadron; 1st side triangle
-        self.points.append(floats[:3])
-        floats[0]=floats[0]+size/2          
-        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2)) 
-        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
-        self.points.append(floats[:3])
-        floats[0]=floats[0]-size
-        floats[1]=floats[1]
-        floats[2]=floats[2]
-        self.points.append(floats[:3])
-
-        # Coordinate #2; Reset location first; 1st crd = top of tetraheadron; 2nd side 
-        floats[0]=floats[0]+size/2
-        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
-        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
-        self.points.append(floats[:3])
-        floats[0]=floats[0]+size/2
-        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
-        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
-        self.points.append(floats[:3])
-        floats[0]=floats[0]-size/2
-        floats[1]=floats[1]
-        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
-        self.points.append(floats[:3])
-
-        # Coordinate #3; Reset location first; 1st coord = top of tetraheadron; 3rd side
-        floats[0]=floats[0]
-        floats[1]=floats[1]+sqrt(size**2-sqrt(size**2-(size/2)**2))
-        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)/2
-        self.points.append(floats[:3])
-        floats[0]=floats[0]
-        floats[1]=floats[1]-sqrt(size**2-sqrt(size**2-(size/2)**2))
-        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)/2
-        self.points.append(floats[:3])
-        floats[0]=floats[0]-size/2
-        floats[1]=floats[1]
-        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
-        self.points.append(floats[:3])
-
-        # Coordinate #4; Use last location; bottom triangle
-        self.points.append(floats[:3])
-        floats[0]=floats[0]+size/2
-        floats[1]=floats[1]
-        floats[2]=floats[2]-sqrt(size**2-(size/2)**2)
-        self.points.append(floats[:3])
-        floats[0]=floats[0]+size/2
-        floats[1]=floats[1]
-        floats[2]=floats[2]+sqrt(size**2-(size/2)**2)
-        self.points.append(floats[:3])
-
-    
-    points = np.vstack([ self.points ])
-    colours = np.vstack([ self.colors ])
-
-    main_widget.glwindow = GLWindow(parent=None)
-
-    main_widget.glwindow.glWidget.soma_points = points
-    main_widget.glwindow.glWidget.soma_colours = colours   
-    
-    main_widget.glwindow.glWidget.updateGL()
     
     
 def plot_3D_distribution_new(self):
@@ -3229,15 +3201,18 @@ def plot_3D_distribution_new(self):
     
     #Load saved dim_red data
     temp_file = self.parent.root_dir+self.selected_animal+"/tif_files/"+self.selected_recording+'.npy'
-    filename = temp_file[:-4]+'_'+self.selected_filter+'_'+self.parent.filter_low.text()+'hz_'+self.parent.filter_high.text()+'hz_'+ self.selected_dim_red+'.npy'
+    filename = temp_file[:-4]+'_'+self.selected_filter+'_'+self.parent.filter_low.text()+'hz_'+self.parent.filter_high.text()+'hz_'+ self.selected_dim_red+'_'+self.starting_frame.text()+"start_"+self.number_frame.text()+"frames.npy"
+
     print filename
 
     data = np.load(filename)
+    data=data*float(self.scaling_factor.text())
     print data.shape
     
     #Start window
     self.parent.glwindow = ClusterWindow(pos=(0, 0), size=(500, 500))
     self.parent.glwindow.show()
+    self.parent.glwindow.glWidget.points_selected=[]    #Empty list to gather all selected points.
     
     #Load data as points
     X = data
@@ -3247,13 +3222,39 @@ def plot_3D_distribution_new(self):
 
     #Load data as triangles
     points, colours = points_to_triangles(data)
-    
-    self.parent.glwindow.glWidget.soma_points = points
-    self.parent.glwindow.glWidget.soma_colours = colours   
+    self.parent.glwindow.glWidget.points_pyramids = points
+    self.parent.glwindow.glWidget.colours_pyramids = colours   
+
+    #Load data as lines
+    points, colours = points_to_lines(data)
+    self.parent.glwindow.glWidget.points_lines = points
+    self.parent.glwindow.glWidget.colours_lines = colours   
     self.parent.glwindow.glWidget.points_selected=[]
     
     self.parent.glwindow.plot(X, sids, nids)
+
+def points_to_lines(data):
+    """ Make lines connecting each point in the data """
+
+    import matplotlib as mpl
+    import matplotlib.cm as cm
+
+    norm = mpl.colors.Normalize(vmin=0, vmax=len(data)) #Set maximum for color scheme to length of data array;
+    cmap = cm.jet
+    m = cm.ScalarMappable(norm=norm, cmap=cmap)
     
+    points=[]
+    colors=[]
+    for ctr in range(len(data[:-1])):
+        colors.extend([[x*255 for x in m.to_rgba(ctr)[:3]]]*2) # uint8   
+        
+        points.append(data[ctr])
+        points.append(data[ctr+1])
+
+    points = np.vstack([ points ])
+    colours = np.uint8(np.vstack([ colors ]))
+    
+    return points, colours
     
 def points_to_triangles(data):
     

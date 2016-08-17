@@ -231,11 +231,15 @@ class GLWidget(QtOpenGL.QGLWidget):
         GL.glVertexPointerf(self.points) # should be n x 3 contig float32
         GL.glDrawArrays(GL.GL_POINTS, 0, self.npoints)
 
-        #DRAW DATA AS POINTS:
-        #if self.plot_soma==1:
-        GL.glColorPointerub(self.soma_colours) # unsigned byte, ie uint8
-        GL.glVertexPointerf(self.soma_points) # float32
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, len(self.soma_points))
+        #DRAW DATA AS LINES CONNECTING SEQUENTIAL POINTS:
+        GL.glColorPointerub(self.colours_lines) # unsigned byte, ie uint8
+        GL.glVertexPointerf(self.points_lines) # float32
+        GL.glDrawArrays(GL.GL_LINES, 0, len(self.points_lines))
+
+        #DRAW DATA AS PYRAMIDS:
+        GL.glColorPointerub(self.colours_pyramids) # unsigned byte, ie uint8
+        GL.glVertexPointerf(self.points_pyramids) # float32
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, len(self.points_pyramids))
 
         if self.axes: # paint xyz axes
             GL.glClear(GL.GL_DEPTH_BUFFER_BIT) # make axes paint on top of data points
@@ -253,7 +257,7 @@ class GLWidget(QtOpenGL.QGLWidget):
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
         # fov (deg) controls amount of perspective, and as a side effect initial apparent size
-        GLU.gluPerspective(45, width/height, 0.0001, 100000) # fov, aspect, nearz & farz clip planes
+        GLU.gluPerspective(45, width/height, 0.001, 1000000) # fov, aspect, nearz & farz clip planes
         GL.glMatrixMode(GL.GL_MODELVIEW)
 
     def paint_mini_axes(self):
@@ -555,12 +559,11 @@ class GLWidget(QtOpenGL.QGLWidget):
         ijs = zip(*np.where(hitpix)) # list of ij tuples
         
         self.out_array = np.asarray([ self.decodeRGB(backbuffer[i, j]) for i, j in ijs ])
-        
         print self.out_array
         
+        #Keep track only of unique selected points
         self.points_selected = np.unique(np.append(self.points_selected, self.out_array))
-        
-        
+                
         return self.out_array
 
     def decodeRGB(self, rgb):
@@ -799,36 +802,6 @@ class GLWidget(QtOpenGL.QGLWidget):
                     QtGui.QMessageBox.Ok, QtGui.QMessageBox.NoButton)
             print('cluster plot saved to %r' % fname)
 
-
-    #def showToolTip(self):
-        #"""Pop up a nid or sid tooltip at current mouse cursor position"""
-        ## hide first if you want tooltip to move even when text is unchanged:
-        ##QtGui.QToolTip.hideText()
-        ##spw = self.spw
-        ##sort = spw.sort
-        #x, y = self.cursorPosGL()
-        #sid = self.pick(x, y)
-        #if sid != None:
-            ##spos = []
-            ##dims = spw.GetClusterPlotDims()
-            ##for dim in dims:
-                ##if dim.startswith('c') and dim[-1].isdigit(): # it's a CA dim
-                    ##compid = int(lstrip(dim, 'c'))
-                    ##sidi = self.sids.searchsorted(sid)
-                    ##spos.append(sort.X[sort.Xhash][sidi, compid])
-                ##else: # it's a standard dim stored in spikes array
-                    ##spos.append(sort.spikes[sid][dim])
-            #tip = 'sid: %d' % sid
-            ##tip += '\n%s: %s' % (lst2shrtstr(dims), lst2shrtstr(spos))
-            #nid = self.nids[self.sids.searchsorted(sid)]#nid = sort.spikes[sid]['nid']
-            #if nid != 0:
-                #tip += '\nnid: %d' % nid
-                ##cpos = [ sort.neurons[nid].cluster.pos[dim] for dim in dims ]
-                ##tip += '\n%s: %s' % (lst2shrtstr(dims), lst2shrtstr(cpos))
-            #globalPos = self.mapToGlobal(self.GLtoQt(x, y))
-            #QtGui.QToolTip.showText(globalPos, tip)
-        #else:
-            #QtGui.QToolTip.hideText()
 
     def selectPointsUnderCursor(self):
         """Update point selection with those currently under cursor, within pixel border pb.

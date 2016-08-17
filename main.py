@@ -224,21 +224,20 @@ class VSDGCampTools(QtGui.QWidget):
         layout.addWidget(self.button_view_activity, row_index, 0)
 
         self.starting_frame = QLineEdit('500')
-        self.starting_frame.setMaximumWidth(50)
+        self.starting_frame.setMaximumWidth(100)
         self.starting_frame_lbl = QLabel('Starting Frame:', self)
         layout.addWidget(self.starting_frame_lbl, row_index, 1)
         layout.addWidget(self.starting_frame, row_index, 2)
         
         self.number_frame = QLineEdit('1000')
-        self.number_frame.setMaximumWidth(50)
+        self.number_frame.setMaximumWidth(100)
         self.number_frame_lbl = QLabel('No. of Frames:', self)
         layout.addWidget(self.number_frame_lbl, row_index, 3)
-        layout.addWidget(self.number_frame, row_index, 4)
-
-        row_index+=1
+        layout.addWidget(self.number_frame, row_index, 4); row_index+=1
+        
         
         #**************************************************************************************
-        #**************************** DIMENSIONALITY ANALYSIS *********************************
+        #**************************** DIMENSIONALITY REDUCTION ********************************
         #**************************************************************************************
 
         self.button_state_space = QPushButton('State Space Distributions')
@@ -260,12 +259,49 @@ class VSDGCampTools(QtGui.QWidget):
         self.button_plot_distribution.clicked.connect(self.plt_distribution)
         layout.addWidget(self.button_plot_distribution, row_index, 2)
         
+        self.scaling_factor = QLineEdit('1.0')
+        self.scaling_factor.setMaximumWidth(100)
+        self.scaling_factor_lbl = QLabel('Scaling Factor:', self)
+        layout.addWidget(self.scaling_factor_lbl, row_index, 3)
+        layout.addWidget(self.scaling_factor, row_index, 4); row_index+=1
         
         
+        #**************************************************************************************
+        #******************************* PICKING POINTS  **************************************
+        #**************************************************************************************
+                
         self.button_list_points = QPushButton('List Selected Points')
         self.button_list_points.setMaximumWidth(200)
         self.button_list_points.clicked.connect(self.list_points)
-        layout.addWidget(self.button_list_points, row_index, 3)
+        layout.addWidget(self.button_list_points, row_index, 0)
+        
+        self.button_clear_points = QPushButton('Clear Selected Points')
+        self.button_clear_points.setMaximumWidth(200)
+        self.button_clear_points.clicked.connect(self.clr_points)
+        layout.addWidget(self.button_clear_points, row_index, 1)
+
+        self.button_view_ave_points = QPushButton('View Ave of Selected Points')
+        self.button_view_ave_points.setMaximumWidth(250)
+        self.button_view_ave_points.clicked.connect(self.vw_ave_points)
+        layout.addWidget(self.button_view_ave_points, row_index, 2)
+
+
+        self.button_view_all_points = QPushButton('View All Selected Points')
+        self.button_view_all_points.setMaximumWidth(250)
+        self.button_view_all_points.clicked.connect(self.vw_all_points)
+        layout.addWidget(self.button_view_all_points, row_index, 3); row_index+=1
+                
+        
+        #**************************************************************************************
+        #******************************* PICKING POINTS  **************************************
+        #**************************************************************************************
+        
+        self.button_video_points = QPushButton('Make Video From 1st Point')
+        self.button_video_points.setMaximumWidth(250)
+        self.button_video_points.clicked.connect(self.vid_points)
+        layout.addWidget(self.button_video_points, row_index, 0)
+
+
         
         #*************************************************************************
         row_index+=1
@@ -327,14 +363,25 @@ class VSDGCampTools(QtGui.QWidget):
 
 
     def plt_distribution(self):
-        #plot_3D_distribution_old(self)
-        
         plot_3D_distribution_new(self)
         
+    
+    def vw_ave_points(self):
+        view_ave_points(self)
+
+    def vw_all_points(self):
+        view_all_points(self)
 
     def list_points(self):
-        print     self.parent.glwindow.glWidget.points_selected
+        print self.parent.glwindow.glWidget.points_selected
 
+    def clr_points(self):
+        self.parent.glwindow.glWidget.points_selected = []
+
+    def vid_points(self):
+        print "...making vid starting at frame: ", self.parent.glwindow.glWidget.points_selected[0]
+        video_points(self)
+        
 
 
 class MouseLeverTools(QtGui.QWidget):
