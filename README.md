@@ -16,4 +16,4 @@ glob
 scipy
 
 PyQt4
-opengl
+OpenGL
