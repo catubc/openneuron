@@ -255,7 +255,28 @@ class Tsf_file(object):
         self.fin.seek(indent+channel*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
         self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_vd_samples)
         self.fin.close()
+    
+    def save_tsf(self, file_name):
+        
+        fout = open(file_name, 'wb')
+        print file_name
+        fout.write(self.header)
+        fout.write(struct.pack('i', self.iformat))
+        fout.write(struct.pack('i', self.SampleFrequency))
+        fout.write(struct.pack('i', self.n_electrodes))
+        fout.write(struct.pack('i', self.n_vd_samples))
+        fout.write(struct.pack('f', self.vscale_HP))
+        for i in range (self.n_electrodes):
+            fout.write(struct.pack('h', self.Siteloc[i*2]))
+            fout.write(struct.pack('h', self.Siteloc[i*2+1]))
+            fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
 
+        self.ec_traces.tofile(fout)
+
+        fout.write(struct.pack('i', self.n_cell_spikes))
+        fout.close()
+        
+#DUPLICATE FUNCTION WITH TSF CLASS FUNCTION; May still need it for stand alone functions; but LIKELY OBSOLETE... ERASE!!!!!!!!!!!!
 def save_tsf(tsf,file_name):
     
     fout = open(file_name, 'wb')
@@ -269,19 +290,11 @@ def save_tsf(tsf,file_name):
     for i in range (tsf.n_electrodes):
         fout.write(struct.pack('h', tsf.Siteloc[i*2]))
         fout.write(struct.pack('h', tsf.Siteloc[i*2+1]))
-        fout.write(struct.pack('i', i))
+        fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
 
     tsf.ec_traces.tofile(fout)
 
     fout.write(struct.pack('i', tsf.n_cell_spikes))
-    #print "No. cell spikes: ", n_cell_spikes
-    #if (n_cell_spikes>0):
-    #    if (iformat==1001):
-    #        fout.write(struct.pack('i', vertical_site_spacing)) # = struct.unpack('i',fin.read(4))[0] 
-    #        fout.write(struct.pack('i', n_cell_spikes)) #Write # of fake spikes
-    #    fake_spike_times.tofile(fout)
-    #    fake_spike_assignment.tofile(fout) 
-    #    fake_spike_channels.tofile(fout) 
     fout.close()
 
 def convert_bin_to_npy(self):
@@ -1526,194 +1539,165 @@ def concatenate_tsf(self):
     
     print "...concatenate multiple .tsf..."
     
-    for k in range(len(self.parent.animal.tsf_files)):  print self.parent.animal.tsf_files[k]
+    total_n_vd_samples = 0
+    for k in range(len(self.parent.animal.tsf_files)):  
+        tsf = Tsf_file(self.parent.animal.tsf_files[k])
+        total_n_vd_samples += tsf.n_vd_samples
+    
+    print "...original layout: ",     
+    print tsf.Siteloc
+    print tsf.Readloc
+    
+    
+    print "...total length of recs: ", total_n_vd_samples
+    tsf.n_vd_samples = total_n_vd_samples #Set total tsf file # samples 
+    tsf.n_cell_spikes = 0
+    
+    #Initialize ec_traces total
+    tsf.ec_traces = np.zeros((tsf.n_electrodes, total_n_vd_samples), dtype=np.int16)
+    print tsf.ec_traces.shape
+    
+    #Load each tsf data file 
+    tsf_index = 0
+    for ctr, file_name in enumerate(self.parent.animal.tsf_files):
+        print "... loading: ", file_name
+        temp_tsf = Tsf_file(file_name)
+        temp_tsf.read_ec_traces()
         
-    #mouse intan data: select .tsf files directly, load and concatenate them
-    if '.tsf' in self.parent.animal.tsf_files[0]:
+        for ch in range(len(temp_tsf.ec_traces)):
+            tsf.ec_traces[ch,tsf_index:tsf_index+len(temp_tsf.ec_traces[ch])] = temp_tsf.ec_traces[ch]
+        
+        tsf_index+=len(temp_tsf.ec_traces[ch])
+        
+    print ''; print "...saving alltrack .tsf..."
 
-        for ctr, file_name in enumerate(self.parent.animal.tsf_files):
-            if ctr==0:
-                #Read first tsf file
-                tsf = Tsf_file(file_name)
-                tsf.read_ec_traces()
-                print len(tsf.ec_traces)
-            else:
-                #Read additional tsf files
-                temp_tsf = Tsf_file(file_name)
-                temp_tsf.read_ec_traces()
-                
-                temp_ec_traces=[]
-                for ch in range(len(tsf.ec_traces)):
-                    temp_ec_traces.append(np.append(tsf.ec_traces[ch],temp_tsf.ec_traces[ch]))
-                
-                tsf.ec_traces=np.int16(temp_ec_traces)
-                tsf.n_vd_samples += temp_tsf.n_vd_samples
-                print "...total n_vd_samples: ", tsf.n_vd_samples
+    file_name = self.parent.animal.tsf_files[0][:-4]+"_alltrack.tsf"
+    save_tsf(tsf, file_name)
         
-        print ''; print "...saving alltrack .tsf..."
-        file_name = self.parent.animal.tsf_files[0][:-4]+"_alltrack.tsf"
-        save_tsf(tsf, file_name)
-        
-        
-    #cat data: select outer directory and then find .tsf inside each directory to load and concatenate
-    else:
-        
-        for ctr, dir_name in enumerate(self.parent.animal.tsf_files):
-            
-            file_name = dir_name+dir_name[dir_name.rfind('/'):]+'.tsf'
-            if ctr==0:
-                tsf = Tsf_file(file_name)
-                tsf.read_ec_traces()
-                print len(tsf.ec_traces)
-            else:
-                temp_tsf = Tsf_file(file_name)
-                temp_tsf.read_ec_traces()
-                print len(temp_tsf.ec_traces)
-                
-                temp_ec_traces=[]
-                for ch in range(len(tsf.ec_traces)):
-                    temp_ec_traces.append(np.append(tsf.ec_traces[ch],temp_tsf.ec_traces[ch]))
-                
-                tsf.ec_traces=np.int16(temp_ec_traces)
-                tsf.n_vd_samples += temp_tsf.n_vd_samples
-                print "...total n_vd_samples: ", tsf.n_vd_samples
-
-        print ''; print "...saving alltrack .tsf..."
-        file_name = self.parent.animal.tsf_files[0] + "_alltrack.tsf"
-        save_tsf(tsf, file_name)    
-
 
 def concatenate_lfp_zip(self):
     """ Function doc """
 
     print "...concatenate lfp.zip files..."
     
-    for k in range(len(self.parent.animal.tsf_files)):  print self.parent.animal.tsf_files[k]
-        
-    #mouse intan data: select .tsf files directly, load and concatenate them
+    #This is only for Nick, Martin cat data; for intan data, can make lfp files from raw .tsf files directly
     for ctr, dir_name in enumerate(self.parent.animal.tsf_files):
         
         file_name = dir_name+dir_name[dir_name.rfind('/'):]+'.lfp.zip'
+        print file_name
         if ctr==0:
             self.parent.animal.load_lfp_all(file_name)
             tsf = self.parent.animal.tsf
-            tsf.iformat = '1002'
+            tsf.iformat = 1002
             tsf.header = 'Test spike file '
-            tsf.Siteloc = "LOAD FROM NCHANS" 
-            tsf.vscale_HP = 1.0
-            tsf.n_electrodes = 10 #OR LOAD FROM .lfp.zip file...
-            
-            #******************************NB: NEED TO LOAD LENGTH OF RECORDING FROM HIGHPASS FILE AND APPEND ZEROS TO END OF PADDED LFP****
-            print "TODO ***************** NEED TO APPEND ZEROS HERE ***********************"
         else:
             self.parent.animal.load_lfp_all(file_name)
             tsf_temp = self.parent.animal.tsf
             
             temp_ec_traces=[]
-            print "...updating chs: ",
-            for ch in range(len(tsf.ec_traces)):
-                print ch,
-                temp_ec_traces.append(np.append(tsf.ec_traces[ch],temp_tsf.ec_traces[ch]))
+            for ch in range(tsf.n_electrodes):
+                temp_ec_traces.append(np.append(tsf.ec_traces[ch],tsf_temp.ec_traces[ch]))
             
             tsf.ec_traces=np.int16(temp_ec_traces)
-            tsf.n_vd_samples += temp_tsf.n_vd_samples
+            tsf.n_vd_samples += tsf_temp.n_vd_samples
+    
+    tsf.n_cell_spikes = 0
+    tsf.Siteloc=np.ravel(tsf.Siteloc[tsf.chans])        #Channel locations saved as flattened x,y coords
+    
+    print tsf.iformat
+    print tsf.SampleFrequency
+    print tsf.n_electrodes
+    print tsf.n_vd_samples, tsf.n_vd_samples/float(tsf.SampleFrequency)
+    print tsf.vscale_HP
+    print tsf.chans
+    print tsf.Siteloc
+    
+    print tsf.ec_traces
+
+    tsf.ec_traces = np.int16(tsf.ec_traces*tsf.vscale_HP)
+    tsf.vscale_HP = 1.0
     
     print ''; print "...saving alltrack .tsf..."
-    file_name = self.parent.animal.tsf_files[0] + "_alltrack.tsf"
+    file_name = self.parent.animal.tsf_files[0] + "_alltrack_lp.tsf"
     save_tsf(tsf, file_name)    
 
 def compress_lfp(self):
     
     print "...making compressed lfp files ..."
-
-    for file_name in self.filenames:
+    
+    print self.parent.animal.tsf_file
+    compression_factor = int(self.parent.compress_factor.text())
+    print "...compressed factor: ", 
+    
+    tsf = Tsf_file(self.parent.animal.tsf_file)
+    tsf.read_ec_traces()
+    
+    print tsf.ec_traces
+    tsf.ec_traces= np.int16(tsf.ec_traces*tsf.vscale_HP)
+    tsf.vscale_HP = 1.0
+    
+    if tsf.SampleFrequency != 1000:
+        print "...lfp frequency not = 1000Hz... exiting ..."
+        return
         
-        file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_lp_compressed.tsf'
-        if os.path.exists(file_out)==True: continue
+    #*********** SAVE COMPRESSED LOW PASS .TSF FILE *********
+    #Save compression file name
+    file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compression.tsf'
+    print "Saving LFP : ", file_out
 
-        #Load low-pass .tsf file
-        file_in = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_lp.tsf'
-        print "Processing: \n", file_in
-        self.load_tsf(file_in)
-        print self.tsf.Siteloc.shape
+    tsf.SampleFrequency = tsf.SampleFrequency * compression_factor
+    tsf.save_tsf(file_out)
+    
+    
 
-        #Save .lfp.zip file; Martin format; still used by some routines (may wish to remove eventually)
-        out_file = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'.lfp.zip'
-        print "Saving LFP : ", out_file
-        t0 = 0
-        t1 = len(self.tsf.ec_traces[0])*1E6/self.tsf.SampleFrequency  #time of end of file in usec 
-        tres = 1000     #1Khz sample rate
-        uVperAD = 1.0
-        chans = np.arange(0, self.tsf.n_electrodes, 1)
-        chanpos = self.tsf.Siteloc
+    #f1 = open(file_out, 'wb')
+    #f1.write(header)
+    #f1.write(struct.pack('i', self.tsf.iformat))
+    #f1.write(struct.pack('i', self.tsf.SampleFrequency))
+    #f1.write(struct.pack('i', self.tsf.n_electrodes))
+    #f1.write(struct.pack('i', self.tsf.n_vd_samples))
+    #f1.write(struct.pack('f', self.tsf.vscale_HP))
+    #for i in range (self.tsf.n_electrodes):
+        #f1.write(struct.pack('h', self.tsf.Siteloc[i*2]))
+        #f1.write(struct.pack('h', self.tsf.Siteloc[i*2+1]))
+        #f1.write(struct.pack('i', i+1)) #Need to add extra value for Fortran arrays
 
-        np.savez(out_file, chans=chans, chanpos=chanpos, data=self.tsf.ec_traces, t0=t0, t1=t1, tres=tres, uVperAD=uVperAD)
-        os.rename(out_file+'.npz', out_file)
-        
-        #COMPRESS LFP 
-        #PAD DATA - Required for Nick/Martin recs as LFP starts bit after highpass data;
-        #print "Loading LFP (.lfp.zip) file: ", file_lfp
-        #data_in  = np.load(file_lfp+'.lfp.zip')
-        #t_start = data_in['t0']*1E-6      #Convert to seconds
-        #t_end = data_in['t1']*1E-6        #Convert to seconds
-        #start_offset = np.zeros((len(data_in['data']), int(t_start*1E3)), dtype=np.int16)  #make padding at front of data
-        #data_out = np.concatenate((start_offset, data_out), axis=1)
+    #print "Writing data"
+    #for i in range(self.tsf.n_electrodes):
+        #self.tsf.ec_traces[i].tofile(f1)
 
-        #*********** SAVE COMPRESSED LOW PASS .TSF FILE *********
-        header = 'Test spike file '
-        iformat = 1002
-        n_electrodes = self.tsf.n_electrodes
-        SampleFrequency = 50000
-        vscale_HP = self.tsf.vscale_HP #use the same as above
-        #n_vd_samples = len(self.tsf.ec_traces[0][::Compress_factor])
-        n_vd_samples = len(self.tsf.ec_traces[0])
-
-        f1 = open(file_out, 'wb')
-        f1.write(header)
-        f1.write(struct.pack('i', iformat))
-        f1.write(struct.pack('i', SampleFrequency))
-        f1.write(struct.pack('i', n_electrodes))
-        f1.write(struct.pack('i', n_vd_samples))
-        f1.write(struct.pack('f', vscale_HP))
-        for i in range (n_electrodes):
-            f1.write(struct.pack('h', self.tsf.Siteloc[i*2]))
-            f1.write(struct.pack('h', self.tsf.Siteloc[i*2+1]))
-            f1.write(struct.pack('i', i+1)) #Need to add extra value for Fortran arrays
-
-        print "Writing data"
-        for i in range(n_electrodes):
-            self.tsf.ec_traces[i].tofile(f1)
-
-        f1.write(struct.pack('i', 0)) #Write # of fake spikes
-        #text = "Compression:" + str(overall_compression)
-        #n_bytes = len(text)
-        #f1.write(struct.pack('i', n_bytes))
-        #f1.write(text)
-        f1.close()
+    #f1.write(struct.pack('i', 0)) #Write # of fake spikes
+    #f1.close()
 
 
 def Specgram_syncindex(self):
     
     channel=int(self.parent.specgram_ch.text())
     
-    if self.parent.exp_type=="mouse":
-        self.parent.animal.load_channel(self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+
-                        '_lp.tsf', channel) #Loads single channel as animal.tsf
-    elif self.parent.exp_type=="cat":
-        temp_name = self.parent.animal.recName.replace('.ptcs','.lfp.zip').replace('.tsf','.lfp.zip')
-        self.parent.animal.load_lfp_channel(temp_name, channel) #Loads single channel as animal.tsf
-    elif self.parent.exp_type=='rat':
-        temp_name = self.parent.animal.recName.replace('_hp.tsf','_lp.tsf')
-        self.parent.animal.load_channel(temp_name, channel) #Loads single channel as animal.tsf
+    #if self.parent.exp_type=="mouse":
+        #self.parent.animal.load_channel(self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+
+                        #'_lp.tsf', channel) #Loads single channel as animal.tsf
+                        
+    #elif self.parent.exp_type=="cat":
+        #temp_name = self.parent.animal.recName.replace('.ptcs','.lfp.zip').replace('.tsf','.lfp.zip')
+        #self.parent.animal.load_lfp_channel(temp_name, channel) #Loads single channel as animal.tsf
+    #elif self.parent.exp_type=='rat':
+        #temp_name = self.parent.animal.recName.replace('_hp.tsf','_lp.tsf')
+        #self.parent.animal.load_channel(temp_name, channel) #Loads single channel as animal.tsf
         
-        #print "exp_type unknown"
-        #return
+        ##print "exp_type unknown"
+        ##return
     
     colors=['blue','green','violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
 
-    tsf = self.parent.animal.tsf
+    tsf = Tsf_file(self.parent.recName)
+    tsf.read_ec_traces()
+    
+    #tsf = self.parent.animal.tsf
+    
+    
     samp_freq = tsf.SampleFrequency
-    print "rec length: ", len(tsf.ec_traces)/float(tsf.SampleFrequency), " sec."
+    print "rec length: ", len(tsf.ec_traces[channel])/float(tsf.SampleFrequency), " sec."
 
     ax = plt.subplot(1,1,1)
     font_size = 30
@@ -1722,7 +1706,7 @@ def Specgram_syncindex(self):
 
     #Compute Specgram
     print "computing specgram..."
-    data_in = tsf.ec_traces
+    data_in = tsf.ec_traces[channel]
     P, extent = Compute_specgram_signal(data_in, samp_freq)
     plt.imshow(P, extent=extent, aspect='auto')
 
@@ -1752,7 +1736,7 @@ def Specgram_syncindex(self):
 
     plt.ylabel("Synchrony Index             Specgram Frequency (Hz)      ", fontsize=font_size-5)           
     plt.xlabel("Time (mins)", fontsize = font_size)
-    plt.title(tsf.file_name, fontsize=font_size-10)
+    plt.title(self.parent.recName, fontsize=font_size-10)
     plt.show()
 
 def Compute_specgram_signal(data, SampleFrequency):

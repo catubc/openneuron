@@ -107,12 +107,17 @@ class Load(QtGui.QWidget):
         print main_widget.animal_name.text()
 
         main_widget.animal.recName = QtGui.QFileDialog.getOpenFileName(self, 'Load File', main_widget.root_dir+main_widget.animal.name+'/rhd_files/')
-        main_widget.rec_name_text = main_widget.animal.recName.replace(main_widget.animal.home_dir+main_widget.animal.name+'/rhd_files/', '')
         
-        self.parent.setWindowTitle(main_widget.animal.name+'/'+main_widget.rec_name_text)
+        #Simplified loading
+        if True:
+            self.parent.recName = main_widget.animal.recName
+        else:
+            main_widget.rec_name_text = main_widget.animal.recName.replace(main_widget.animal.home_dir+main_widget.animal.name+'/rhd_files/', '')
+            
+            self.parent.setWindowTitle(main_widget.animal.name+'/'+main_widget.rec_name_text)
 
-        self.parent.animal.load_tsf_header(main_widget.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','_hp.tsf'))
-        self.parent.animal.rec_length = self.parent.animal.tsf.n_vd_samples/float(self.parent.animal.tsf.SampleFrequency)
+            self.parent.animal.load_tsf_header(main_widget.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','_hp.tsf'))
+            self.parent.animal.rec_length = self.parent.animal.tsf.n_vd_samples/float(self.parent.animal.tsf.SampleFrequency)
 
         #self.default_parameters()
 
@@ -1412,51 +1417,41 @@ class Track(QtGui.QWidget):
         layout.addWidget(self.button1, 6, 0)
 
 
-        self.button1 = QPushButton('Time compress .tsf (1Khz)')
+        self.button1 = QPushButton('Time compress (1Khz) .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.comp_lfp)
         layout.addWidget(self.button1, 7, 0)
+        
+        self.parent.compress_factor = QLineEdit('50');                  #parent.end_time = self.end_time
+        self.parent.compress_factor.setMaximumWidth(50)
+        self.parent.compress_factor_lbl = QLabel('Compress Factor:', self)
+        layout.addWidget(self.parent.compress_factor_lbl, 7, 1)
+        layout.addWidget(self.parent.compress_factor, 7, 2)
         
         self.setLayout(layout)
 
         
 
     def multi_tsf(self):
-
         print "... selecting multiple recordings ..."
-
-        dialog = FileDialog()
-        dialog.exec_()
+        out_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
+        self.parent.animal.tsf_files = out_files
         
-        self.parent.animal.tsf_files = dialog.out_files
-        
-        #animal_analysis.py has this function.
         concatenate_tsf(self) 
 
 
     def multi_lfp_zip(self):
-
-        print "... selecting multiple recordings ..."
-
-        dialog = FileDialog()
+        print "... selecting multiple .lfp.zip recording directories ..."
+        dialog = FileDialog()   #**** SELECT MULTIPLE DIRECTORIES, NOT INDIVIDUAL FIELS
         dialog.exec_()
         
         self.parent.animal.tsf_files = dialog.out_files
-        
-        #animal_analysis.py has this function.
         concatenate_lfp_zip(self) 
             
 
     def comp_lfp(self):
-
-        print "... selecting multiple recordings ..."
-
-        dialog = FileDialog()
-        dialog.exec_()
-        
-        self.parent.animal.tsf_files = dialog.out_files
-        
-        #animal_analysis.py has this function.
+        print "... selecting single lfp recording ..."
+        self.parent.animal.tsf_file = QtGui.QFileDialog.getOpenFileName(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
 
 

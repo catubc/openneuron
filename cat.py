@@ -93,29 +93,68 @@ class Cat(object):
         
         data_in = np.load(file_name)
         self.tsf.SampleFrequency = data_in['tres']
-        print "freq: ", self.tsf.SampleFrequency
+        self.tsf.chans = data_in['chans']
+        self.tsf.n_electrodes = len(self.tsf.chans)
+        self.tsf.Siteloc = data_in['chanpos']
+        self.tsf.vscale_HP = data_in['uVperAD']
         self.tsf.ec_traces = data_in['data']
-        self.tsf.ec_traces = self.tsf.ec_traces * data_in['uVperAD']
-        print self.tsf.ec_traces.shape
-        print self.tsf.ec_traces[0]
+        self.tsf.ec_traces = self.tsf.ec_traces
+
+        #print "freq: ", self.tsf.SampleFrequency
+        #print self.tsf.ec_traces.shape
+        #print self.tsf.ec_traces[0]
         
         #self.tsf.ec_traces = self.tsf.ec_traces[channel]
+        def Notch_Filter(data, fs=1000, band=.5, freq=60., ripple=10, order=2, filter_type='ellip'):
+            from scipy.signal import iirfilter, lfilter
+            #fs   = 1/time
+            nyq  = fs/2.0
+            low  = freq - band/2.0
+            high = freq + band/2.0
+            low  = low/nyq
+            high = high/nyq
+            
+            b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
+                             analog=False, ftype=filter_type)
+            filtered_data = lfilter(b, a, data)
+            return filtered_data
+            
+        def notch(data, sampfreq=1000, freq=60, bw=0.25, gpass=0.01, gstop=30, ftype='ellip'):
+            """Filter out frequencies in data centered on freq (Hz), of bandwidth +/- bw (Hz).
 
+            ftype: 'ellip', 'butter', 'cheby1', 'cheby2', 'bessel'
+            """
+            import scipy.signal
+    
+            w = freq / (sampfreq / 2) # fraction of Nyquist frequency == 1/2 sampling rate
+            bw = bw / (sampfreq / 2)
+            wp = [w-2*bw, w+2*bw] # outer bandpass
+            ws = [w-bw, w+bw] # inner bandstop
+            print wp, ws, ftype
+            # using more extreme values for gpass or gstop seems to cause IIR filter instability.
+            # 'ellip' is the only one that seems to work
+            b, a = scipy.signal.iirdesign(wp, ws, gpass=gpass, gstop=gstop, analog=0, ftype=ftype)
+            print b, a
+            #data = scipy.signal.lfilter(b, a, data)
+            data = scipy.signal.filtfilt(b, a, data) #Forward backward filter
+            return data
+    
         #Home made notch filter; filter.notch doesn't seem to work...
-        offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)
-        for k in range(len()):
-            notched = np.int16(butter_bandpass_filter(self.tsf.ec_traces[k], 59.75, 60.25, self.tsf.SampleFrequency, order = 2))
+        offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)      #Convert microsecond offset to miliseconds;
+        temp_traces = []
+        for k in range(self.tsf.n_electrodes):
+            #notched = np.int16(butter_bandpass_filter(self.tsf.ec_traces[k], 59.98, 60.02, self.tsf.SampleFrequency, order = 2))
+            #self.tsf.ec_traces[k] = np.float32(self.tsf.ec_traces[k])-notched
 
-            self.tsf.ec_traces[k] = self.tsf.ec_traces[k]-notched
+            #self.tsf.ec_traces[k] = notch(np.float64(self.tsf.ec_traces[k]))
 
-            #compute LFP offset relative high-pass and pad LFP record.
-            print "offseting lfp data to highpass"
-            self.tsf.ec_traces[k] = np.append(offset, self.tsf.ec_traces[k])
-            #self.tsf.ec_traces = np.concatenate((start_offset, self.tsf.ec_traces), axis=0)
+            self.tsf.ec_traces[k] = Notch_Filter(self.tsf.ec_traces[k])
+
+            temp_traces.append(np.append(offset, self.tsf.ec_traces[k]))
         
-        
-
-
+        self.tsf.ec_traces = np.int16(temp_traces)
+        self.tsf.n_vd_samples = len(self.tsf.ec_traces[0])
+                 
     def tsf_to_lfp(self):
         '''Read .tsf files - subsample to 1Khz, save as *_lp.tsf
         '''
