@@ -148,7 +148,7 @@ class Cat(object):
 
             #self.tsf.ec_traces[k] = notch(np.float64(self.tsf.ec_traces[k]))
 
-            self.tsf.ec_traces[k] = Notch_Filter(self.tsf.ec_traces[k])
+            #self.tsf.ec_traces[k] = Notch_Filter(self.tsf.ec_traces[k])
 
             temp_traces.append(np.append(offset, self.tsf.ec_traces[k]))
         

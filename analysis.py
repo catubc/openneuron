@@ -277,7 +277,7 @@ class Tsf_file(object):
         fout.close()
         
 #DUPLICATE FUNCTION WITH TSF CLASS FUNCTION; May still need it for stand alone functions; but LIKELY OBSOLETE... ERASE!!!!!!!!!!!!
-def save_tsf(tsf,file_name):
+def save_tsf_single(tsf,file_name):
     
     fout = open(file_name, 'wb')
     print file_name
@@ -1572,7 +1572,7 @@ def concatenate_tsf(self):
     print ''; print "...saving alltrack .tsf..."
 
     file_name = self.parent.animal.tsf_files[0][:-4]+"_alltrack.tsf"
-    save_tsf(tsf, file_name)
+    save_tsf_single(tsf, file_name)
         
 
 def concatenate_lfp_zip(self):
@@ -1619,7 +1619,7 @@ def concatenate_lfp_zip(self):
     
     print ''; print "...saving alltrack .tsf..."
     file_name = self.parent.animal.tsf_files[0] + "_alltrack_lp.tsf"
-    save_tsf(tsf, file_name)    
+    save_tsf_single(tsf, file_name)    
 
 def compress_lfp(self):
     
