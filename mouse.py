@@ -25,7 +25,7 @@ class Mouse(object):
         self.name = animal_name
         self.home_dir = home_dir
 
-        self.move_files()
+        #self.move_files()
 
         self.load_filenames()
         

@@ -1099,42 +1099,70 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        
         layout = QtGui.QGridLayout()
-     
+
+        row_index=0
+
+        #**************************************************************************************
+        #*********************************** LOAD FILES  **************************************
+        #**************************************************************************************
+        #Set root dir; button, then label
+        self.button_set_sua_file = QPushButton('Single Unit File')
+        self.button_set_sua_file.setMaximumWidth(200)
+        self.button_set_sua_file.clicked.connect(self.set_sua_file)
+        layout.addWidget(self.button_set_sua_file, row_index, 0)
+        
+        self.parent.button_set_sua_file  = os.getcwd()
+        self.button_set_sua_file_lbl = QLabel(self.parent.button_set_sua_file, self)
+        layout.addWidget(self.button_set_sua_file_lbl, row_index,1); row_index+=1
+
+        #Set recording name; button, then label
+        self.button_set_lfp_event_file = QPushButton('LPF Event File')
+        self.button_set_lfp_event_file.setMaximumWidth(200)
+        self.button_set_lfp_event_file.clicked.connect(self.set_lfp_event_file)
+        layout.addWidget(self.button_set_lfp_event_file, row_index, 0)
+        
+        self.parent.set_lfp_event_file = ''
+        self.button_set_lfp_event_file_lbl = QLabel(self.parent.set_lfp_event_file, self)
+        layout.addWidget(self.button_set_lfp_event_file_lbl, row_index,1); row_index+=1
+        
+
+        #**************************************************************************************
+        #*********************************** SET LFP #  **************************************
+        #**************************************************************************************
         parent.start_lfp = QLineEdit('0');                   
         parent.start_lfp.setMaximumWidth(50)
         start_lfp_lbl = QLabel('start_lfp_cluster:', self)
-       
+        layout.addWidget(start_lfp_lbl, row_index,0)
+        layout.addWidget(parent.start_lfp, row_index,1)
+               
         parent.end_lfp = QLineEdit('1');                     
         parent.end_lfp.setMaximumWidth(50)
         end_lfp_lbl = QLabel('end_lfp_cluster:', self)
+        layout.addWidget(end_lfp_lbl,row_index,2)
+        layout.addWidget(parent.end_lfp,row_index,3)
+
 
         parent.time_chunks = QLineEdit('1');               
         parent.time_chunks.setMaximumWidth(50)
         time_chunks_lbl = QLabel('# of time_chunks:', self)
-        
+        layout.addWidget(time_chunks_lbl,row_index,4)
+        layout.addWidget(parent.time_chunks,row_index,5)
+                
         parent.lock_window = QLineEdit('200');               
         parent.lock_window.setMaximumWidth(50)
         lock_window_lbl = QLabel('lock_window (ms):', self)
+        layout.addWidget(lock_window_lbl,row_index,6)
+        layout.addWidget(parent.lock_window,row_index,7)
+
 
         parent.n_spikes = QLineEdit('250');               
         parent.n_spikes.setMaximumWidth(50)
         n_spikes_lbl = QLabel('min_spikes:', self)
-
-        #ADD TO LAYOUT
-        layout.addWidget(start_lfp_lbl, 0,0)
-        layout.addWidget(parent.start_lfp, 0,1)
-        layout.addWidget(end_lfp_lbl,0,2)
-        layout.addWidget(parent.end_lfp,0,3)
-        
-        layout.addWidget(time_chunks_lbl,1,0)
-        layout.addWidget(parent.time_chunks,1,1)
-
-        layout.addWidget(lock_window_lbl,2,0)
-        layout.addWidget(parent.lock_window,2,1)
-        
-        layout.addWidget(n_spikes_lbl,6,2)
-        layout.addWidget(parent.n_spikes,6,3)
+        layout.addWidget(n_spikes_lbl,row_index,8)
+        layout.addWidget(parent.n_spikes,row_index,9)
 
 
         #MAKE BUTTONS             
@@ -1151,9 +1179,20 @@ class MSL(QtGui.QWidget):
         self.setLayout(layout)
 
 
+    def set_sua_file(self):
+        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self.parent, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs)")
+        self.button_set_sua_file_lbl.setText(self.parent.sua_file)
+        #self.parent.setWindowTitle(self.parent.sua_file)
+
+    def set_lfp_event_file(self):
+        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self.parent, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
+        self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(self.parent.root_dir,''))
+        #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
+        
     def view_msl(self, main_widget):
         self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
-        msl_plots(self.parent)
+        
+        msl_plots(self)
 
             
     def view_msl_Pvals(self):
@@ -1390,6 +1429,7 @@ class Track(QtGui.QWidget):
         self.parent = parent
         layout = QtGui.QGridLayout()
         
+        row_index= 0
         parent.start_time = QLineEdit('0.5');                #parent.start_time = self.start_time
         parent.start_time.setMaximumWidth(50)
         start_time_lbl = QLabel('low_pass (hz):', self)
@@ -1400,37 +1440,45 @@ class Track(QtGui.QWidget):
         end_time_lbl = QLabel('high_pass (hz):', self)
         end_time_lbl.setMaximumWidth(100)
       
-        layout.addWidget(start_time_lbl, 0,0)
-        layout.addWidget(parent.start_time, 0,1)
-        layout.addWidget(end_time_lbl,0,2)
-        layout.addWidget(parent.end_time,0,3)
+        layout.addWidget(start_time_lbl, row_index,0)
+        layout.addWidget(parent.start_time, row_index,1)
+        layout.addWidget(end_time_lbl,row_index,2)
+        layout.addWidget(parent.end_time,row_index,3); row_index+=1
 
-        #MAKE BUTTONS             
+        self.button_tsf_to_lfp = QPushButton('Convert .tsf to low-pass (1khz) .tsf')
+        self.button_tsf_to_lfp.setMaximumWidth(250)
+        self.button_tsf_to_lfp.clicked.connect(self.tsftolfp)
+        layout.addWidget(self.button_tsf_to_lfp, row_index, 0); row_index+=1
+
         self.button1 = QPushButton('Concatenate multiple .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.multi_tsf)
-        layout.addWidget(self.button1, 5, 0)
+        layout.addWidget(self.button1, row_index, 0); row_index+=1
 
         self.button1 = QPushButton('Concatenate .lfp.zip files')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.multi_lfp_zip)
-        layout.addWidget(self.button1, 6, 0)
+        layout.addWidget(self.button1, row_index, 0); row_index+=1
 
 
         self.button1 = QPushButton('Time compress (1Khz) .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.comp_lfp)
-        layout.addWidget(self.button1, 7, 0)
+        layout.addWidget(self.button1, row_index, 0)
         
         self.parent.compress_factor = QLineEdit('50');                  #parent.end_time = self.end_time
         self.parent.compress_factor.setMaximumWidth(50)
         self.parent.compress_factor_lbl = QLabel('Compress Factor:', self)
-        layout.addWidget(self.parent.compress_factor_lbl, 7, 1)
-        layout.addWidget(self.parent.compress_factor, 7, 2)
+        layout.addWidget(self.parent.compress_factor_lbl, row_index, 1)
+        layout.addWidget(self.parent.compress_factor, row_index, 2)
         
         self.setLayout(layout)
 
-        
+    
+    def tsftolfp(self):
+        tsf_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
+        tsf_to_lfp(tsf_files)
+    
 
     def multi_tsf(self):
         print "... selecting multiple recordings ..."
@@ -1453,6 +1501,28 @@ class Track(QtGui.QWidget):
         print "... selecting single lfp recording ..."
         self.parent.animal.tsf_file = QtGui.QFileDialog.getOpenFileName(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
+
+#LFP ANALYSIS TOOLBOX
+class IntanTools(QtGui.QWidget):
+    def __init__(self, parent):
+        super(IntanTools, self).__init__(parent)
+        
+        self.parent = parent
+        layout = QtGui.QGridLayout()
+        
+        row_index=0
+        
+        self.button_rhd_to_tsf = QPushButton('Convert .rhd to .tsf')
+        self.button_rhd_to_tsf.setMaximumWidth(250)
+        self.button_rhd_to_tsf.clicked.connect(self.rhdtotsf)
+        layout.addWidget(self.button_rhd_to_tsf, row_index, 0); row_index+=1
+        
+        self.setLayout(layout)
+        
+
+    def rhdtotsf(self):
+        rhd_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "RHD (*.rhd)", self.parent.root_dir,"RHD (*.rhd)")
+        rhd_to_tsf(rhd_files) 
 
 
 #LFP ANALYSIS TOOLBOX
@@ -1512,26 +1582,11 @@ class Seamans(QtGui.QWidget):
         
 
     def ncs_convert(self):
-
-        print "... selecting multiple recordings ..."
-
-        self.parent.root_dir = '/media/cat/8TB/in_vivo/seamans/' 
-
-
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/jeremy/' 
         ncs_to_tsf(self, QtGui.QFileDialog.getOpenFileNames(self.parent, 'Load Experiment', self.parent.root_dir, "*.ncs"))
 
-        #QFileDialog.getOpenFileNames(...)
-        #self.QFileDialog.getOpenFileName(self, "Select File", "", "*.ncs")
-        
-        #animal_analysis.py has this function.
-        #ncs_to_tsf(self) 
-
-
-
     def ntt_convert(self):
-
-        print "... selecting multiple recordings ..."
-
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/jeremy/' 
         ntt_to_tsf(self, QtGui.QFileDialog.getOpenFileNames(self.parent, 'Load Experiment', self.parent.root_dir, "*.ntt"))
 
 
@@ -1598,23 +1653,30 @@ class LFP(QtGui.QWidget):
 
         self.parent = parent
         
-        parent.specgram_ch = QLineEdit('55');                #parent.start_time = self.start_time
+        row_index = 0
+        parent.specgram_ch = QLineEdit('5');                #parent.start_time = self.start_time
         parent.specgram_ch.setMaximumWidth(50)
         specgram_ch_lbl = QLabel('specgram_ch:', self)
         specgram_ch_lbl.setMaximumWidth(100)
+        layout.addWidget(specgram_ch_lbl, row_index,0)
+        layout.addWidget(parent.specgram_ch, row_index,1)
       
-        #ADD TO LAYOUT
-        layout.addWidget(specgram_ch_lbl, 0,0)
-        layout.addWidget(parent.specgram_ch, 0,1)
-                
+        
+        parent.specgram_db_clip = QLineEdit('-40');                #parent.start_time = self.start_time
+        parent.specgram_db_clip.setMaximumWidth(50)
+        specgram_db_clip_lbl = QLabel('specgram_db_clip:', self)
+        specgram_db_clip_lbl.setMaximumWidth(100)
+        layout.addWidget(specgram_db_clip_lbl, row_index,2)
+        layout.addWidget(parent.specgram_db_clip, row_index,3); row_index+=1  
+                      
         self.button3 = QPushButton('LFP Rasters')
         self.button3.setMaximumWidth(200)
-        layout.addWidget(self.button3, 6, 0)
-        self.button3.clicked.connect(self.view_lfp_raster)
+        layout.addWidget(self.button3, row_index, 0)
+        self.button3.clicked.connect(self.view_lfp_raster); row_index+=1
 
         self.button10 = QPushButton('View Spegram')
         self.button10.setLayoutDirection(QtCore.Qt.RightToLeft)
-        layout.addWidget(self.button10, 7, 0)
+        layout.addWidget(self.button10, row_index, 0)
         self.button10.clicked.connect(self.view_Specgram)     
         
         self.setLayout(layout)
@@ -1655,7 +1717,7 @@ class Window(QtGui.QMainWindow):
         self.setMenuBar(toolMenu)
 
         #***** TEXT PARAMETERS FIELDS ******
-        if False: 
+        if True: 
             #Mouse July 11 as default experiment
             self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/' 
             self.animal_name_text='2016_07_11_vsd' 
@@ -1722,9 +1784,14 @@ class Window(QtGui.QMainWindow):
 
 
         #PROCESSING MENUS
-        trackTools = QtGui.QAction("&Track Tools", self)
-        trackTools.setStatusTip('Track Tools')
+        trackTools = QtGui.QAction("&Track Wide Tools", self)
+        trackTools.setStatusTip('Track Wide Tools')
         trackTools.triggered.connect(self.track_tools)
+        
+        intanTools = QtGui.QAction("&Intan Conversion Tools", self)
+        intanTools.setStatusTip('Intan Conversion Tools')
+        intanTools.triggered.connect(self.intan_tools)
+
 
         preprocessExperiment = QtGui.QAction("&Process Data", self)
         preprocessExperiment.setStatusTip('Process Data')
@@ -1793,6 +1860,7 @@ class Window(QtGui.QMainWindow):
         fileMenu.addAction(exitApplication)
 
         fileMenu = mainMenu.addMenu('Pre-Process')
+        fileMenu.addAction(intanTools)
         fileMenu.addAction(trackTools)
         fileMenu.addAction(seamansData)
         fileMenu.addAction(filterData)
@@ -1926,6 +1994,12 @@ class Window(QtGui.QMainWindow):
         track_widget = Track(self)
         self.central_widget.addWidget(track_widget)      
         self.central_widget.setCurrentWidget(track_widget)
+
+    def intan_tools(self):
+        intan_widget = IntanTools(self)
+        self.central_widget.addWidget(intan_widget)      
+        self.central_widget.setCurrentWidget(intan_widget)
+        
 
 
     def seamans_data(self):

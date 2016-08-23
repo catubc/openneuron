@@ -12,6 +12,7 @@ from matplotlib.path import Path
 import matplotlib.animation as animation
 import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
+from load_intan_rhd_format import *
 
 
 from openglclasses import *     #Custom plotting functions
@@ -259,7 +260,7 @@ class Tsf_file(object):
     def save_tsf(self, file_name):
         
         fout = open(file_name, 'wb')
-        print file_name
+        print "...saving: ",  file_name
         fout.write(self.header)
         fout.write(struct.pack('i', self.iformat))
         fout.write(struct.pack('i', self.SampleFrequency))
@@ -275,7 +276,79 @@ class Tsf_file(object):
 
         fout.write(struct.pack('i', self.n_cell_spikes))
         fout.close()
+
+
+
+class Probe(object):      
+
+    def __init__(self):
+
+        print "...loading probe..."
+
+        self.name = "NeuroNexus 64Ch probe"         #Hardwired, but should add options here...
+    
+        self.load_layout()
+    
+    def load_layout(self):
+        ''' Load intan probe map layout 
+        '''
+
+        self.n_electrodes = 64
+
+        #Fixed location array for NeurNexus probe layotus
+        self.Siteloc = np.zeros((self.n_electrodes,2), dtype=np.int16) #Read as 1D array
+        for i in range (self.n_electrodes):
+            self.Siteloc[i][0]=30*(i%2)
+            self.Siteloc[i][1]=i*23
+
+
+        #A64 Omnetics adaptor
+        adaptor_map = []
+        adaptor_map.append([34,35,62,33,60,54,57,55,10,8,11,5,32,3,30,31])
+        adaptor_map.append([64,58,63,56,61,59,52,50,15,13,6,4,9,2,7,1])
+        adaptor_map.append([53,51,49,47,45,36,37,38,27,28,29,20,18,16,14,12])
+        adaptor_map.append([48,46,44,42,40,39,43,41,24,22,26,25,23,21,19,17])
+
+        adaptor_layout1=[]      #Concatenated rows
+        for maps in adaptor_map:
+            adaptor_layout1.extend(maps)
+
+        #Intan adapter - if inserted right-side up
+        intan_map = []
+        intan_map.append(list(reversed([46,44,42,40,38,36,34,32,30,28,26,24,22,20,18,16])))     #NB: need to reverse these arrays:  list(reversed(...))
+        intan_map.append(list(reversed([47,45,43,41,39,37,35,33,31,29,27,25,23,21,19,17])))
+        intan_map.append(list(reversed([49,51,53,55,57,59,61,63,1,3,5,7,9,11,13,15])))
+        intan_map.append(list(reversed([48,50,52,54,56,58,60,62,0,2,4,6,8,10,12,14])))
+
+        intan_layout1=[]
+        for maps in intan_map:
+            intan_layout1.extend(maps)
+
+
+        #Intan adapter - if inserted upside-down; no need to reverse
+        intan_map = []
+        intan_map.append([48,50,52,54,56,58,60,62,0,2,4,6,8,10,12,14])
+        intan_map.append([49,51,53,55,57,59,61,63,1,3,5,7,9,11,13,15])
+        intan_map.append([47,45,43,41,39,37,35,33,31,29,27,25,23,21,19,17])
+        intan_map.append([46,44,42,40,38,36,34,32,30,28,26,24,22,20,18,16])
+
+        intan_layout2=[]
+        for maps in intan_map:
+            intan_layout2.extend(maps)
+
+
+        #A1x64 probe layout
+        a = [27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,28,29,30,31,32]
+        b = [37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,36,35,34,33]
+        probe_map = a+b
+        probe_map[::2] = a
+        probe_map[1::2] = b
         
+        self.layout = []
+        for i in range(len(probe_map)):
+            self.layout.append(intan_layout1[adaptor_layout1.index(probe_map[i])])
+ 
+
 #DUPLICATE FUNCTION WITH TSF CLASS FUNCTION; May still need it for stand alone functions; but LIKELY OBSOLETE... ERASE!!!!!!!!!!!!
 def save_tsf_single(tsf,file_name):
     
@@ -1343,7 +1416,7 @@ def synchrony_index(data, SampleFrequency, si_limit):
     lfpwidth=30
     lfptres=5     #Time resolution: bin width for analysis in seconds
     
-    lowband = [0.1, 4]; highband = [8,100]     #Martin's suggestions; Saleem 2010?
+    lowband = [0.1, 4]; highband = [15,100]     #Martin's suggestions; Saleem 2010?
     #lowband = [0.1, 4]; highband = [15,100]     #variations
     #lowband = [0.1, 4]; highband = [20,100]     #variations
 
@@ -1414,7 +1487,7 @@ def ncs_to_tsf(self, ncs_files):
     tsf.ec_traces = []
     min_samples = 1E14
     for ctr, file_name in enumerate(ncs_files):
-        
+        print "...loading: ", file_name
         data = loadNcs(file_name)
         tsf.vscale_HP = float(data[2][14].replace('-ADBitVolts ',''))*1E6
         
@@ -1438,44 +1511,31 @@ def ncs_to_tsf(self, ncs_files):
     tsf.ec_traces_lp = tsf.ec_traces.copy()
     
     #******************SAVE HIGH PASS RECORD******************
-    #Wavelet filter record first
-    tsf.ec_traces = wavelet(tsf.ec_traces)
-
-    print ''; print "...saving alltrack _hp.tsf..."
+    print '\n...saving alltrack _hp.tsf...'
     file_name = ncs_files[0][:-4]+"_alltrack_hp.tsf"
-    save_tsf(tsf, file_name)
+    save_tsf_single(tsf, file_name)
     
     #*************SAVE LOW PASS RECORD @ 1KHZ***************
-    tsf.ec_traces = tsf.ec_traces_lp-tsf.ec_traces #Subtract wavelet filtered hp record from original record
+    print '... processing low pass record...'
+    #Wavelet filter record first
+    tsf.ec_traces = wavelet(tsf.ec_traces)
     
-    temp_array=[]
+    temp_traces = []
     lowcut = 0.1; highcut=110; fs=1000
-    for k in range(len(tsf.ec_traces)):      #Subsample to 1Khz and notch filter
-        print "...low pass ch: ", k
-        temp = np.array(butter_bandpass_filter(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)], lowcut, highcut, fs, order = 2), dtype=np.int16)
-        notch = np.array(butter_bandpass_filter(temp, 59.9, 60.1, fs, order = 2), dtype=np.int16)
-        temp = temp-notch
-        temp_array.append(temp)
-    
-    tsf.ec_traces = np.int16(temp_array) 
+    for k in range(tsf.n_electrodes):
+        #Butter band pass and subsample to 1Khz simultaneously
+        temp = np.array(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)])
+        #Apply 60Hz Notch filter
+        temp_traces.append(Notch_Filter(temp))
+
+    tsf.ec_traces = np.int16(temp_traces) 
     
     #saving low pass record
     tsf.SampleFrequency = 1000
-    print "#samples: ", tsf.n_vd_samples
-    tsf.n_vd_samples = len(tsf.ec_traces[0])
-    print "#samples: ", tsf.n_vd_samples
-    
     print ''; print "...saving alltrack _lp.tsf..."
     file_name = ncs_files[0][:-4]+"_alltrack_lp.tsf"
-    save_tsf(tsf, file_name)
-
-
-    #************ SAVE LOW PASS COMPRESSED RECORD *************
-    tsf.SampleFrequency = 50000
-    print ''; print "...saving alltrack _lp_compress.tsf..."
-    file_name = ncs_files[0][:-4]+"_alltrack_lp_compress.tsf"
-    save_tsf(tsf, file_name)
-
+    tsf.n_vd_samples = len(tsf.ec_traces[0])
+    save_tsf_single(tsf, file_name)
 
 
 def ntt_to_tsf(self, ntt_files):
@@ -1670,6 +1730,177 @@ def compress_lfp(self):
     #f1.close()
 
 
+               
+def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to their data.
+    
+    class Object_empty(object):
+        def __init__(self):
+            pass
+    
+    tsf = Object_empty()
+    tsf.file_name = file_name
+    
+    data_in = np.load(file_name)
+    tsf.SampleFrequency = data_in['tres']
+    tsf.chans = data_in['chans']
+    tsf.n_electrodes = len(tsf.chans)
+    tsf.Siteloc = data_in['chanpos']
+    tsf.vscale_HP = data_in['uVperAD']
+    tsf.ec_traces = data_in['data']
+    tsf.ec_traces = tsf.ec_traces
+
+    #Home made notch filter; filter.notch doesn't seem to work...
+    offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)      #Convert microsecond offset to miliseconds;
+    temp_traces = []
+    for k in range(tsf.n_electrodes):
+        tsf.ec_traces[k] = Notch_Filter(tsf.ec_traces[k])
+        temp_traces.append(np.append(offset, tsf.ec_traces[k]))
+    
+    tsf.ec_traces = np.int16(temp_traces)
+    tsf.n_vd_samples = len(tsf.ec_traces[0])
+    
+    return tsf
+        
+def rhd_to_tsf(filenames):
+    '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
+    NB: There are 2 possible mapping depending on the insertion of the AD converter 
+    TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
+    '''
+    
+    print "...reading amp data..."
+
+    probe = Probe()
+
+    for file_name in filenames:
+        #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
+        ec_traces = 0.; ec_traces_hp = 0.; data=0.
+        
+        file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
+        if os.path.exists(file_out)==True: continue
+
+        print "Processing: \n", file_name
+
+        data = read_data(file_name)
+        ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
+        ec_traces*=10.
+
+        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
+
+        header = 'Test spike file '
+        iformat = 1002
+        n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
+        vscale_HP = 0.1                             #voltage scale factor
+        n_cell_spikes = 0
+
+        print "Converting data to int16..."
+        ec_traces = np.array(ec_traces, dtype=np.int16)
+
+
+        #SAVE RAW DATA - ******NB:  SHOULD CLEAN THIS UP: the write function should be shared by all, just data is changing so no need to repeat;
+        if True:
+            print "Writing raw data ..."
+            #print "CHANGE THIS TO WORK THROUGH FUNCTION WITHOUT REPEATING"
+            file_out = file_name[:-4]+'_raw.tsf'
+            fout = open(file_out, 'wb')
+            fout.write(header)
+            fout.write(struct.pack('i', 1002))
+            fout.write(struct.pack('i', SampleFrequency))
+            fout.write(struct.pack('i', probe.n_electrodes))
+            fout.write(struct.pack('i', n_vd_samples))
+            fout.write(struct.pack('f', vscale_HP))
+            
+            for i in range (probe.n_electrodes):
+                fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                fout.write(struct.pack('i', i+1))
+
+            for i in range(probe.n_electrodes):
+                print i,
+                ec_traces[probe.layout[i]].tofile(fout)  #Frontside
+
+            fout.write(struct.pack('i', n_cell_spikes))
+            fout.close()
+            
+        #SAVE HIGH PASS WAVELET FILTERED DATA
+        if True:
+            print "Writing hp data ..."
+            file_out = file_name[:-4]+'_hp.tsf'
+            fout = open(file_out, 'wb')
+            fout.write(header)
+            fout.write(struct.pack('i', 1002))
+            fout.write(struct.pack('i', SampleFrequency))
+            fout.write(struct.pack('i', probe.n_electrodes))
+            fout.write(struct.pack('i', n_vd_samples))
+            fout.write(struct.pack('f', vscale_HP))
+            
+            for i in range (probe.n_electrodes):
+                fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                fout.write(struct.pack('i', i+1))
+
+            print "Wavelet filtering..."
+            ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
+            print ec_traces_hp.shape
+
+            for i in range(probe.n_electrodes):
+                print i,
+                ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+
+            fout.write(struct.pack('i', n_cell_spikes))
+            fout.close()
+    
+def tsf_to_lfp(filenames):
+    '''Read .tsf files - subsample to 1Khz, save as *_lp.tsf
+    '''
+    
+    print "...making low-pass tsf files (1Khz sample rates)..."
+
+    for file_name in filenames:
+        
+        file_out = file_name[:-4]+'_lp.tsf'
+        if os.path.exists(file_out)==True: continue
+
+        print "Processing: \n", file_name
+
+        tsf = Tsf_file(file_name)
+        tsf.read_ec_traces()
+        print tsf.Siteloc.shape
+        
+        n_vd_samples = len(tsf.ec_traces[0]); print "Number of samples: ", n_vd_samples
+        
+        print "...converting raw to .lfp (1Khz) sample rate tsf files ..."
+        temp_traces = []
+        lowcut = 0.1; highcut=110; fs=1000
+        for k in range(tsf.n_electrodes):
+            #Butter band pass and subsample to 1Khz simultaneously
+            temp = np.array(butter_bandpass_filter(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)], lowcut, highcut, fs, order = 2), dtype=np.int16)
+
+            #Apply 60Hz Notch filter
+            temp_traces.append(Notch_Filter(temp))
+        
+        tsf.ec_traces = np.int16(temp_traces)
+        tsf.n_vd_samples = len(tsf.ec_traces[0])
+        tsf.SampleFrequency = fs
+        
+        #Save data to .tsf file
+        tsf.save_tsf(file_name[:-4]+'_lp.tsf')
+
+
+def Notch_Filter(data, fs=1000, band=.5, freq=60., ripple=10, order=2, filter_type='ellip'):
+    from scipy.signal import iirfilter, lfilter
+    #fs   = 1/time
+    nyq  = fs/2.0
+    low  = freq - band/2.0
+    high = freq + band/2.0
+    low  = low/nyq
+    high = high/nyq
+    
+    b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
+                     analog=False, ftype=filter_type)
+    filtered_data = lfilter(b, a, data)
+    return filtered_data
+    
+
 def Specgram_syncindex(self):
     
     channel=int(self.parent.specgram_ch.text())
@@ -1690,11 +1921,17 @@ def Specgram_syncindex(self):
     
     colors=['blue','green','violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
 
-    tsf = Tsf_file(self.parent.recName)
-    tsf.read_ec_traces()
-    
-    #tsf = self.parent.animal.tsf
-    
+    if '.tsf' in self.parent.recName:
+        tsf = Tsf_file(self.parent.recName)
+        tsf.read_ec_traces()
+        for k in range(len(tsf.Siteloc)):
+            print k, tsf.Siteloc[k]
+            
+    elif '.lfp.zip' in self.parent.recName:
+        tsf = load_lfpzip(self.parent.recName)
+        for k in range(len(tsf.Siteloc)):
+            print k, tsf.Siteloc[k]
+
     
     samp_freq = tsf.SampleFrequency
     print "rec length: ", len(tsf.ec_traces[channel])/float(tsf.SampleFrequency), " sec."
@@ -1707,7 +1944,9 @@ def Specgram_syncindex(self):
     #Compute Specgram
     print "computing specgram..."
     data_in = tsf.ec_traces[channel]
-    P, extent = Compute_specgram_signal(data_in, samp_freq)
+    f0 = 0.1; f1 = 100
+    p0 = float(self.parent.specgram_db_clip.text())
+    P, extent = Compute_specgram_signal(data_in, samp_freq, f0, f1, p0)
     plt.imshow(P, extent=extent, aspect='auto')
 
     #Compute sync index
@@ -1716,20 +1955,24 @@ def Specgram_syncindex(self):
     
    # print "t: ", t
     
-    plt.plot(t, si*50-60, linewidth=3, color='blue')
-    plt.plot([0,max(t)],[-50*.3-10,-50*.3-10], 'r--', color='red', linewidth = 3, alpha=0.8)
-    plt.plot([0,max(t)],[-10,-10], color='black', linewidth = 2, alpha=0.8)
-    plt.plot([0,max(t)],[-60,-60], color='black', linewidth = 2, alpha=0.8)
+    sync_0 = -30
+    sync_1 = -10
+    sync_scale = 20
+    
+    plt.plot(t, si*sync_scale+sync_0, linewidth=6, color='black')
+    plt.plot([0,max(t)],[-sync_scale*.3+sync_1,-sync_scale*.3+sync_1], 'r--', color='black', linewidth = 3, alpha=0.8)
+    plt.plot([0,max(t)],[sync_1,sync_1], color='black', linewidth = 2, alpha=0.8)
+    plt.plot([0,max(t)],[sync_0,sync_0], color='black', linewidth = 2, alpha=0.8)
     
     xx = np.linspace(0,max(t),5)
     x_label = np.round(np.linspace(0, max(t)/60.,5))
     plt.xticks(xx, x_label, fontsize=20)
        
     ax.set_xlim((0,P.shape[1]/2))    
-    ax.set_ylim((-60,110))    
+    ax.set_ylim((sync_0-1,f1))    
     
-    old_ylabel = [-60, -25, -10, 0, 50, 100]
-    new_ylabel = [0, 0.7, 1, 0, 50, 100]
+    old_ylabel = [sync_0, sync_0/2, sync_1, 0, f1/2, f1]
+    new_ylabel = [0, 0.7, 1, 0, f1/2, f1]
     plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
     
     ax.tick_params(axis='both', which='both', labelsize=font_size)
@@ -1739,13 +1982,13 @@ def Specgram_syncindex(self):
     plt.title(self.parent.recName, fontsize=font_size-10)
     plt.show()
 
-def Compute_specgram_signal(data, SampleFrequency):
+def Compute_specgram_signal(data, SampleFrequency, f0=0.1, f1=110, p0=-40):
 
     t0=None
     t1=None
-    f0=0.1
-    f1=110
-    p0=-60
+    #f0=0.1
+    #f1=110
+    #p0         #clipping bottom of specgram
     p1=None
     chanis=-1
     width=2
@@ -1755,7 +1998,6 @@ def Compute_specgram_signal(data, SampleFrequency):
     title=True
     figsize=(20, 6.5)
     
-    F0, F1 = 0.2, 110 # Hz #THESE ARE UNUSED AT THIS TIME;
     P0, P1 = None, None
     chanis = -1
 
@@ -2315,6 +2557,9 @@ def msl_plots(self):
     #(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs, track_name):
     '''Align msl latencies by lfp cluster 
     '''
+    
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
 
     colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
     #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
@@ -2323,31 +2568,36 @@ def msl_plots(self):
     window=1.0  #NB: ************* SET THIS VALUE TO ALLOW ARBITRARY ZOOM IN AND OUT ALONG WITH 2000 sized arrays below
     
 
-    lock_window = int(self.lock_window.text())
+    lock_window = int(self.parent.lock_window.text())
     
     #Loading length of .tsf: NB: LOADING CH NOT NECESSARY; SHOULD BE ABLE TO READ JUST HEADER
-    self.animal.load_channel(self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp.tsf', channel=55) #Loads single channel as animal.tsf
+    #self.parent.animal.load_channel(self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp.tsf', channel=55) #Loads single channel as animal.tsf
     
-    temp_chunks = np.linspace(0,self.animal.tsf.n_vd_samples/float(self.animal.tsf.SampleFrequency), int(self.time_chunks.text())+1)
+    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    
+    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
     time_chunks=[]
     for t in range(len(temp_chunks)-1):
         time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
     
     #UPDATE PARAMS FROM CURRENT WIDGET TEXTBOXES
-    self.animal.name = self.animal_name.text()
-    self.animal.recName = self.root_dir+self.animal.name+'/rhd_files/'+self.rec_name.text()
+    #self.parent.name = self.animal_name.text()
+    #self.parent.recName = self.root_dir+self.animal.name+'/rhd_files/'+self.rec_name.text()
         
     #Load SUA Sort
-    sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-    Sort_sua = Ptcs(sua_file) #Auto load flag for Nick's data
+    #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
 
     #Load LFP Sort
-    lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
-    Sort_lfp = Ptcs(lfp_file) #Auto load flag for Nick's data
+    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
 
-    start_lfp = min(int(self.start_lfp.text()),len(Sort_lfp.units)-1)
-    end_lfp = min(int(self.end_lfp.text()),len(Sort_lfp.units)-1)
+    #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
+    #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
+    start_lfp = int(self.parent.start_lfp.text())
+    end_lfp = int(self.parent.end_lfp.text())
+    
     lfp_ctr=0
     for lfp_cluster in range(start_lfp,end_lfp, 1):
         #Pick a particular LFP event to lock to
@@ -2357,7 +2607,7 @@ def msl_plots(self):
 
         #Load pop events during synch periods (secs)
         compress_factor = 50.
-        if '2016_07_11' in self.animal.recName: compress_factor=40.  #July 11 recording uses different factors
+        if '2016_07_11' in self.parent.sua_file : compress_factor=40.  #July 11 recording uses different factors
         pop_spikes = np.array(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
         print " ... # events: ", len(pop_spikes)
 
@@ -2474,7 +2724,6 @@ def msl_plots(self):
             img=np.array(temp_img)
             
             
-
             #********** PLOTING ROUTINES **************
             ax=plt.subplot(end_lfp-start_lfp,len(time_chunks),lfp_ctr+1)
             im = ax.imshow(img, origin='upper', extent=[0,lock_window*2, len(img),0], aspect='auto', interpolation='none')
