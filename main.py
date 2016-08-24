@@ -1468,7 +1468,7 @@ class Track(QtGui.QWidget):
         
         self.parent.compress_factor = QLineEdit('50');                  #parent.end_time = self.end_time
         self.parent.compress_factor.setMaximumWidth(50)
-        self.parent.compress_factor_lbl = QLabel('Compress Factor:', self)
+        self.parent.compress_factor_lbl = QLabel('Compress Factor (multiples of 25):', self)
         layout.addWidget(self.parent.compress_factor_lbl, row_index, 1)
         layout.addWidget(self.parent.compress_factor, row_index, 2)
         
@@ -1502,6 +1502,7 @@ class Track(QtGui.QWidget):
         self.parent.animal.tsf_file = QtGui.QFileDialog.getOpenFileName(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
 
+
 #LFP ANALYSIS TOOLBOX
 class IntanTools(QtGui.QWidget):
     def __init__(self, parent):
@@ -1533,32 +1534,31 @@ class Seamans(QtGui.QWidget):
         self.parent = parent
         layout = QtGui.QGridLayout()
         
-        #parent.start_time = QLineEdit('0.5');                #parent.start_time = self.start_time
-        #parent.start_time.setMaximumWidth(50)
-        #start_time_lbl = QLabel('low_pass (hz):', self)
-        #start_time_lbl.setMaximumWidth(100)
-
-        #parent.end_time = QLineEdit('6.0');                  #parent.end_time = self.end_time
-        #parent.end_time.setMaximumWidth(50)
-        #end_time_lbl = QLabel('high_pass (hz):', self)
-        #end_time_lbl.setMaximumWidth(100)
-      
-        #layout.addWidget(start_time_lbl, 0,0)
-        #layout.addWidget(parent.start_time, 0,1)
-        #layout.addWidget(end_time_lbl,0,2)
-        #layout.addWidget(parent.end_time,0,3)
-
+        row_index = 0
+        #*******************************************************************************************
+        #*******************************************************************************************
+        
         #MAKE BUTTONS             
         self.button1 = QPushButton('Convert .ncs to .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.ncs_convert)
-        layout.addWidget(self.button1, 5, 0)
+        layout.addWidget(self.button1, row_index, 0)
+        
+        self.parent.make_hp = QLineEdit('False');                #parent.start_time = self.start_time
+        self.parent.make_hp.setMaximumWidth(50)
+        parent.make_hp_lbl = QLabel('Make High Pass .tsf', self)
+        self.parent.make_hp.setMaximumWidth(100)
+        layout.addWidget(self.parent.make_hp_lbl, row_index,1)
+        layout.addWidget(self.parent.make_hp, row_index,2)
+        
+        
+        row_index+=1
 
         #MAKE BUTTONS             
         self.button1 = QPushButton('Convert .ntt to .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.ntt_convert)
-        layout.addWidget(self.button1, 6, 0)
+        layout.addWidget(self.button1, row_index, 0)
 
         #self.button1 = QPushButton('Concatenate .lfp.zip files')
         #self.button1.setMaximumWidth(250)
@@ -1641,8 +1641,192 @@ class Filter(QtGui.QWidget):
    
     def filter_imaging(self):
         print "...pop up window to batch select invidiual files..."
+
+
+
+#LFP ANALYSIS TOOLBOX
+class TemplatesTools(QtGui.QWidget):
+    def __init__(self, parent):
+        super(TemplatesTools, self).__init__(parent)
+        #layout = QtGui.QFormLayout()
+        layout = QtGui.QGridLayout()
+
+        self.parent = parent
+        
+        row_index = 0
+        #Select recording
+        self.button_select_recording = QPushButton('Select Recording')
+        self.button_select_recording.setMaximumWidth(200)
+        self.button_select_recording.clicked.connect(self.slct_recording)
+        layout.addWidget(self.button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.parent.selected_recording  = '/media/cat/8TB/in_vivo/nick'
+        self.select_recording_lbl = QLabel(self.parent.selected_recording, self)
+        layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
+
+        #Select recording
+        self.button_select_sort = QPushButton('Select Sort')
+        self.button_select_sort.setMaximumWidth(200)
+        self.button_select_sort.clicked.connect(self.slct_sort)
+        layout.addWidget(self.button_select_sort, row_index, 0)
+        
+        self.parent.selected_sort  = '/media/cat/8TB/in_vivo/nick'
+        self.select_sort_lbl = QLabel(self.parent.selected_sort, self)
+        layout.addWidget(self.select_sort_lbl, row_index,1)
+        
+        #Prefilter templates
+        self.low_cutoff = QLineEdit('10.0');                #parent.start_time = self.start_time
+        self.low_cutoff.setMaximumWidth(50)
+        self.low_cutoff_lbl = QLabel('Lowcut Filter', self)
+        self.low_cutoff_lbl.setMaximumWidth(100)
+        layout.addWidget(self.low_cutoff_lbl, row_index,7)
+        layout.addWidget(self.low_cutoff, row_index, 8); row_index+=1
+                
+        #View traces
+        self.button_view_templates = QPushButton('View Templates')
+        self.button_view_templates.setMaximumWidth(200)
+        self.button_view_templates.clicked.connect(self.vw_templates)
+        layout.addWidget(self.button_view_templates, row_index, 0)
+
+        self.selected_unit = QLineEdit('0');                #parent.start_time = self.start_time
+        self.selected_unit.setMaximumWidth(50)
+        self.selected_unit_lbl = QLabel('Unit:', self)
+        self.selected_unit_lbl.setMaximumWidth(100)
+        layout.addWidget(self.selected_unit_lbl, row_index,1)
+        layout.addWidget(self.selected_unit, row_index, 2)
+
+        self.n_electrodes = QLineEdit('1.0');                #parent.start_time = self.start_time
+        self.n_electrodes.setMaximumWidth(50)
+        self.n_electrodes_lbl = QLabel('%Electrodes', self)
+        self.n_electrodes_lbl.setMaximumWidth(100)
+        layout.addWidget(self.n_electrodes_lbl, row_index,3)
+        layout.addWidget(self.n_electrodes, row_index, 4)
+        
+        self.voltage_scale = QLineEdit('10.0');                  #parent.end_time = self.end_time
+        self.voltage_scale.setMaximumWidth(50)
+        self.voltage_scale_lbl = QLabel('Voltage Scaling', self)
+        self.voltage_scale_lbl.setMaximumWidth(150)
+        layout.addWidget(self.voltage_scale_lbl, row_index, 5)
+        layout.addWidget(self.voltage_scale, row_index,6)
         
         
+        self.setLayout(layout)
+
+    def slct_recording(self):
+        self.parent.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.parent.selected_recording,"TSF (*.tsf)")
+        path_name, file_name = os.path.split(self.parent.selected_recording)
+        self.select_recording_lbl.setText(file_name)
+
+        self.tsf = Tsf_file(self.parent.selected_recording)
+        self.tsf.read_ec_traces()
+
+  
+    def slct_sort(self):
+        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.parent.selected_recording,"PTCS (*.ptcs)")
+        path_name, file_name = os.path.split(self.selected_sort)
+        self.select_sort_lbl.setText(file_name)
+   
+    def vw_templates(self):
+        view_templates(self)
+
+
+#LFP ANALYSIS TOOLBOX
+class TraceTools(QtGui.QWidget):
+    def __init__(self, parent):
+        super(TraceTools, self).__init__(parent)
+        #layout = QtGui.QFormLayout()
+        layout = QtGui.QGridLayout()
+
+        self.parent = parent
+        
+        row_index = 0
+
+        #Select recording
+        self.button_select_recording = QPushButton('Select Recording')
+        self.button_select_recording.setMaximumWidth(200)
+        self.button_select_recording.clicked.connect(self.slct_recording)
+        layout.addWidget(self.button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.parent.selected_recording  = '/media/cat/8TB/in_vivo/nick'
+        self.select_recording_lbl = QLabel(self.parent.selected_recording, self)
+        layout.addWidget(self.select_recording_lbl, row_index,1)
+        
+        #Rec length
+        self.parent.rec_length = QLabel('0', self)
+        self.parent.rec_length.setMaximumWidth(100)
+        self.parent.rec_length_lbl = QLabel('Rec Length:', self)
+        self.parent.rec_length_lbl.setMaximumWidth(100)
+        layout.addWidget(self.parent.rec_length_lbl, row_index, 3)
+        layout.addWidget(self.parent.rec_length, row_index, 4)
+
+
+        self.n_electrodes = QLineEdit('1.0');                #parent.start_time = self.start_time
+        self.n_electrodes.setMaximumWidth(50)
+        self.n_electrodes_lbl = QLabel('%Electrodes', self)
+        self.n_electrodes_lbl.setMaximumWidth(100)
+        layout.addWidget(self.n_electrodes_lbl, row_index,5)
+        layout.addWidget(self.n_electrodes, row_index, 6)
+        
+        self.low_cutoff = QLineEdit('10.0');                #parent.start_time = self.start_time
+        self.low_cutoff.setMaximumWidth(50)
+        self.low_cutoff_lbl = QLabel('Lowcut Filter', self)
+        self.low_cutoff_lbl.setMaximumWidth(100)
+        layout.addWidget(self.low_cutoff_lbl, row_index,7)
+        layout.addWidget(self.low_cutoff, row_index, 8); row_index+=1
+                
+        #View traces
+        self.button_view_traces = QPushButton('View Traces')
+        self.button_view_traces.setMaximumWidth(200)
+        self.button_view_traces.clicked.connect(self.vw_traces)
+        layout.addWidget(self.button_view_traces, row_index, 0)
+
+        self.start_time = QLineEdit('0');                #parent.start_time = self.start_time
+        self.start_time.setMaximumWidth(50)
+        self.start_time_lbl = QLabel('Start (sec):', self)
+        self.start_time_lbl.setMaximumWidth(100)
+        layout.addWidget(self.start_time_lbl, row_index,1)
+        layout.addWidget(self.start_time, row_index, 2)
+
+        self.end_time = QLineEdit('60');                  #parent.end_time = self.end_time
+        self.end_time.setMaximumWidth(50)
+        self.end_time_lbl = QLabel('End (sec):', self)
+        self.end_time_lbl.setMaximumWidth(100)
+        layout.addWidget(self.end_time_lbl, row_index, 3)
+        layout.addWidget(self.end_time, row_index,4)
+        
+        self.probe_penentration = QLineEdit('1.0');                  #parent.end_time = self.end_time
+        self.probe_penentration.setMaximumWidth(50)
+        self.probe_penentration_lbl = QLabel('% Probe in Tissue', self)
+        self.probe_penentration_lbl.setMaximumWidth(150)
+        layout.addWidget(self.probe_penentration_lbl, row_index, 5)
+        layout.addWidget(self.probe_penentration, row_index,6)
+        
+        self.voltage_scale = QLineEdit('10.0');                  #parent.end_time = self.end_time
+        self.voltage_scale.setMaximumWidth(50)
+        self.voltage_scale_lbl = QLabel('Voltage Scaling', self)
+        self.voltage_scale_lbl.setMaximumWidth(150)
+        layout.addWidget(self.voltage_scale_lbl, row_index, 7)
+        layout.addWidget(self.voltage_scale, row_index,8)
+        
+        self.setLayout(layout)
+
+    def slct_recording(self):
+        self.parent.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, 'Load File', self.parent.selected_recording)
+        path_name, file_name = os.path.split(self.parent.selected_recording)
+
+        self.select_recording_lbl.setText(file_name)
+
+        self.tsf = Tsf_file(self.parent.selected_recording)
+        self.tsf.read_ec_traces()
+        print "...len rec: ", self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)
+        self.parent.rec_length.setText(str(self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)))
+   
+   
+    def vw_traces(self):
+        view_traces(self)
+
 
 #LFP ANALYSIS TOOLBOX
 class LFP(QtGui.QWidget):
@@ -1827,6 +2011,14 @@ class Window(QtGui.QMainWindow):
 
 
         #EPHYS TOOLS MENUS
+        View_Traces = QtGui.QAction("&View Traces", self)
+        View_Traces.setStatusTip('View Traces')
+        View_Traces.triggered.connect(self.view_rtraces)
+        
+        View_Templates = QtGui.QAction("&View Templates", self)
+        View_Templates.setStatusTip('View Templates')
+        View_Templates.triggered.connect(self.view_templts)
+        
         Cell_Analysis = QtGui.QAction("&Cell STM", self)
         Cell_Analysis.setStatusTip('Cell Analysis')
         Cell_Analysis.triggered.connect(self.cell_analysis)
@@ -1876,10 +2068,13 @@ class Window(QtGui.QMainWindow):
 
 
         fileMenu = mainMenu.addMenu('Ephys Analysis')
-        fileMenu.addAction(Cell_Analysis)
+        fileMenu.addAction(View_Traces)
+        fileMenu.addAction(View_Templates)
+        
         fileMenu.addAction(LFP_Analysis)
         fileMenu.addAction(MSL_Analysis)
         fileMenu.addAction(Count_Matrix)
+        fileMenu.addAction(Cell_Analysis)
 
     #************* LOAD FILE MENUS *****************
     def ld_mouse(self):
@@ -1967,6 +2162,18 @@ class Window(QtGui.QMainWindow):
 
 
     #********** ANALYSIS MENUS *******************
+    
+    def view_rtraces(self):
+        traces_widget = TraceTools(self)
+        self.central_widget.addWidget(traces_widget)  
+        self.central_widget.setCurrentWidget(traces_widget)
+    
+    def view_templts(self):
+        templates_widget = TemplatesTools(self)
+        self.central_widget.addWidget(templates_widget)  
+        self.central_widget.setCurrentWidget(templates_widget)
+        
+    
     def cell_analysis(self):
         cell_widget = Cell(self)
         self.central_widget.addWidget(cell_widget)  

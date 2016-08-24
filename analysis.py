@@ -275,6 +275,14 @@ class Tsf_file(object):
         self.ec_traces.tofile(fout)
 
         fout.write(struct.pack('i', self.n_cell_spikes))
+
+        try:
+            self.subsample
+        except NameError:
+            self.subsample = 1.0
+
+        fout.write(struct.pack('i', self.subsample))
+
         fout.close()
 
 
@@ -1482,7 +1490,7 @@ def ncs_to_tsf(self, ncs_files):
     tsf.Siteloc = np.zeros((tsf.n_electrodes*2), dtype=np.int16) #Read as 1D array
     for i in range (tsf.n_electrodes):
         tsf.Siteloc[i*2]=0
-        tsf.Siteloc[i*2+1]=i*50 #GUESSING each tetrode is 50um apart
+        tsf.Siteloc[i*2+1]=i*50 #GUESSING each tetrode is 50um apart vertically
             
     tsf.ec_traces = []
     min_samples = 1E14
@@ -1499,39 +1507,45 @@ def ncs_to_tsf(self, ncs_files):
         if tsf.n_vd_samples<min_samples: min_samples = tsf.n_vd_samples
 
         tsf.ec_traces.append(data[0]) 
+        plt.plot(data[0][:1000000])
+        plt.show()
     
     #Trunkate extra voltage values (some chs in Neuralynx recs have more/less values than others)
     tsf.n_vd_samples = min_samples 
     for k in range(len(tsf.ec_traces)):
         tsf.ec_traces[k]=tsf.ec_traces[k][:min_samples]
         
-    tsf.ec_traces = np.array(tsf.ec_traces, dtype=np.int16)
+    #tsf.ec_traces = np.array(tsf.ec_traces, dtype=np.int16)
     
-    tsf.ec_traces_hp = tsf.ec_traces
-    tsf.ec_traces_lp = tsf.ec_traces.copy()
     
     #******************SAVE HIGH PASS RECORD******************
-    print '\n...saving alltrack _hp.tsf...'
-    file_name = ncs_files[0][:-4]+"_alltrack_hp.tsf"
-    save_tsf_single(tsf, file_name)
+    if self.parent.make_hp.text()=='True':
+        print '\n...saving alltrack _hp_fromlfp.tsf...'
+        file_name = ncs_files[0][:-4]+"_alltrack_hp_fromlfp.tsf"
+        save_tsf_single(tsf, file_name)
+    else:
+        print "...skipping hp save..."
     
     #*************SAVE LOW PASS RECORD @ 1KHZ***************
     print '... processing low pass record...'
     #Wavelet filter record first
-    tsf.ec_traces = wavelet(tsf.ec_traces)
+    #tsf.ec_traces = wavelet(tsf.ec_traces)
     
     temp_traces = []
     lowcut = 0.1; highcut=110; fs=1000
     for k in range(tsf.n_electrodes):
-        #Butter band pass and subsample to 1Khz simultaneously
-        temp = np.array(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)])
+        temp = np.array(butter_bandpass_filter(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)], lowcut, highcut, fs, order = 2), dtype=np.float32)
+        #temp = np.array(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000.)])
         #Apply 60Hz Notch filter
         temp_traces.append(Notch_Filter(temp))
 
-    tsf.ec_traces = np.int16(temp_traces) 
+    #tsf.ec_traces = np.int16(temp_traces)
+    tsf.ec_traces = np.array(temp_traces)*tsf.vscale_HP
+    tsf.ec_traces = np.int16(tsf.ec_traces)
     
     #saving low pass record
     tsf.SampleFrequency = 1000
+    tsf.vscale_HP = 1.0
     print ''; print "...saving alltrack _lp.tsf..."
     file_name = ncs_files[0][:-4]+"_alltrack_lp.tsf"
     tsf.n_vd_samples = len(tsf.ec_traces[0])
@@ -1559,7 +1573,6 @@ def ntt_to_tsf(self, ntt_files):
         if np.max(spike_times[ctr])>max_samples: max_samples = np.max(spike_times[ctr])
         
     tsf.SampleFrequency = data[2]
-
 
     tsf.ec_traces=np.zeros((len(ntt_files)*4, max_samples+32), dtype=np.int16)
  
@@ -1590,7 +1603,7 @@ def ntt_to_tsf(self, ntt_files):
 
     print ''; print "...saving alltrack _hp.tsf..."
     file_name = ntt_files[0][:-4]+"_alltrack_hp.tsf"
-    save_tsf(tsf, file_name)
+    save_tsf_single(tsf, file_name)
 
     
 
@@ -1687,12 +1700,11 @@ def compress_lfp(self):
     
     print self.parent.animal.tsf_file
     compression_factor = int(self.parent.compress_factor.text())
-    print "...compressed factor: ", 
+    print "...compressed factor: ", compression_factor
     
     tsf = Tsf_file(self.parent.animal.tsf_file)
     tsf.read_ec_traces()
     
-    print tsf.ec_traces
     tsf.ec_traces= np.int16(tsf.ec_traces*tsf.vscale_HP)
     tsf.vscale_HP = 1.0
     
@@ -1704,31 +1716,18 @@ def compress_lfp(self):
     #Save compression file name
     file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compression.tsf'
     print "Saving LFP : ", file_out
+    
+    traces_out = []
+    for k in range(len(tsf.ec_traces)):
+        traces_out.append(tsf.ec_traces[k][::int(compression_factor/25)])
+    tsf.ec_traces = np.array(traces_out)
 
-    tsf.SampleFrequency = tsf.SampleFrequency * compression_factor
+    tsf.SampleFrequency = 25000     #Set default frequency to 25000
+    tsf.subsample = compression_factor/25
+    tsf.n_vd_samples = len(tsf.ec_traces[0])
     tsf.save_tsf(file_out)
     
     
-
-    #f1 = open(file_out, 'wb')
-    #f1.write(header)
-    #f1.write(struct.pack('i', self.tsf.iformat))
-    #f1.write(struct.pack('i', self.tsf.SampleFrequency))
-    #f1.write(struct.pack('i', self.tsf.n_electrodes))
-    #f1.write(struct.pack('i', self.tsf.n_vd_samples))
-    #f1.write(struct.pack('f', self.tsf.vscale_HP))
-    #for i in range (self.tsf.n_electrodes):
-        #f1.write(struct.pack('h', self.tsf.Siteloc[i*2]))
-        #f1.write(struct.pack('h', self.tsf.Siteloc[i*2+1]))
-        #f1.write(struct.pack('i', i+1)) #Need to add extra value for Fortran arrays
-
-    #print "Writing data"
-    #for i in range(self.tsf.n_electrodes):
-        #self.tsf.ec_traces[i].tofile(f1)
-
-    #f1.write(struct.pack('i', 0)) #Write # of fake spikes
-    #f1.close()
-
 
                
 def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to their data.
@@ -1899,7 +1898,85 @@ def Notch_Filter(data, fs=1000, band=.5, freq=60., ripple=10, order=2, filter_ty
                      analog=False, ftype=filter_type)
     filtered_data = lfilter(b, a, data)
     return filtered_data
+
+def view_templates(self):
+    print "..."
+
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
+    voltage_scaling = float(self.voltage_scale.text())
+
+    Sort = Ptcs(self.selected_sort)
+
+    #print Sort.units[int(self.selected_unit.text())]
+
+    ax = plt.subplot(1,1,1)
+    t = np.arange(-20,+20,1)
+    #trace_ave = np.zeros((self.tsf.n_electrodes,40), dtype=np.float32)
+    for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+        print "...plotting ch: ", k
+        traces = []
+        for spike in Sort.units[int(self.selected_unit.text())]:
+            trace_out = self.tsf.ec_traces[k][int(spike-20):int(spike+20)]
+            #trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
+            traces.append(trace_out)
+            #plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.1)
+        
+        trace_ave = np.average(traces, axis=0)
+        trace_std = np.std(traces, axis=0)
+            
+        offset = -voltage_scaling*self.tsf.Siteloc[k*2+1]
+        plt.plot(t, trace_ave+offset, color='black', linewidth=3)
+        ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color='blue', alpha=0.4)
     
+    plt.show()
+
+
+
+def view_traces(self):
+    """ Display raw traces
+    """
+    
+    font_size = 30
+    voltage_scaling = float(self.voltage_scale.text())
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
+    
+    t0 = int(float(self.start_time.text())*self.tsf.SampleFrequency)
+    t1 = int(float(self.end_time.text())*self.tsf.SampleFrequency)
+    
+    t = np.linspace(float(self.start_time.text()), float(self.end_time.text()), t1-t0)/60.
+    
+    ax = plt.subplot(1,1,1)
+    ax.get_xaxis().get_major_formatter().set_useOffset(False)
+
+    print self.tsf.Siteloc
+    print self.tsf.SampleFrequency
+    print float(self.low_cutoff.text())
+
+    for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+        trace_out = self.tsf.ec_traces[k][t0:t1]
+        trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
+        
+        plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=5)
+        
+
+    #Set labels
+    depth_offset = float(self.probe_penentration.text()) #Percent of probe inserted into brain
+    old_ylabel = -voltage_scaling*np.linspace(np.max(self.tsf.Siteloc) - depth_offset*np.max(self.tsf.Siteloc),np.max(self.tsf.Siteloc), 5)
+    new_ylabel = np.int16(np.linspace(0, depth_offset*np.max(self.tsf.Siteloc), 5))
+    plt.locator_params(axis='y',nbins=5)
+    plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    plt.ylabel("Depth (um)", fontsize=font_size)
+
+    #Set xlabel
+    plt.xlabel("Time (min)", fontsize = font_size)
+    plt.tick_params(axis='both', which='both', labelsize=font_size)
+    plt.locator_params(axis='x',nbins=10)
+
+    plt.ylim(old_ylabel[-1],old_ylabel[0])
+    plt.xlim(t[0], t[-1])
+
+    plt.show()
+
 
 def Specgram_syncindex(self):
     
@@ -2595,8 +2672,8 @@ def msl_plots(self):
 
     #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
     #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
-    start_lfp = int(self.parent.start_lfp.text())
-    end_lfp = int(self.parent.end_lfp.text())
+    start_lfp = min(int(self.parent.start_lfp.text()), len(Sort_lfp.units))
+    end_lfp = min(int(self.parent.end_lfp.text()), len(Sort_lfp.units))
     
     lfp_ctr=0
     for lfp_cluster in range(start_lfp,end_lfp, 1):
@@ -2607,7 +2684,11 @@ def msl_plots(self):
 
         #Load pop events during synch periods (secs)
         compress_factor = 50.
-        if '2016_07_11' in self.parent.sua_file : compress_factor=40.  #July 11 recording uses different factors
+        #try:
+        #    self.subsample
+        #except NameError:
+        #    self.subsample = 1.0
+          
         pop_spikes = np.array(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
         print " ... # events: ", len(pop_spikes)
 
