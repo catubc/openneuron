@@ -1705,8 +1705,9 @@ def compress_lfp(self):
     tsf = Tsf_file(self.parent.animal.tsf_file)
     tsf.read_ec_traces()
     
-    tsf.ec_traces= np.int16(tsf.ec_traces*tsf.vscale_HP)
-    tsf.vscale_HP = 1.0
+    #Leave ADC convertion intact it possible
+    #tsf.ec_traces= np.int16(tsf.ec_traces*tsf.vscale_HP)
+    #tsf.vscale_HP = 1.0 
     
     if tsf.SampleFrequency != 1000:
         print "...lfp frequency not = 1000Hz... exiting ..."
@@ -1717,13 +1718,15 @@ def compress_lfp(self):
     file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compression.tsf'
     print "Saving LFP : ", file_out
     
-    traces_out = []
-    for k in range(len(tsf.ec_traces)):
-        traces_out.append(tsf.ec_traces[k][::int(compression_factor/25)])
-    tsf.ec_traces = np.array(traces_out)
+    #DON"T USE SUBSAMPLING - CAUSES PROBLEMS LATER
+    #traces_out = []
+    #for k in range(len(tsf.ec_traces)):
+    #    #traces_out.append(tsf.ec_traces[k][::int(compression_factor/25)])      
+    #    traces_out.append(tsf.ec_traces[k])
+    #tsf.ec_traces = np.array(traces_out)
 
-    tsf.SampleFrequency = 25000     #Set default frequency to 25000
-    tsf.subsample = compression_factor/25
+    tsf.SampleFrequency = compression_factor*1000     
+    tsf.subsample = 1.0
     tsf.n_vd_samples = len(tsf.ec_traces[0])
     tsf.save_tsf(file_out)
     
@@ -1902,31 +1905,63 @@ def Notch_Filter(data, fs=1000, band=.5, freq=60., ripple=10, order=2, filter_ty
 def view_templates(self):
     print "..."
 
+    font_size = 30
+    n_samples = int(self.n_sample_pts.text())
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
+    #compression = 50.   #Need this to convert from compressed sample points to realtime
+    
+    print self.selected_sort
 
+    #Remove bottom power..
+    if self.low_cutoff.text()!='0.0':
+        for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+            print "...filtering ch: ", k
+            self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+    #load single units
     Sort = Ptcs(self.selected_sort)
 
-    #print Sort.units[int(self.selected_unit.text())]
-
     ax = plt.subplot(1,1,1)
-    t = np.arange(-20,+20,1)
-    #trace_ave = np.zeros((self.tsf.n_electrodes,40), dtype=np.float32)
+    t = np.arange(-n_samples,n_samples+1,1)
+    
+    """ Spikes are saved in # of sample points so no need to scale them up from compressed .ptcs sort file to uncompressed lfp file.
+    """
     for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
         print "...plotting ch: ", k
         traces = []
         for spike in Sort.units[int(self.selected_unit.text())]:
-            trace_out = self.tsf.ec_traces[k][int(spike-20):int(spike+20)]
-            #trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
+            trace_out = self.tsf.ec_traces[k][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP
             traces.append(trace_out)
             #plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.1)
         
         trace_ave = np.average(traces, axis=0)
         trace_std = np.std(traces, axis=0)
-            
+       
         offset = -voltage_scaling*self.tsf.Siteloc[k*2+1]
         plt.plot(t, trace_ave+offset, color='black', linewidth=3)
-        ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color='blue', alpha=0.4)
+        ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.4)
+
+    plt.plot([t[-1]+10,t[-1]+10], [-250, 0 ], color='black', linewidth=3)
+
+    #Set ylabel
+    old_ylabel = -voltage_scaling*np.linspace(0, np.max(self.tsf.Siteloc), 5)
+    new_ylabel = np.int16(np.linspace(0, np.max(self.tsf.Siteloc), 5))
+    plt.locator_params(axis='y',nbins=5)
+    plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    plt.ylabel("Depth (um)", fontsize=font_size)
+
+    #Set xlabel
+    old_xlabel = np.linspace(t[0],t[-1],3)
+    new_xlabel = np.linspace(float(t[0])/self.tsf.SampleFrequency*1E3, float(t[-1])/self.tsf.SampleFrequency*1E3, 3)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+
+    plt.xlabel("Time (ms)", fontsize = font_size)
+    plt.tick_params(axis='both', which='both', labelsize=font_size)
+    plt.locator_params(axis='x',nbins=10)
+
+    plt.ylim(old_ylabel[-1],old_ylabel[0])
+    plt.xlim(old_xlabel[0], old_xlabel[-1]*5)
     
     plt.show()
 
@@ -1957,7 +1992,6 @@ def view_traces(self):
         trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
         
         plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=5)
-        
 
     #Set labels
     depth_offset = float(self.probe_penentration.text()) #Percent of probe inserted into brain
@@ -1976,6 +2010,180 @@ def view_traces(self):
     plt.xlim(t[0], t[-1])
 
     plt.show()
+
+def view_all_csd(self): 
+
+    import imp
+
+    n_samples = int(self.n_sample_pts.text())
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
+    voltage_scaling = float(self.voltage_scale.text())
+
+    #Remove bottom power..
+    if self.low_cutoff.text()!='0.0':
+        if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
+            for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+                print "...filtering ch: ", k
+                self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+            np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', self.tsf.ec_traces)
+        else: 
+            self.tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
+            
+    
+    #Raw traces
+    tsf = self.tsf
+
+    #load single units
+    Sort = Ptcs(self.selected_sort)
+
+    CSD = []
+    #Load spiketimes as event_trigges 
+    for p in range(len(Sort.units)):
+        event_times = Sort.units[p]
+
+        lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+        for ch in range(tsf.n_electrodes):
+            ctr=0
+            for event in event_times:
+                trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]
+                if len(trace_temp)==(n_samples*2):
+                    lfp_ave[ch]+= trace_temp
+                    ctr+=1
+            lfp_ave[ch]=lfp_ave[ch]/ctr
+
+        lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
+            
+        #********Compute CSD
+        if tsf.n_electrodes >10: 
+            print "...loading every other channel, NN A64 probe ..."
+            probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())][::2]
+            lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())][::2]
+        else:
+            probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())]
+            lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
+
+        z = probe_layout*1E-3 #Convert to mm size
+
+        csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
+        
+        sigma = 0.3  # extracellular conductivity (mS/mm)
+        b = 1.0   # assumed radius of the column (mm)
+        SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
+
+        [A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
+        [W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
+        [W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
+
+        CSD.append(np.dot(W,lfp_ave))   # units: mS/mm^3*mV = uA/mm^3
+        
+    #v_max = np.max(np.abs(CSD)); v_min = -v_max
+    
+    for p in range(len(Sort.units)):
+        ax = plt.subplot(4,4,p+1)
+        t = np.linspace(-n_samples, n_samples, 6)
+
+        #ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+        ax.imshow(CSD[p], extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+        plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
+
+        plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
+        plt.xlim(t[0], t[-1])
+
+        plt.tick_params(axis='both', which='major', labelsize=15)
+        #plt.ylabel("Depth along probe (mm)", fontsize=20)
+        #plt.xlabel("Time (msec)",fontsize=20)
+
+        plt.suptitle("Cluster: " + str(p), fontsize=25)
+    plt.show()
+
+    
+def view_csd(self):
+    
+    n_samples = int(self.n_sample_pts.text())
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
+    voltage_scaling = float(self.voltage_scale.text())
+    
+    #Remove bottom power..
+    if self.low_cutoff.text()!='0.0':
+        if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
+            for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+                print "...filtering ch: ", k
+                self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+            np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', self.tsf.ec_traces)
+        else: 
+            self.tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
+    
+    #Raw traces
+    tsf = self.tsf
+    
+    #load single units
+    Sort = Ptcs(self.selected_sort)
+
+    #Load spiketimes as event_trigges 
+    event_times = Sort.units[int(self.selected_unit.text())]
+
+    lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+    for ch in range(tsf.n_electrodes):
+        ctr=0
+        for event in event_times:
+            trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]
+            if len(trace_temp)==(n_samples*2):
+                lfp_ave[ch]+= trace_temp
+                ctr+=1
+        lfp_ave[ch]=lfp_ave[ch]/ctr
+
+    #********Compute CSD
+    print '.......testing....'
+    print tsf.Siteloc
+    print tsf.Siteloc[1::2]
+    print tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())]
+    print tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())][::2]
+    
+    if tsf.n_electrodes >10: 
+        print "...loading every other channel, NN A64 probe ..."
+        probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())][::2]
+        lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())][::2]
+    else:
+        probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())]
+        lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
+
+    print probe_layout
+    
+    z = probe_layout*1E-3 #Convert to mm size
+    
+
+    import imp
+    csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
+    
+    sigma = 0.3  # extracellular conductivity (mS/mm)
+    b = 1.0   # assumed radius of the column (mm)
+    SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
+
+    [A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
+    [W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
+    [W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
+
+
+    CSD=np.dot(W,lfp_ave)   # units: mS/mm^3*mV = uA/mm^3
+    
+    t = np.linspace(-n_samples, n_samples, 6)
+
+    #ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    plt.imshow(CSD, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
+
+    plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
+    plt.xlim(t[0], t[-1]*5)
+
+    plt.tick_params(axis='both', which='major', labelsize=15)
+    #plt.ylabel("Depth along probe (mm)", fontsize=20)
+    #plt.xlabel("Time (msec)",fontsize=20)
+
+    plt.show()
+
+
 
 
 def Specgram_syncindex(self):
