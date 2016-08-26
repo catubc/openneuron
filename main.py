@@ -123,9 +123,9 @@ class Load(QtGui.QWidget):
 
 
 
-class VSDGCampTools(QtGui.QWidget):
+class EventTriggeredAnalysis(QtGui.QWidget):
     def __init__(self, parent):
-        super(VSDGCampTools, self).__init__(parent)
+        super(EventTriggeredAnalysis, self).__init__(parent)
         self.parent = parent
         layout = QtGui.QGridLayout()    
 
@@ -140,37 +140,46 @@ class VSDGCampTools(QtGui.QWidget):
         #**************************************************************************************
         #******************************** SELECT ANIMAL & SESSION *****************************
         #**************************************************************************************
-        #Select animal
-        self.select_lbl = QLabel('Select Animal----->', self)
-        self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
-        layout.addWidget(self.select_lbl, row_index,1)
-
-        self.comboBox_select_animal = QtGui.QComboBox(self)
-        file_names = sorted(glob.glob(self.parent.root_dir+"*"))
-        for file_name in file_names:
-            self.comboBox_select_animal.addItem(file_name.replace(self.parent.root_dir,''))
-        layout.addWidget(self.comboBox_select_animal, row_index,2)
-        self.comboBox_select_animal.activated[str].connect(self.select_animal); self.selected_animal = file_names[0].replace(self.parent.root_dir,'')
-
-        ##Select session
-        self.select_lbl = QLabel('Select Recording----->', self)
-        self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
-        layout.addWidget(self.select_lbl, row_index,4)
-
-        self.comboBox_select_recording = QtGui.QComboBox(self)
-        file_names = sorted(glob.glob(self.parent.root_dir + self.selected_animal + "/tif_files/*.bin"))
-        for file_name in file_names:
-            self.comboBox_select_recording.addItem(file_name.replace(self.parent.root_dir+self.selected_animal+"/tif_files/",'')[:-4])
-        layout.addWidget(self.comboBox_select_recording, row_index,5)
-        self.comboBox_select_recording.activated[str].connect(self.select_recording); self.selected_recording = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')[:-4]
-        row_index+=1
-              
-        #Load Mouse from default values
-        #self.parent.animal_name_text=self.selected_animal.replace(self.parent.root_dir,'')
-        #self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
-        #self.parent.setWindowTitle(self.parent.animal.name)
-
+        self.vid_analysis_lbl = QLabel('EVENT TRIGGERED ANALYSIS', self)
+        self.vid_analysis_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.vid_analysis_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.vid_analysis_lbl, row_index, 0); row_index+=1
         
+        #Select recording
+        self.button_select_recording = QPushButton('Select Recording')
+        self.button_select_recording.setMaximumWidth(200)
+        self.button_select_recording.clicked.connect(self.slct_recording)
+        layout.addWidget(self.button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.selected_recording  = self.parent.root_dir
+        self.select_recording_lbl = QLabel(self.selected_recording, self)
+        layout.addWidget(self.select_recording_lbl, row_index,1)
+
+        self.button_bin_to_npy = QPushButton('Convert .bin -> .npy')
+        self.button_bin_to_npy.setMaximumWidth(200)
+        self.button_bin_to_npy.clicked.connect(self.bn_to_npy)
+        layout.addWidget(self.button_bin_to_npy, row_index, 5)
+
+        self.n_pixels = QLineEdit('128')
+        self.n_pixels.setMaximumWidth(50)
+        n_pixels_lbl = QLabel('No. Pixels:', self)
+        layout.addWidget(n_pixels_lbl, row_index, 6)
+        layout.addWidget(self.n_pixels, row_index, 7); row_index+=1
+        
+        
+        #Select recording
+        self.button_select_sort = QPushButton('Select Event File')
+        self.button_select_sort.setMaximumWidth(200)
+        self.button_select_sort.clicked.connect(self.slct_event_file)
+        layout.addWidget(self.button_select_sort, row_index, 0)
+        
+        self.selected_sort  = self.parent.root_dir
+        self.select_sort_lbl = QLabel(self.selected_sort, self)
+        layout.addWidget(self.select_sort_lbl, row_index,1); row_index+=1
+    
+        layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
+
         #**************************************************************************************
         #***************************** PRE-PROCESSING HEADER **********************************
         #**************************************************************************************
@@ -178,50 +187,96 @@ class VSDGCampTools(QtGui.QWidget):
         self.preprocess_lbl = QLabel('PRE-PROCESSING', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
-        layout.addWidget(self.preprocess_lbl, row_index, 0)
-
-        row_index+=1
-
-        #**************************************************************************************
-        #************************************ FILTERING ***************************************
-        #**************************************************************************************
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
         
-        self.button_bin_to_npy = QPushButton('Convert .bin -> .npy')
-        self.button_bin_to_npy.setMaximumWidth(200)
-        self.button_bin_to_npy.clicked.connect(self.bn_to_npy)
-        layout.addWidget(self.button_bin_to_npy, row_index, 0)
-
 
         self.button2 = QPushButton('Filter ==>')
         self.button2.setMaximumWidth(200)
         self.button2.clicked.connect(self.fltr_npy)
-        layout.addWidget(self.button2, row_index, 1)
+        layout.addWidget(self.button2, row_index, 0)
         
 
         self.filter_list = ['nofilter', 'butterworth', 'chebyshev']
         self.comboBox_filter = QtGui.QComboBox(self)
         for filter_ in self.filter_list[1:]: self.comboBox_filter.addItem(filter_)
-        layout.addWidget(self.comboBox_filter, row_index, 2)
+        layout.addWidget(self.comboBox_filter, row_index, 1)
         self.comboBox_filter.activated[str].connect(self.slct_filter); self.selected_filter = "butterworth" #Set default
 
 
-        parent.filter_low = QLineEdit('0.1')
-        parent.filter_low.setMaximumWidth(50)
-        filter_low_lbl = QLabel('Low Cutoff (HZ):', self)
-        layout.addWidget(filter_low_lbl, row_index, 3)
-        layout.addWidget(parent.filter_low, row_index, 4)
+        self.lowcut = QLineEdit('0.1')
+        self.lowcut.setMaximumWidth(50)
+        lowcut_lbl = QLabel('Low Cutoff (HZ):', self)
+        layout.addWidget(lowcut_lbl, row_index, 2)
+        layout.addWidget(self.lowcut, row_index, 3)
 
        
-        parent.filter_high = QLineEdit('6.0')
-        parent.filter_high.setMaximumWidth(50)
-        filter_high_lbl = QLabel('High Cutoff (HZ):', self)
-        layout.addWidget(filter_high_lbl, row_index, 5)
-        layout.addWidget(parent.filter_high, row_index, 6); row_index+=1
+        self.highcut = QLineEdit('6.0')
+        self.highcut.setMaximumWidth(50)
+        highcut_lbl = QLabel('High Cutoff (HZ):', self)
+        layout.addWidget(highcut_lbl, row_index, 4)
+        layout.addWidget(self.highcut, row_index, 5); row_index+=1
+
         
+        #**************************************************************************************
+        #************************************ COMPUTE DFF *************************************
+        #**************************************************************************************
+        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
+        row_index+=1
+                
+        self.preprocess_lbl = QLabel('DFF-COMPUTATION', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        self.button3 = QPushButton('Compute DFF Pipe ====>')
+        self.button3.setMaximumWidth(200)
+        self.button3.clicked.connect(self.dff_compute)
+        layout.addWidget(self.button3, row_index, 0)
+
+        self.comboBox_select_dff_filter = QtGui.QComboBox(self)
+        for filter_ in self.filter_list: self.comboBox_select_dff_filter.addItem(filter_)
+        layout.addWidget(self.comboBox_select_dff_filter, row_index,1)
+        self.comboBox_select_dff_filter.activated[str].connect(self.select_dff_filter); self.selected_dff_filter = "nofilter" #Set default
+
+        dff_list = ['globalAverage', 'slidingWindow']
+        self.comboBox_select_dff_method = QtGui.QComboBox(self)
+        for dff_ in dff_list: self.comboBox_select_dff_method.addItem(dff_)
+        layout.addWidget(self.comboBox_select_dff_method, row_index,2)
+        self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
+        
+        
+        self.n_sec_window = QLineEdit('3')
+        self.n_sec_window.setMaximumWidth(50)
+        self.n_sec_window_lbl = QLabel('#Sec Window:', self)
+        layout.addWidget(self.n_sec_window_lbl, row_index,4)
+        layout.addWidget(self.n_sec_window, row_index,5)        
+        
+        row_index+=1
+        
+        self.button31 = QPushButton('Static STM')
+        self.button31.setMaximumWidth(200)
+        self.button31.clicked.connect(self.static_stm_mouse_lever)
+        layout.addWidget(self.button31, row_index, 0)
+        
+        self.button32 = QPushButton('Video STM')
+        self.button32.setMaximumWidth(200)
+        self.button32.clicked.connect(self.video_stm_mouse_lever)
+        layout.addWidget(self.button32, row_index, 1)        
+        
+        self.block_save = QLineEdit('10')
+        self.block_save.setMaximumWidth(50)
+        self.block_save_lbl = QLabel('Block Ave & Mid-Mask Pixels:', self)
+        layout.addWidget(self.block_save_lbl, row_index,4)
+        layout.addWidget(self.block_save, row_index,5)
+        
+        self.midline_mask = QLineEdit('5')
+        self.midline_mask.setMaximumWidth(50)
+        layout.addWidget(self.midline_mask, row_index,6); row_index+=1
         
         #**************************************************************************************
         #************************************ VIEW ACTIVITY ***********************************
         #**************************************************************************************
+
 
         self.button_view_activity = QPushButton('View Spontaneous Activity')
         self.button_view_activity.setMaximumWidth(200)
@@ -241,15 +296,22 @@ class VSDGCampTools(QtGui.QWidget):
         layout.addWidget(self.number_frame, row_index, 4); row_index+=1
         
         
+        for k in range(2): 
+            layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
+            
         #**************************************************************************************
         #**************************** DIMENSIONALITY REDUCTION ********************************
         #**************************************************************************************
-
+        #Select animal
+        self.select_lbl = QLabel('STATE SPACE ANALYSIS', self)
+        self.select_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold))
+        self.select_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.select_lbl, row_index,0); row_index+=1
+        
         self.button_state_space = QPushButton('State Space Distributions')
         self.button_state_space.setMaximumWidth(200)
         self.button_state_space.clicked.connect(self.st_space)
         layout.addWidget(self.button_state_space, row_index, 0)
-
 
         self.dim_red_list = ['PCA', 'MDS', 'tSNE', 'tSNE_Barnes_Hut']
         self.comboBox_dim_red = QtGui.QComboBox(self)
@@ -318,35 +380,44 @@ class VSDGCampTools(QtGui.QWidget):
         self.setLayout(layout)
 
 
-    #SELECT ANIMAL
-    def select_animal(self, text):
-        print "...animal: ", text
-        self.selected_animal=text
-        self.parent.animal_name_text = text
+    def slct_recording(self):
+        self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, ".bin, .npy", self.selected_recording,"(*.bin *.tif)") 
+        path_name, file_name = os.path.split(self.selected_recording)
+        self.select_recording_lbl.setText(file_name)
+
+
+    def slct_event_file(self):
+        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt)", self.selected_recording,"PTCS, TXT (*.ptcs *.txt)")
+        path_name, file_name = os.path.split(self.selected_sort)
+        self.select_sort_lbl.setText(file_name)
+
+
+
+    def dff_compute(self):
+        compute_dff_events(self)
+
+
+    def select_dff_filter(self,text):
+        self.selected_dff_filter=text
         
-        #Reload animal object; NOT SURE IF NEEDED YET
-        #self.parent.animal = Mouse_lever(self.parent.animal_name_text, self.parent.root_dir, self.parent.n_sec)
-        #self.parent.setWindowTitle(self.parent.animal.name)
+            
+    def select_dff_method(self, text):
+        self.dff_method = text
+            
 
-        ##Reload session list and reset session box
-        self.comboBox_select_recording.clear()
-        file_names = sorted(glob.glob(self.parent.root_dir + self.selected_animal + "/tif_files/*.bin"))
-        for file_name in file_names:
-            self.comboBox_select_recording.addItem(file_name.replace(self.parent.root_dir+self.selected_animal+"/tif_files/",'')[:-4])
-        self.selected_recording = file_names[0].replace(self.parent.root_dir + self.selected_animal + "/tif_files/",'')[:-4]
-        self.select_recording(self.selected_recording)
-       
-    def select_recording(self, text):
-        self.selected_recording = text
-        print "...recording: ", self.selected_recording
+    def static_stm_mouse_lever(self):
+        view_static_stm(self)
 
-    
+
+    def video_stm_mouse_lever(self):
+        view_video_stm(self)
+        
+        
     def bn_to_npy(self):
         convert_bin_to_npy(self)
             
-            
     def fltr_npy(self):
-        filter_single_file(self)
+        filter_for_event_trigger_analysis(self)
         
         
     def slct_filter(self, text):
@@ -1315,95 +1386,182 @@ class CountMatrix(QtGui.QWidget):
         view_all_cell_count_matrix(self.parent)
         
 
-class Cell(QtGui.QWidget):
-    def __init__(self, parent):
-        super(Cell, self).__init__(parent)
-        #layout = QtGui.QFormLayout()
-        layout = QtGui.QGridLayout()
+#class EventTriggered(QtGui.QWidget):
+    #def __init__(self, parent):
+        #super(EventTriggered, self).__init__(parent)
+        ##layout = QtGui.QFormLayout()
+        #layout = QtGui.QGridLayout()
+        #self.parent = parent
 
-        self.parent = parent
+
+        #row_index = 0
+        ##*****************************************        
+        #self.vid_analysis_lbl = QLabel('EVENT TRIGGERED ANALYSIS', self)
+        #self.vid_analysis_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        #self.vid_analysis_lbl.setStyleSheet('color: blue')
+        #layout.addWidget(self.vid_analysis_lbl, row_index, 0); row_index+=1
         
-        self.title = QLineEdit('');                #parent.start_time = self.start_time
-        self.title.setMaximumWidth(0)
-        self.title_lbl = QLabel('CELL STM TOOLS', self)
-
-        parent.start_time = QLineEdit('-0.2');                #parent.start_time = self.start_time
-        parent.start_time.setMaximumWidth(50)
-        start_time_lbl = QLabel('start_time:', self)
-        start_time_lbl.setMaximumWidth(80)
-
-        parent.end_time = QLineEdit('+0.2');                  #parent.end_time = self.end_time
-        parent.end_time.setMaximumWidth(50)
-        end_time_lbl = QLabel('end_time:', self)
-        end_time_lbl.setMaximumWidth(80)
+        ##Select recording
+        #self.button_select_recording = QPushButton('Select Recording')
+        #self.button_select_recording.setMaximumWidth(200)
+        #self.button_select_recording.clicked.connect(self.slct_recording)
+        #layout.addWidget(self.button_select_recording, row_index, 0)
         
-        parent.start_cell = QLineEdit('0');                   #parent.start_cell = self.start_cell
-        parent.start_cell.setMaximumWidth(50)
-        start_cell_lbl = QLabel('start_cell:', self)
-        start_cell_lbl.setMaximumWidth(80)
+        ##self.parent.selected_recording  = os.getcwd()
+        #self.selected_recording  = '/media/cat/8TB/in_vivo/nick'
+        #self.select_recording_lbl = QLabel(self.selected_recording, self)
+        #layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
+
+        ##Select recording
+        #self.button_select_sort = QPushButton('Select Event File')
+        #self.button_select_sort.setMaximumWidth(200)
+        #self.button_select_sort.clicked.connect(self.slct_sort)
+        #layout.addWidget(self.button_select_sort, row_index, 0)
         
-        parent.end_cell = QLineEdit('1');                     #parent.end_cell = self.end_cell
-        parent.end_cell.setMaximumWidth(50)
-        end_cell_lbl = QLabel('end_cell:', self)
-        end_cell_lbl.setMaximumWidth(80)
+        #self.parent.selected_sort  = '/media/cat/12TB/in_vivo/'
+        #self.select_sort_lbl = QLabel(self.parent.selected_sort, self)
+        #layout.addWidget(self.select_sort_lbl, row_index,1); row_index+=1
+    
+    
+        #self.button2 = QPushButton('Filter ==>')
+        #self.button2.setMaximumWidth(200)
+        #self.button2.clicked.connect(self.fltr_npy)
+        #layout.addWidget(self.button2, row_index, 1)
+        
+
+        #self.filter_list = ['nofilter', 'butterworth', 'chebyshev']
+        #self.comboBox_filter = QtGui.QComboBox(self)
+        #for filter_ in self.filter_list[1:]: self.comboBox_filter.addItem(filter_)
+        #layout.addWidget(self.comboBox_filter, row_index, 2)
+        #self.comboBox_filter.activated[str].connect(self.slct_filter); self.selected_filter = "butterworth" #Set default
 
 
+        #parent.filter_low = QLineEdit('0.1')
+        #parent.filter_low.setMaximumWidth(50)
+        #filter_low_lbl = QLabel('Low Cutoff (HZ):', self)
+        #layout.addWidget(filter_low_lbl, row_index, 3)
+        #layout.addWidget(parent.filter_low, row_index, 4)
 
-        #ADD TEXTBOXES TO LAYOUT
-        layout.addWidget(self.title_lbl, 0,0)
-        layout.addWidget(self.title, 0,1)
+       
+        #parent.filter_high = QLineEdit('6.0')
+        #parent.filter_high.setMaximumWidth(50)
+        #filter_high_lbl = QLabel('High Cutoff (HZ):', self)
+        #layout.addWidget(filter_high_lbl, row_index, 5)
+        #layout.addWidget(parent.filter_high, row_index, 6); row_index+=1
+        
+        
+        
+        ##Prefilter templates
+        #self.low_cutoff = QLineEdit('0.1');                #parent.start_time = self.start_time
+        #self.low_cutoff.setMaximumWidth(50)
+        #self.low_cutoff_lbl = QLabel('Lowcut', self)
+        #self.low_cutoff_lbl.setMaximumWidth(100)
+        #layout.addWidget(self.low_cutoff_lbl, row_index,0)
+        #layout.addWidget(self.low_cutoff, row_index, 1)
 
-        layout.addWidget(start_time_lbl, 1,0)
-        layout.addWidget(parent.start_time, 1,1)
-        layout.addWidget(end_time_lbl,1,2)
-        layout.addWidget(parent.end_time,1,3)
-        
-        layout.addWidget(start_cell_lbl, 2,0)
-        layout.addWidget(parent.start_cell, 2,1)
-        layout.addWidget(end_cell_lbl,2,2)
-        layout.addWidget(parent.end_cell,2,3)
-        
-        
-        
-        #MAKE BUTTONS             
-        self.button1 = QPushButton('STM')
-        self.button1.setMaximumWidth(200)
-        self.button1.clicked.connect(self.view_stm)
-        layout.addWidget(self.button1, 4, 0)
+        #self.low_cutoff = QLineEdit('6.0');                #parent.start_time = self.start_time
+        #self.low_cutoff.setMaximumWidth(50)
+        #self.low_cutoff_lbl = QLabel('Highcut', self)
+        #self.low_cutoff_lbl.setMaximumWidth(100)
+        #layout.addWidget(self.low_cutoff_lbl, row_index,2)
+        #layout.addWidget(self.low_cutoff, row_index, 3); row_index+=1
 
-        self.button2 = QPushButton('STM Movies')
-        self.button2.setMaximumWidth(200)
-        layout.addWidget(self.button2, 4, 1)
-        self.button2.clicked.connect(self.view_stm_movie)
+        ##*************************************************************************************
+        ##******************************* MAKE STM ********************************************
+        ##*************************************************************************************
+
+        
+        #parent.start_time = QLineEdit('-0.2');                #parent.start_time = self.start_time
+        #parent.start_time.setMaximumWidth(50)
+        #start_time_lbl = QLabel('start_time:', self)
+        #start_time_lbl.setMaximumWidth(80)
+        #layout.addWidget(start_time_lbl, row_index,0)
+        #layout.addWidget(parent.start_time, row_index,1)
+
+        #parent.end_time = QLineEdit('+0.2');                  #parent.end_time = self.end_time
+        #parent.end_time.setMaximumWidth(50)
+        #end_time_lbl = QLabel('end_time:', self)
+        #end_time_lbl.setMaximumWidth(80)
+        #layout.addWidget(end_time_lbl,row_index,2)
+        #layout.addWidget(parent.end_time,row_index,3); row_index+=1
+        
+        #parent.start_cell = QLineEdit('0');                   #parent.start_cell = self.start_cell
+        #parent.start_cell.setMaximumWidth(50)
+        #start_cell_lbl = QLabel('start_cell:', self)
+        #start_cell_lbl.setMaximumWidth(80)
+        #layout.addWidget(start_cell_lbl, row_index,0)
+        #layout.addWidget(parent.start_cell, row_index,1)
+        
+        #parent.end_cell = QLineEdit('1');                     #parent.end_cell = self.end_cell
+        #parent.end_cell.setMaximumWidth(50)
+        #end_cell_lbl = QLabel('end_cell:', self)
+        #end_cell_lbl.setMaximumWidth(80)
+        #layout.addWidget(end_cell_lbl,row_index,2)
+        #layout.addWidget(parent.end_cell,row_index,3); row_index+=1
+        
+        
+        
+        ##MAKE BUTTONS             
+        #self.button1 = QPushButton('STM')
+        #self.button1.setMaximumWidth(200)
+        #self.button1.clicked.connect(self.view_stm)
+        #layout.addWidget(self.button1, row_index, 0)
+
+        #self.button2 = QPushButton('STM Movies')
+        #self.button2.setMaximumWidth(200)
+        #layout.addWidget(self.button2, row_index, 1)
+        #self.button2.clicked.connect(self.view_stm_movie)
                 
-        self.button10 = QPushButton('Compute STM')
-        self.button10.setLayoutDirection(QtCore.Qt.RightToLeft)
-        layout.addWidget(self.button10, 4, 2)
-        self.button10.clicked.connect(self.compute_cell_stm)        
+        #self.button10 = QPushButton('Compute STM')
+        #self.button10.setLayoutDirection(QtCore.Qt.RightToLeft)
+        #layout.addWidget(self.button10, row_index, 2)
+        #self.button10.clicked.connect(self.compute_cell_stm)        
 
-        self.button3 = QPushButton('Cell Rasters')
-        self.button3.setMaximumWidth(200)
-        layout.addWidget(self.button3, 4, 3)
-        self.button3.clicked.connect(self.view_cell_raster)
+        #self.button3 = QPushButton('Cell Rasters')
+        #self.button3.setMaximumWidth(200)
+        #layout.addWidget(self.button3, row_index, 3)
+        #self.button3.clicked.connect(self.view_cell_raster)
 
 
-        self.setLayout(layout)
+        #self.setLayout(layout)
+
+
+
+    #def slct_recording(self):
+        #self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.selected_recording,"TSF (*.tsf)") 
+        #path_name, file_name = os.path.split(self.selected_recording)
+        #self.select_recording_lbl.setText(file_name)
+
+        #self.tsf = Tsf_file(self.selected_recording)
+        #self.tsf.read_ec_traces()
+
+  
+    #def slct_sort(self):
+        #self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_recording,"PTCS (*.ptcs)")
+        #path_name, file_name = os.path.split(self.selected_sort)
+        #self.select_sort_lbl.setText(file_name)
    
-    def view_stm(self):
-        self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
-        sta_maps(self.parent)
+   
         
-    def view_stm_movie(self):
-        self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-        sta_movies(self.parent)
+    #def fltr_npy(self):
+        #filter_single_file(self)   
+   
+   
+    #def view_stm(self):
+        #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+        #sta_maps(self.parent)
+        
+    #def view_stm_movie(self):
+        #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+        #sta_movies(self.parent)
 
-    def view_cell_raster(self):
-        self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-        plot_rasters(self.parent)
+    #def view_cell_raster(self):
+        #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+        #plot_rasters(self.parent)
 
-    def compute_cell_stm(self):
-        self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-        compute_sta(self.parent) #NEEDS TO BE FIXED FROM (self.animal, self.animal.ptcsName) TO CURRENT FORM
+    #def compute_cell_stm(self):
+        #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+        #compute_sta(self.parent) #NEEDS TO BE FIXED FROM (self.animal, self.animal.ptcsName) TO CURRENT FORM
 
 
 class FileDialog(QtGui.QFileDialog):
@@ -2060,8 +2218,8 @@ class Window(QtGui.QMainWindow):
 
 
         #IMAGING TOOLS MENUS
-        mouseTools = QtGui.QAction("&VSD && GCamp Dynamics", self)
-        mouseTools.setStatusTip('Mouse')
+        mouseTools = QtGui.QAction("&Event Triggered Imaging", self)
+        mouseTools.setStatusTip('Event Triggered Imaging')
         mouseTools.triggered.connect(self.mouse_tools)
 
         mouseLeverTools = QtGui.QAction("&Mouse-Lever", self)
@@ -2086,9 +2244,9 @@ class Window(QtGui.QMainWindow):
         View_Templates.setStatusTip('View Templates')
         View_Templates.triggered.connect(self.view_templts)
         
-        Cell_Analysis = QtGui.QAction("&Cell STM", self)
-        Cell_Analysis.setStatusTip('Cell Analysis')
-        Cell_Analysis.triggered.connect(self.cell_analysis)
+        #Event_Triggered_Maps = QtGui.QAction("&Cell STM", self)
+        #Event_Triggered_Maps.setStatusTip('Cell Analysis')
+        #Event_Triggered_Maps.triggered.connect(self.event_triggered_analysis)
 
         LFP_Analysis = QtGui.QAction("&LFP Tools", self)
         LFP_Analysis.setStatusTip('LFP Analysis')
@@ -2126,6 +2284,7 @@ class Window(QtGui.QMainWindow):
         #fileMenu.addAction(preprocessExperiment)
 
         fileMenu = mainMenu.addMenu('Imaging Analysis')
+        #fileMenu.addAction(Event_Triggered_Maps)
         fileMenu.addAction(mouseTools)
         fileMenu.addAction(mouseLeverTools)
         
@@ -2137,11 +2296,10 @@ class Window(QtGui.QMainWindow):
         fileMenu = mainMenu.addMenu('Ephys Analysis')
         fileMenu.addAction(View_Traces)
         fileMenu.addAction(View_Templates)
-        
+
         fileMenu.addAction(LFP_Analysis)
         fileMenu.addAction(MSL_Analysis)
         fileMenu.addAction(Count_Matrix)
-        fileMenu.addAction(Cell_Analysis)
 
     #************* LOAD FILE MENUS *****************
     def ld_mouse(self):
@@ -2206,7 +2364,7 @@ class Window(QtGui.QMainWindow):
 
     #********** EXP TOOLS MENUS *******************
     def mouse_tools(self):
-        mouse_widget = VSDGCampTools(self)
+        mouse_widget = EventTriggeredAnalysis(self)
         self.central_widget.addWidget(mouse_widget)  
         self.central_widget.setCurrentWidget(mouse_widget)
 
@@ -2241,10 +2399,10 @@ class Window(QtGui.QMainWindow):
         self.central_widget.setCurrentWidget(templates_widget)
         
     
-    def cell_analysis(self):
-        cell_widget = Cell(self)
-        self.central_widget.addWidget(cell_widget)  
-        self.central_widget.setCurrentWidget(cell_widget)
+    #def event_triggered_analysis(self):
+        #event_widget = EventTriggered(self)
+        #self.central_widget.addWidget(event_widget)  
+        #self.central_widget.setCurrentWidget(event_widget)
 
     def lfp_analysis(self):
         lfp_widget = LFP(self)
