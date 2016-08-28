@@ -1138,8 +1138,6 @@ def make_spontaneous_movies(self):
     plt.show()
 
 
-
-
 def compute_dim_reduction(self):
     
     start_frame = int(self.starting_frame.text())
@@ -1160,15 +1158,18 @@ def compute_dim_reduction(self):
     
     dim_reduction_stack(self)
 
+
 def compute_dff_events(self):
-    
+
     print "\n\n... dff computation event triggers..."
 
     images_file = self.selected_recording
-    data_mean = np.load(images_file[:-4]+'_mean.npy' )
-    print "... data_mean.shape: ", data_mean.shape 
+    global_mean = np.load(images_file[:-4]+'_mean.npy' )
+    print "... data_mean.shape: ", global_mean.shape 
 
     main_dir = os.path.dirname(os.path.dirname(self.selected_recording)[:-1])   #Strip file name and 'tif_files' directory 
+    rec_name = self.selected_recording[:-4].replace(main_dir,'').replace('/tif_files/','')
+
     fs = np.loadtxt(main_dir+'/img_rate.txt')     #imaging rate
     #Check for filtered version of imaging data w. current filtering params
     lowcut = float(self.lowcut.text()); highcut = float(self.highcut.text())
@@ -1176,24 +1177,10 @@ def compute_dff_events(self):
 
     #Load filtered data; mmap
     self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
-        
-    data= np.load(self.filtered_file,  mmap_mode='r+')
-    print data.shape
+    self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
+    print "...images_file.shape: ",  self.images_filtered.shape
     
-    #Load event file
-    if '.ptcs' in self.selected_sort:
-        Sort = Ptcs(self.selected_sort)
-        events = np.float32(Sort.units[0])/Sort.samplerate
-    else:
-        events = np.loadtxt(self.selected_sort)
-    
-    print events[:10]
-    
-    #*******************************************************************************
-    #**************************** COMPUTE DFF **************************************
-    #*******************************************************************************
-
-    #Check if already done
+    #Check if DFF previously done
     print "... selected filter: ", self.selected_dff_filter
     if self.selected_dff_filter == 'nofilter':
         self.traces_filename = images_file[:-4]+"_"+ self.n_sec_window.text()+"sec_"+ self.dff_method+ '_' + self.selected_dff_filter + ".npy"
@@ -1206,71 +1193,22 @@ def compute_dff_events(self):
         print "... DFF already computed ...skiping processing..."
         return
 
-    #Load aligned/filtered data and find ON/OFF light; #*******************SKIP THIS IF ALREADY SAVED ON FILE***************
+    #*****************************************************************
+    #************** LOAD CAMERA ON/OFF AND IMG_RATE ******************
+    #*****************************************************************
+    #Load ON/OFF light and compute interpolated img rate based on # of frames aquired divided by ephys time stamps for start and end
     imaging_onoff_file = images_file[:-4].replace('tif_files','camera_files')+'_camera_onoff.npy'
     onoff_pulse = np.load(imaging_onoff_file)
-    plt.plot(onoff_pulse)
-    plt.show()
+    indexes = np.where(onoff_pulse==1)[0]
+    img_start = indexes[0]/25000.         #DON"T HARDWIRE THE AQUISITION RATE; READ FROM RAW .TSF HEADER!!!
+    img_end = indexes[-1]/25000.         #DON"T HARDWIRE THE AQUISITION RATE 
     
+    self.reclength = img_end - img_start
+    print "...imaging start offset, img_end, rec_length: ", img_start, img_end, self.reclength
     
-    self.aligned_images = np.load(images_file)
-    blue_light_threshold = 400  #Intensity threshold; when this value is reached - imaging light was turned on
-    start_blue = 0; end_blue = len(self.aligned_images)
-    
-    
-    
-    #GCAMP IMAGING... IS THIS NECESSARY FOR MY OWN RECS OR ONLY GREG'S ???
-    if np.average(self.aligned_images[0])> blue_light_threshold:    #Case #1: imaging starts with light on; need to remove end chunk; though likely bad recording
-        for k in range(len(self.aligned_images)):
-            if np.average(self.aligned_images[k])< blue_light_threshold:
-                #self.aligned_images = self.aligned_images[k:]
-                end_blue = k
-                break
-    else:                                                           #Case #2: start with light off; remove starting and end chunks;
-        #Find first light on
-        for k in range(len(self.aligned_images)):
-            if np.average(self.aligned_images[k])> blue_light_threshold:
-                #self.aligned_images = self.aligned_images[k:]
-                start_blue = k
-                break
+    self.n_images=len(self.images_filtered)
 
-        #Find light off - count backwards from end of imaging data
-        for k in range(len(self.aligned_images)-1,0,-1):
-            if np.average(self.aligned_images[k])> blue_light_threshold:
-                #self.aligned_images = self.aligned_images[:k]
-                end_blue= k
-                break
-                
-                
-    self.lowcut = float(self.parent.filter_low.text())
-    self.highcut = float(self.parent.filter_high.text())
-        
-    if self.selected_dff_filter == 'nofilter':
-        pass; #already loaded nonfiltered self.aligned_images above
-    else:
-        filtered_filename = images_file[:-4]+'_'+self.selected_dff_filter+'_'+str(self.lowcut)+'hz_'+str(self.highcut)+'hz.npy'
-        if os.path.exists(filtered_filename): self.aligned_images = np.load(filtered_filename)
-        else: 
-            print filtered_filename
-            print "***filtered file does not exist*** "
-            return
-    
-    self.aligned_images = self.aligned_images[start_blue:end_blue]
-    print "...images_file.shape: ",  self.aligned_images.shape
-    
-    
-    self.n_images=len(self.aligned_images)
-
-
-    #Check img_rate; First, need to load session, so find index of tif_file name in tif_files.npy
-    temp_tif_files = np.load(self.parent.animal.home_dir+self.parent.animal.name+"/tif_files.npy")
-    temp_event_files = np.load(self.parent.animal.home_dir+self.parent.animal.name+"/event_files.npy")
-    for k in range(len(temp_tif_files)):
-        if self.rec_filename in temp_tif_files[k]:
-            index = k; break
-
-    self.reclength = self.parent.animal.load_reclength(temp_event_files[index])
-    
+    #Check img_rate; if incorrect, exit
     session_img_rate = self.n_images/self.reclength
     print "# img frames: ", self.n_images, " rec length: ", self.reclength, " img_rate: ", session_img_rate
 
@@ -1282,85 +1220,71 @@ def compute_dff_events(self):
         np.save(images_file.replace('_aligned.npy','')+'_img_rate', session_img_rate)
         return
 
-
-    #Find times of triggers from lever pull threshold times
-    trigger_times = self.locs_44threshold_selected
-    frame_times = np.linspace(0, self.reclength, self.n_images)             #Divide up reclength in number of images
+    #*****************************************************************
+    #************************ LOAD EVENT FILE*************************
+    #*****************************************************************
+    if '.ptcs' in self.selected_sort:
+        Sort = Ptcs(self.selected_sort)
+        events = np.float32(Sort.units[int(self.selected_unit)])/Sort.samplerate         
+        events = events - img_start                                 #Align to imaging times by removing pre-imaging period
+    else:
+        events = np.loadtxt(self.selected_sort)                     #Manual time points are relative to ophys start; 
+    
+    print events[:10]
+    
+    
+    #*****************************************************************
+    #******************* MAKE IMAGING TRIGGER TIMES ******************
+    #*****************************************************************
+    #Find nearest frame indexes for each event
+    trigger_times = events
+    frame_times = np.linspace(0, self.reclength, self.n_images)             #Divide reclength by number of images; seconds
     img_frame_triggers = []
     for i in range(len(trigger_times)):
         #img_frame_triggers.append(self.find_previous(frame_times, trigger_times[i])) 
-        img_frame_triggers.append(find_nearest(frame_times, trigger_times[i]))     #Two different functions possible here; 
+        img_frame_triggers.append(find_nearest(frame_times, trigger_times[i]))     #Two different flags in the function; CHECK PERIODICALLY 
     print "...img_frame_triggers...", img_frame_triggers
     
-    
-    #BASELINE FOR GLOBAL BASLINE REMOVAL
-    mean_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned_mean.npy'
-    global_mean = np.load(mean_file)
 
-    self.abstimes = np.load(self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_abstimes.npy')
-    self.abspositions = np.load(self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_abspositions.npy')
-
+    #*****************************************************************
+    #**************************** COMPUTE DFF ************************
+    #*****************************************************************
     print "...computing DF/F..."
-    data_stm = []; traces = []; locs = []; codes = []
-    counter=-1
+    n_pixels = len(self.images_filtered[0])
     self.window = self.parent.n_sec * session_img_rate
-    print "Trigger frame: ", 
+    data_stm = np.zeros((int(self.window*2),n_pixels,n_pixels), dtype=np.float32)
+    ctr = 0
     for trigger in img_frame_triggers:
-        counter+=1
-        print trigger,
-        #NB: Ensure enough space for the sliding window; usually 2 x #frames in window
-        if trigger < (2*self.window) or trigger>(self.n_images-self.window): 
-            continue  #Skip if too close to start/end
+        if trigger < (2*self.window) or trigger>(self.n_images-self.window): continue  #Skip if too close to start/end; DO THIS BEFORE THE LOOP!!!!!!!!!!!!!!!!!!!!!
+        print "...spike: ", trigger
 
-        #add locs and codes
-        locs.append(self.locs_44threshold_selected[counter])
-        codes.append(self.code_44threshold_selected[counter])
-
-        print "...self.dff_method: ", self.dff_method
-        #dff_list = ['Global Average', 'Sliding Window: -6s..-3s']
-    
-        data_chunk = self.aligned_images[int(trigger-self.window):int(trigger+self.window)]
+        data_chunk = self.images_filtered[int(trigger-self.window):int(trigger+self.window)]
 
         if self.dff_method == 'globalAverage':
-            data_stm.append((data_chunk-global_mean)/global_mean)    #Only need to divide by global mean as original data_chunk did not have mean img added in
+            data_stm+=data_chunk/global_mean    #Only need to divide by global mean as original data_chunk did not have mean img added in
             
         elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
-            baseline = np.average(self.aligned_images[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
-            data_stm.append((data_chunk-baseline)/baseline)
+            baseline = np.average(self.images_filtered[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
+            data_stm+=(data_chunk-baseline)/baseline
+        ctr+=1
         
-        #***PROCESS TRACES - WORKING IN DIFFERENT TIME SCALE
-        lever_window = 120*self.parent.n_sec    #NB: Lever window is computing in real time steps @ ~120Hz; and discontinuous;
-        t = np.linspace(-lever_window*0.0082,lever_window*0.0082, lever_window*2)
-        lever_position_index = find_nearest(np.array(self.abstimes), self.locs_44threshold[counter])
-        
-        lever_trace = self.abspositions[lever_position_index-lever_window:lever_position_index+lever_window]
+    average_stm = data_stm/ctr
 
-        if len(lever_trace)!=len(t):    #Extraplote missing data
-            print "...missing lever trace data ... extrapolating..."
-            lever_trace = np.zeros(lever_window*2,dtype=np.float32)
-            for k in range(-lever_window,lever_window,1):
-                lever_trace[k+lever_window] = self.abspositions[k+lever_window]     #Double check this...
-
-        traces.append(lever_trace)
-
-    #Save traces, and 44 threshold locations and codes for trials within boundaries
-    np.save(self.traces_filename, traces)
-    #np.save(self.tif_file[:-4]+'_locs44threshold', locs)        #MAY WISH TO OVERRIDE ORIGINAL TIMES AND LOCS - FEW TRIALS OUTOF BOUNDS MAY AFFECT OTHER ANALYSIS
-    #np.save(self.tif_file[:-4]+'_code44threshold', codes)       #i.e. some of the original values may be out-of-bounds
-
-    #Save individual trial time dynamics
-    data_stm = np.float16(data_stm)
+    #Save average of event triggered STMs
     print "Saving trial DFF...",
-    np.save(self.traces_filename.replace('_traces.npy','')+'_stm', data_stm)
+
+    if self.selected_dff_filter !='nofilter':
+        stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_'+str(len(events)).zfill(5)+"_spikes"
+    else:
+        stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_'+str(len(events)).zfill(5)+"_spikes"
+        
+    
+    np.save(stm_file_name, average_stm)
 
     print ''
-    #Set aligned_images to empty 
-    self.aligned_images = []
-
-    
-    
-    
-    
+    self.images_filtered = 0;     #Set aligned_images to empty 
     
     
 
@@ -1548,6 +1472,58 @@ def compute_DFF_function(self):
     print ''
     #Set aligned_images to empty 
     self.aligned_images = []
+
+
+def view_static_stm_events(self):
+    
+    block_save = int(self.block_save.text())
+    
+    main_dir = os.path.dirname(os.path.dirname(self.selected_recording)[:-1])   #Strip file name and 'tif_files' directory 
+    rec_name = self.selected_recording[:-4].replace(main_dir,'').replace('/tif_files/','')
+
+    if self.selected_dff_filter !='nofilter':
+        stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_*')[0]
+    else:
+        stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_*')[0]
+        
+    data = np.load(stm_file_name)
+    print data.shape
+    
+    #Mask data
+    #temp_array = quick_mask(self, data[int(self.selected_trial)])
+    temp_array = data
+
+    plt.close()
+    ax = plt.subplot(1,1,1)
+    img_rate = float(np.loadtxt(main_dir+'/img_rate.txt'))
+    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    
+    img_out = []
+    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+        print i
+        img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+    img_out = np.ma.hstack((img_out))
+    
+    v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+
+    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    ax.yaxis.set_ticks([])
+    ax.xaxis.set_ticks([])
+
+    #if ctr==(len(select_units)-1): 
+    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    old_xlabel = np.linspace(0,img_out.shape[1], 11)
+    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+
+    #plt.title(self.traces_filename)
+    #plt.suptitle(animal.ptcsName)
+    plt.show()
+
 
 
 

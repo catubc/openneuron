@@ -176,8 +176,22 @@ class EventTriggeredAnalysis(QtGui.QWidget):
         
         self.selected_sort  = self.parent.root_dir
         self.select_sort_lbl = QLabel(self.selected_sort, self)
-        layout.addWidget(self.select_sort_lbl, row_index,1); row_index+=1
+        layout.addWidget(self.select_sort_lbl, row_index,1)
     
+
+        selected_unit_lbl = QLabel('Unit #:', self)
+        layout.addWidget(selected_unit_lbl, row_index, 5)
+        
+        #self.filter_list = ['nofilter', 'butterworth', 'chebyshev']
+        self.comboBox_selected_unit = QtGui.QComboBox(self)
+        self.comboBox_selected_unit.addItem('')
+        layout.addWidget(self.comboBox_selected_unit, row_index, 6)
+        self.comboBox_selected_unit.activated[str].connect(self.slct_unit); self.selected_filter = "" #Set default
+
+        self.selected_unit_spikes_lbl = QLabel('', self)
+        layout.addWidget(self.selected_unit_spikes_lbl, row_index, 7)
+
+
         layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
 
         #**************************************************************************************
@@ -391,6 +405,27 @@ class EventTriggeredAnalysis(QtGui.QWidget):
         path_name, file_name = os.path.split(self.selected_sort)
         self.select_sort_lbl.setText(file_name)
 
+        #Reload session list and reset session box
+        self.comboBox_selected_unit.clear()
+        if '.ptcs' in self.selected_sort: 
+            self.Sort = Ptcs(self.selected_sort)
+            n_units = len(self.Sort.units)
+            self.selected_unit_spikes_lbl.setText(str(len(self.Sort.units[0])))
+        else: 
+            n_units = 1
+            self.text_Sort = np.loadtxt(self.selected_sort)
+            self.selected_unit_spikes_lbl.setText(str(len(self.text_Sort)))
+
+        for unit in range(n_units):
+            self.comboBox_selected_unit.addItem(str(unit))
+        self.slct_unit('0')
+
+
+    def slct_unit(self, text):
+        self.selected_unit = text
+
+        if '.ptcs' in self.selected_sort: self.selected_unit_spikes_lbl.setText(str(len(self.Sort.units[int(text)])))
+        else: self.selected_unit_spikes_lbl.setText(str(len(self.text_Sort)))
 
 
     def dff_compute(self):
@@ -406,7 +441,7 @@ class EventTriggeredAnalysis(QtGui.QWidget):
             
 
     def static_stm_mouse_lever(self):
-        view_static_stm(self)
+        view_static_stm_events(self)
 
 
     def video_stm_mouse_lever(self):
