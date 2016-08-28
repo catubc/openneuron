@@ -277,6 +277,16 @@ class EventTriggeredAnalysis(QtGui.QWidget):
         self.button32.clicked.connect(self.video_stm_mouse_lever)
         layout.addWidget(self.button32, row_index, 1)        
         
+
+        self.window_start = QLineEdit('-3.0')
+        self.window_start.setMaximumWidth(50)
+        layout.addWidget(self.window_start, row_index, 2)
+        
+        self.window_end = QLineEdit('+3.0')
+        self.window_end.setMaximumWidth(50)
+        layout.addWidget(self.window_end, row_index, 3)
+        
+
         self.block_save = QLineEdit('10')
         self.block_save.setMaximumWidth(50)
         self.block_save_lbl = QLabel('Block Ave & Mid-Mask Pixels:', self)

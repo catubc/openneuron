@@ -1161,6 +1161,9 @@ def compute_dim_reduction(self):
 
 def compute_dff_events(self):
 
+    compress_factor = 50.   #Needed to uncompress the LFP compressed sorts
+
+
     print "\n\n... dff computation event triggers..."
 
     images_file = self.selected_recording
@@ -1168,17 +1171,25 @@ def compute_dff_events(self):
     print "... data_mean.shape: ", global_mean.shape 
 
     main_dir = os.path.dirname(os.path.dirname(self.selected_recording)[:-1])   #Strip file name and 'tif_files' directory 
-    rec_name = self.selected_recording[:-4].replace(main_dir,'').replace('/tif_files/','')
+    rec_name = self.selected_sort[:-5].replace(main_dir,'').replace('/tsf_files/','')   #Use the sort name - NOT the recording name 
 
     fs = np.loadtxt(main_dir+'/img_rate.txt')     #imaging rate
     #Check for filtered version of imaging data w. current filtering params
     lowcut = float(self.lowcut.text()); highcut = float(self.highcut.text())
     print "... frame rate: ", fs, "  low_cutoff: ", lowcut, "  high_cutoff: ", highcut
 
-    #Load filtered data; mmap
-    self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
+    #*****************************************************************
+    #************* LOAD FILTERED AND UNFILTERED IMAGES ***************
+    #*****************************************************************
+    #Load unfiltered and filtered data using mmap
+    if self.selected_dff_filter!='nofilter': self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
+    else: self.filtered_file = images_file[:-4]+'.npy'   #Load unfiltered file and use it as "filtered_file"
     self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
-    print "...images_file.shape: ",  self.images_filtered.shape
+    print "...filtered_images_file.shape: ",  self.images_filtered.shape
+    
+    self.unfiltered_file = images_file[:-4]+'.npy'
+    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='r+')
+
     
     #Check if DFF previously done
     print "... selected filter: ", self.selected_dff_filter
@@ -1226,6 +1237,8 @@ def compute_dff_events(self):
     if '.ptcs' in self.selected_sort:
         Sort = Ptcs(self.selected_sort)
         events = np.float32(Sort.units[int(self.selected_unit)])/Sort.samplerate         
+        if 'compressed' in self.selected_sort: 
+            events = events*compress_factor 
         events = events - img_start                                 #Align to imaging times by removing pre-imaging period
     else:
         events = np.loadtxt(self.selected_sort)                     #Manual time points are relative to ophys start; 
@@ -1240,10 +1253,14 @@ def compute_dff_events(self):
     trigger_times = events
     frame_times = np.linspace(0, self.reclength, self.n_images)             #Divide reclength by number of images; seconds
     img_frame_triggers = []
+    self.window = float(self.n_sec_window.text()) * session_img_rate  #Window width in # frames
     for i in range(len(trigger_times)):
         #img_frame_triggers.append(self.find_previous(frame_times, trigger_times[i])) 
-        img_frame_triggers.append(find_nearest(frame_times, trigger_times[i]))     #Two different flags in the function; CHECK PERIODICALLY 
-    print "...img_frame_triggers...", img_frame_triggers
+        nearest_frame = find_nearest(frame_times, trigger_times[i])  #Two different flags in the function; CHECK PERIODICALLY 
+        if (nearest_frame < (2*self.window)) or (nearest_frame>(self.n_images-float(self.window))): continue  #Skip if too close to start/end; 
+        img_frame_triggers.append(nearest_frame)     
+        
+    print "...# img_frame_triggers...", len(img_frame_triggers)
     
 
     #*****************************************************************
@@ -1251,24 +1268,23 @@ def compute_dff_events(self):
     #*****************************************************************
     print "...computing DF/F..."
     n_pixels = len(self.images_filtered[0])
-    self.window = self.parent.n_sec * session_img_rate
     data_stm = np.zeros((int(self.window*2),n_pixels,n_pixels), dtype=np.float32)
-    ctr = 0
     for trigger in img_frame_triggers:
-        if trigger < (2*self.window) or trigger>(self.n_images-self.window): continue  #Skip if too close to start/end; DO THIS BEFORE THE LOOP!!!!!!!!!!!!!!!!!!!!!
         print "...spike: ", trigger
 
-        data_chunk = self.images_filtered[int(trigger-self.window):int(trigger+self.window)]
+        data_chunk = np.float32(self.images_filtered[int(trigger-self.window):int(trigger+self.window)])
 
         if self.dff_method == 'globalAverage':
-            data_stm+=data_chunk/global_mean    #Only need to divide by global mean as original data_chunk did not have mean img added in
+            if self.selected_dff_filter!='nofilter':  data_stm+=data_chunk/global_mean    #Only need to divide by global mean as original data_chunk did not have mean img added in
+            else: data_stm+=(data_chunk-global_mean)/global_mean
             
         elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
-            baseline = np.average(self.images_filtered[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
-            data_stm+=(data_chunk-baseline)/baseline
-        ctr+=1
-        
-    average_stm = data_stm/ctr
+            baseline = np.average(self.images_unfiltered[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
+            
+            if self.selected_dff_filter!='nofilter': data_stm+=data_chunk/baseline      #ignore subtracting baseline because it was never added back in 
+            else: data_stm+=(data_chunk-baseline)/baseline
+            
+    average_stm = data_stm/len(img_frame_triggers)
 
     #Save average of event triggered STMs
     print "Saving trial DFF...",
@@ -1479,7 +1495,7 @@ def view_static_stm_events(self):
     block_save = int(self.block_save.text())
     
     main_dir = os.path.dirname(os.path.dirname(self.selected_recording)[:-1])   #Strip file name and 'tif_files' directory 
-    rec_name = self.selected_recording[:-4].replace(main_dir,'').replace('/tif_files/','')
+    rec_name = self.selected_sort[:-5].replace(main_dir,'').replace('/tsf_files/','')
 
     if self.selected_dff_filter !='nofilter':
         stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
@@ -1498,15 +1514,18 @@ def view_static_stm_events(self):
     plt.close()
     ax = plt.subplot(1,1,1)
     img_rate = float(np.loadtxt(main_dir+'/img_rate.txt'))
-    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    start_time = float(self.window_start.text()); end_time = float(self.window_end.text())
     
     img_out = []
-    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-    for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
         print i
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
-    img_out = np.ma.hstack((img_out))
     
+    img_out = quick_mask_event(main_dir+'/genericmask.txt', img_out, int(self.midline_mask.text()))
+    
+    img_out = np.ma.hstack((img_out))
+
     v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
     plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
 
@@ -1515,12 +1534,12 @@ def view_static_stm_events(self):
     ax.xaxis.set_ticks([])
 
     #if ctr==(len(select_units)-1): 
-    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    plt.xlabel("Time from spike (sec)", fontsize=25)
     old_xlabel = np.linspace(0,img_out.shape[1], 11)
     new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
     plt.xticks(old_xlabel, new_xlabel, fontsize=18)
 
-    #plt.title(self.traces_filename)
+    plt.title(stm_file_name)
     #plt.suptitle(animal.ptcsName)
     plt.show()
 
@@ -1643,6 +1662,30 @@ def view_video_stm(self):
     plt.show()
 
     #quit() 
+
+def quick_mask_event(generic_mask_file, data, midline_mask_n_pixels):
+        
+    if (os.path.exists(generic_mask_file)==True):
+        generic_coords = np.int32(np.loadtxt(generic_mask_file))
+        generic_mask_indexes=np.zeros((128,128))
+        for i in range(len(generic_coords)):
+            generic_mask_indexes[int(generic_coords[i][0])][int(generic_coords[i][1])] = True
+    else:
+        print "...generic mask not found..."
+        return
+    
+    #Load midline mask
+    for i in range(int(midline_mask_n_pixels)):
+        generic_mask_indexes[:,64+int(int(midline_mask_n_pixels)/2)-i]=True
+
+    #Apply full mask; probably FASTER METHOD
+    n_pixels = 128
+    temp_array = np.ma.array(np.zeros((len(data),n_pixels,n_pixels),dtype=np.float32), mask=True)
+    for i in range(0, len(data),1):
+        print data[i].shape
+        temp_array[i] = np.ma.masked_array(data[i], mask=generic_mask_indexes, fill=np.nan)
+    
+    return temp_array
     
 
 
