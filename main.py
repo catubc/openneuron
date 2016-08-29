@@ -628,7 +628,7 @@ class MouseLeverTools(QtGui.QWidget):
         for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
         row_index+=1
                 
-        self.preprocess_lbl = QLabel('DFF-COMPUTATION', self)
+        self.preprocess_lbl = QLabel('[Ca] DFF-COMPUTATION', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
@@ -638,18 +638,20 @@ class MouseLeverTools(QtGui.QWidget):
         self.button3.clicked.connect(self.dff_mouse_lever)
         layout.addWidget(self.button3, row_index, 0)
 
+        #Filter dropdown box
         self.comboBox_select_dff_filter = QtGui.QComboBox(self)
         for filter_ in self.filter_list: self.comboBox_select_dff_filter.addItem(filter_)
         layout.addWidget(self.comboBox_select_dff_filter, row_index,1)
         self.comboBox_select_dff_filter.activated[str].connect(self.select_dff_filter); self.selected_dff_filter = "nofilter" #Set default
 
+        #DFF method dropdown box
         dff_list = ['globalAverage', 'slidingWindow']
         self.comboBox_select_dff_method = QtGui.QComboBox(self)
         for dff_ in dff_list: self.comboBox_select_dff_method.addItem(dff_)
         layout.addWidget(self.comboBox_select_dff_method, row_index,2)
         self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
         
-        #Select reward code; self.selected_session contains full file name including session name
+        #Reward code dropdown box
         self.code_list = ['02', '04', '07']
         self.locs_44threshold = []; self.code_44threshold = []
         temp_file = self.parent.root_dir+self.selected_animal + '/tif_files/'+self.selected_session+'/'+self.selected_session
@@ -657,17 +659,28 @@ class MouseLeverTools(QtGui.QWidget):
         if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
             self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
             self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
-        
         self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
-        
         self.comboBox_select_code = QtGui.QComboBox(self)
         for code_ in self.code_list: self.comboBox_select_code.addItem(code_)
         layout.addWidget(self.comboBox_select_code, row_index, 3)
         self.comboBox_select_code.activated[str].connect(self.select_reward_code); 
         
+        # Number of trials for reward code
         self.n_codes_lbl = QLabel(str(self.n_codes), self)
-        layout.addWidget(self.n_codes_lbl, row_index, 4); row_index+=1
+        layout.addWidget(self.n_codes_lbl, row_index, 4)
         
+        
+        self.n_sec_window = QLineEdit('3')
+        self.n_sec_window.setMaximumWidth(50)
+        self.n_sec_window_lbl = QLabel('Window (sec):', self)
+        layout.addWidget(self.n_sec_window_lbl, row_index,6)
+        layout.addWidget(self.n_sec_window, row_index,7); row_index+=1
+        
+        
+        #**************************************************************************************
+        #************************************ VIEW DFF *************************************
+        #**************************************************************************************
+
         
         self.button31 = QPushButton('Static STM')
         self.button31.setMaximumWidth(200)
@@ -748,10 +761,12 @@ class MouseLeverTools(QtGui.QWidget):
         self.button431.clicked.connect(self.evt_movies_ca)
         layout.addWidget(self.button431, row_index, 0)
 
+
         self.button43 = QPushButton('Movies: Multi-Trial')
         self.button43.setMaximumWidth(200)
         self.button43.clicked.connect(self.evt_movies)
         layout.addWidget(self.button43, row_index, 1)
+
 
         self.n_trials_movies = QLineEdit('12')
         self.n_trials_movies.setMaximumWidth(50)
@@ -760,7 +775,35 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.n_trials_movies, row_index, 3); row_index+=1
 
         
+        for k in range(2): 
+            layout.addWidget(QLabel(' '*40, self), row_index,0)
+            row_index+=1
 
+        #**************************************************************************************
+        #***************************** COMBINED [Ca] & VIDEO **********************************
+        #**************************************************************************************
+        
+                
+        self.preprocess_lbl = QLabel('COMBINED [Ca] & VIDEO', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        
+        self.button_ca_stm = QPushButton('Static [Ca] + STM')
+        self.button_ca_stm.setMaximumWidth(200)
+        self.button_ca_stm.clicked.connect(self.static_stm_ca_mouse_lever)
+        layout.addWidget(self.button_ca_stm, row_index, 0)
+        
+        self.button_ca_stm_video = QPushButton('Video [Ca] + STM')
+        self.button_ca_stm_video.setMaximumWidth(200)
+        self.button_ca_stm_video.clicked.connect(self.video_stm_ca_mouse_lever)
+        layout.addWidget(self.button_ca_stm_video, row_index, 1)        
+        
+        row_index+=1
+        
+        
+        
         #**************************************************************************************
         #********************************** STROKE TOOLS **************************************
         #**************************************************************************************
@@ -884,14 +927,17 @@ class MouseLeverTools(QtGui.QWidget):
 
 
     def cvrt_tif_npy(self):
-        print "...convert .tif to .npy... CODE BELOW (BUT NOT IMPLEMENTED)..."
+        print "...convert .tif to .npy..."
 
+        #Check to see if .npy or _aligned.npy file exists
         if (os.path.exists(self.tif_file[:-4] +'.npy')==False) and (os.path.exists(self.tif_file[:-4] +'_aligned.npy')==False):
             print "...read: ", self.tif_file
             images_raw = tiff.imread(self.tif_file)
 
             print "... saving .npy"
             np.save(self.tif_file[:-4], images_raw)
+        else:
+            print "... .npy file exists ..."
 
     def fltr_mouse_lever(self):
         filter_data(self)
@@ -964,10 +1010,10 @@ class MouseLeverTools(QtGui.QWidget):
         
         #CALL CODE COUNTING FUNCTIONS
         self.locs_44threshold = []; self.code_44threshold = []
-        temp_file = self.parent.root_dir+self.parent.animal.name+"/tif_files/" +self.selected_session+'/'+self.selected_session
-        if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
-            self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
-            self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+        self.tif_file = self.parent.root_dir+self.parent.animal.name+"/tif_files/" +self.selected_session+'/'+self.selected_session+'.tif'
+        if os.path.exists(self.tif_file[:-4] + '_locs44threshold.npy')==True: 
+            self.locs_44threshold = np.load(self.tif_file[:-4]+'_locs44threshold.npy')
+            self.code_44threshold = np.load(self.tif_file[:-4]+'_code44threshold.npy')
 
         print self.code_44threshold
         
@@ -1079,9 +1125,15 @@ class MouseLeverTools(QtGui.QWidget):
     def static_stm_mouse_lever(self):
         view_static_stm(self)
 
-
     def video_stm_mouse_lever(self):
         view_video_stm(self)
+
+
+    def static_stm_ca_mouse_lever(self):
+        pass
+
+    def video_stm_ca_mouse_lever(self):
+        pass
         
 
     def algn_images(self):
@@ -1100,10 +1152,10 @@ class MouseLeverTools(QtGui.QWidget):
         plot_blue_light_roi(self)
 
     def evt_movies(self):
-        event_triggered_movies(self)
+        event_triggered_movies_multitrial(self)
 
     def evt_movies_ca(self):
-        event_triggered_movies_Ca(self)
+        event_triggered_movies_single_Ca(self)
 
     def kmeans_mouse_lever(self):
         print "...kmeans..."

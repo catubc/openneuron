@@ -441,11 +441,11 @@ def convert_video(self):
 
 def find_start_end(self):
     
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
     
-    if os.path.exists(self.blue_light_filename)==True: 
-        print "...Blue Light Boundaries already found... returning..."
-        return
+    #if os.path.exists(self.blue_light_filename)==True: 
+    #    print "...Blue Light Boundaries already found... returning..."
+    #    return
 
     global coords, images_temp, ax, fig, cid
     
@@ -486,8 +486,8 @@ def find_start_end(self):
 def plot_blue_light_roi(self):
     
     plotting = True
-    
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+    movie_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy'
+    movie_data = np.load(movie_filename)
     print movie_data.shape
     
     t = np.arange(0,movie_data.shape[0],1)/15.
@@ -521,15 +521,18 @@ def plot_blue_light_roi(self):
     else:
         #Save frames for blue light
         np.save(self.blue_light_filename, np.arange(indexes[0],indexes[-1],1))
+        vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
+        np.savetxt(vid_rate_filename, [movie_rate])
 
     if plotting: 
         ax = plt.subplot(2,1,2)
         plt.plot(blue_light_roi)
         plt.ylim(bottom=0)
         plt.show()
-        
+    
+    
 
-def event_triggered_movies(self):
+def event_triggered_movies_multitrial(self):
     """ Make multiple mouse lever pull trials video"""
     
     #Load imaging data
@@ -625,9 +628,10 @@ def make_movies_from_triggers(self):
     plt.show()
 
 
-def event_triggered_movies_Ca(self):
+def event_triggered_movies_single_Ca(self):
     """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
 
+    self.parent.n_sec = float(self.n_sec_window.text())
     #**************************************
     #Read [Ca] data
     #**************************************
@@ -654,6 +658,9 @@ def event_triggered_movies_Ca(self):
     #**************************************
     #Load behaviour camera data
     #**************************************
+    vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
+    self.vid_rate = np.loadtxt(vid_rate_filename)
+
     self.abstimes = np.load(temp_file+'_abstimes.npy')
     self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
     self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
@@ -670,7 +677,7 @@ def event_triggered_movies_Ca(self):
 
     #Load original movie data and index only during blue_light_frames
     movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_blue_light_frames.npy'
+    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
     self.movie_data = movie_data[np.load(self.blue_light_filename)]
     
     #Find movie frame corresponding to lever pull trigger
@@ -679,8 +686,7 @@ def event_triggered_movies_Ca(self):
     print "... frame event triggers: ", self.movie_04frame_locations
 
     #Make movie stack
-    temp_img_rate = 15
-    self.movie_stack = self.movie_data[self.movie_04frame_locations-3*temp_img_rate: self.movie_04frame_locations+3*temp_img_rate]
+    self.movie_stack = self.movie_data[self.movie_04frame_locations-self.parent.n_sec*self.vid_rate: self.movie_04frame_locations+self.parent.n_sec*self.vid_rate]
 
     #Interpolate movie stack to match [Ca] imaging rate
     new_stack = []
@@ -718,8 +724,8 @@ def make_movies_ca(self):
     im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
     def updatefig(j):
-        print j
-        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/30-3.,'.2f'))+"sec", fontsize = 15)
+        print "...frame: ", j
+        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec", fontsize = 15)
 
         # set the data in the axesimage object
         im[0].set_array(self.ca_stack[j])
@@ -732,7 +738,7 @@ def make_movies_ca(self):
     ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.movie_stack)), interval=100, blit=False, repeat=True)
 
     if True:
-        ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer)
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer)
     plt.show()
 
 
@@ -1333,6 +1339,7 @@ def compute_dff_mouse_lever(self):
 
 def compute_DFF_function(self):
 
+    self.parent.n_sec = float(self.n_sec_window.text())
     #Check if already done
     print "... selected filter: ", self.selected_dff_filter
     if self.selected_dff_filter == 'nofilter':
@@ -1548,6 +1555,8 @@ def view_static_stm_events(self):
 
 def view_static_stm(self):
     
+    self.parent.n_sec = float(self.n_sec_window.text())
+
     block_save = int(self.block_save.text())
 
     if self.selected_dff_filter == 'nofilter':
@@ -1600,6 +1609,8 @@ def view_static_stm(self):
       
 
 def view_video_stm(self):
+
+    self.parent.n_sec = float(self.n_sec_window.text())
 
     block_save = int(self.block_save.text())
 
@@ -1657,7 +1668,7 @@ def view_video_stm(self):
 
     if True:
     #if save_animation:
-        ani.save(filename+'_.mp4', writer=writer)
+        ani.save(filename.replace('tif_files', 'video_files').replace(self.selected_session,'')+'_.mp4', writer=writer)
 
     plt.show()
 
