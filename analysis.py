@@ -1472,7 +1472,7 @@ def compute_DFF_function(self):
         t = np.linspace(-lever_window*0.0082,lever_window*0.0082, lever_window*2)
         lever_position_index = find_nearest(np.array(self.abstimes), self.locs_44threshold[counter])
         
-        lever_trace = self.abspositions[lever_position_index-lever_window:lever_position_index+lever_window]
+        lever_trace = self.abspositions[int(lever_position_index-lever_window):int(lever_position_index+lever_window)]
 
         if len(lever_trace)!=len(t):    #Extraplote missing data
             print "...missing lever trace data ... extrapolating..."
@@ -2109,7 +2109,8 @@ def rhd_to_tsf(filenames):
         #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
         ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
-        file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
+        #file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
+        file_out = file_name[:-4].replace('rhd_files','tsf_files')
         if os.path.exists(file_out)==True: continue
 
         print "Processing: \n", file_name
@@ -2129,13 +2130,16 @@ def rhd_to_tsf(filenames):
         print "Converting data to int16..."
         ec_traces = np.array(ec_traces, dtype=np.int16)
 
+        print "...plotting..."
+        plt.plot(ec_traces[30])
+        plt.show()
+
 
         #SAVE RAW DATA - ******NB:  SHOULD CLEAN THIS UP: the write function should be shared by all, just data is changing so no need to repeat;
         if True:
             print "Writing raw data ..."
             #print "CHANGE THIS TO WORK THROUGH FUNCTION WITHOUT REPEATING"
-            file_out = file_name[:-4]+'_raw.tsf'
-            fout = open(file_out, 'wb')
+            fout = open(file_out+'_raw.tsf', 'wb')
             fout.write(header)
             fout.write(struct.pack('i', 1002))
             fout.write(struct.pack('i', SampleFrequency))
@@ -2158,8 +2162,7 @@ def rhd_to_tsf(filenames):
         #SAVE HIGH PASS WAVELET FILTERED DATA
         if True:
             print "Writing hp data ..."
-            file_out = file_name[:-4]+'_hp.tsf'
-            fout = open(file_out, 'wb')
+            fout = open(file_out+'_hp.tsf', 'wb')
             fout.write(header)
             fout.write(struct.pack('i', 1002))
             fout.write(struct.pack('i', SampleFrequency))
@@ -2182,7 +2185,158 @@ def rhd_to_tsf(filenames):
 
             fout.write(struct.pack('i', n_cell_spikes))
             fout.close()
+
+
+def rhd_digital_save(file_name):
+    '''Read .rhd files, and save digital channels.
+    NB: there can be 2, 4 or 6 digital channels inside Intan file
+    chs 1 and 2 are laser meta data and laser pulse times (these are off for other experiments)
+    chs 3 and 4 are camera pulse times and on/off times from clampx computer (these are chs 1 and 2 usually as laser chs are off)
+    chs 5 and 6 are vis stim pulse times and meta data (these are usually 3 and 4 as not recorded w. laser on)
+    '''
     
+    print "...reading digital amp data..."
+
+    
+    #if os.path.exists(camera_onoff_filename+'.npy')==True: continue
+
+    data = read_data(file_name)
+
+    print "...# digital channels: ", len(data['board_dig_in_data'])
+
+    SampleFrequency = data['frequency_parameters']['board_adc_sample_rate']
+    print "SampleFrequency: ", SampleFrequency
+    
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.figure import Figure
+
+    plt.close()
+    fig = Figure(figsize=(5,5), dpi=100)
+    ax1 = fig.add_subplot(111)
+
+    for ch in range(len(data['board_dig_in_data'])):
+        ax1.plot(data['board_dig_in_data'][ch][:100000])
+        plt.show()
+
+        response = raw_input("Please enter filename extension: ")
+        np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
+        print file_name[:-4].replace('rhd_files','camera_files')+'_'+response
+            
+
+
+def parse_camera_pulses(self):
+    
+    upstates = np.where(self.camera_pulses==1)[0] #Find all index values where camera_pulse = 1
+    
+    #plt.plot(self.camera_pulses)
+    #plt.show()
+    
+    triggers = []; triggers.append(upstates[0])
+    triggers_length = []; marker = upstates[0]
+    for k in range(len(upstates)-1):
+        if (upstates[k+1] - upstates[k])>1:
+            triggers.append(upstates[k+1])
+            triggers_length.append(upstates[k]-marker); marker = upstates[k+1]
+    
+    self.triggers = np.array(triggers)
+    self.triggers_length = np.array(triggers_length)
+
+
+def compute_lfp_triggered_template(self):
+    
+    print "...excluded trials: ", self.excluded_trials.text()
+    excluded_trials = self.excluded_trials.text()
+    
+    
+    tsf = Tsf_file(self.selected_recording)
+    tsf.read_ec_traces()
+    
+    print self.triggers
+    print tsf.n_vd_samples
+
+    font_size = 30
+    n_samples = int(self.n_sample_pts.text())
+    electrode_rarifier = int(1./1.) #int(1./float(self.n_electrodes.text()))
+    voltage_scaling = float(self.voltage_scale.text())
+    #compression = 50.   #Need this to convert from compressed sample points to realtime
+    
+    print self.selected_sort
+
+    #Remove bottom power..
+    if False:
+    #if self.low_cutoff.text()!='0.0':
+        for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+            print "...filtering ch: ", k
+            self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+    #load single units
+    #Sort = Ptcs(self.selected_sort)
+
+    ax = plt.subplot(1,1,1)
+    t = np.arange(-n_samples,n_samples+1,1)
+    
+    """ Spikes are saved in # of sample points so no need to scale them up from compressed .ptcs sort file to uncompressed lfp file.
+    """
+ 
+    traces = []
+    for k in range(0, tsf.n_electrodes, electrode_rarifier):
+        traces.append([])
+    
+    gs = gridspec.GridSpec(2,12)
+    for ctr,trigger in enumerate(self.triggers):
+        if str(ctr) in excluded_trials: continue
+        print int(ctr/6), ctr%6
+        ax = plt.subplot(gs[int(ctr/6),ctr%6])
+        #ax = plt.subplot(2,6,ctr+1)
+        print "...plotting event: ", ctr
+        print "...trigger: ", trigger, " time: ", float(trigger)/tsf.SampleFrequency
+        #for spike in Sort.units[int(self.selected_unit.text())]:
+        for k in range(0, tsf.n_electrodes, electrode_rarifier):
+            trace_out = tsf.ec_traces[k][int(trigger-n_samples):int(trigger+n_samples+1)]*tsf.vscale_HP
+            traces[k].append(trace_out)
+            
+            plt.plot(t, trace_out-voltage_scaling*tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.5)
+            plt.yticks([])
+            
+            
+    #Plot average
+    ax = plt.subplot(gs[:,6:])
+    for k in range(tsf.n_electrodes):
+        trace_ave = np.average(np.array(traces[k]), axis=0)
+        trace_std = np.std(np.array(traces[k]), axis=0)
+       
+        #offset = -voltage_scaling*tsf.Siteloc[k*2+1]
+        plt.plot(t, trace_ave-voltage_scaling*tsf.Siteloc[k*2+1], color='black', linewidth=3)
+        ax.fill_between(t, trace_ave+trace_std-voltage_scaling*tsf.Siteloc[k*2+1], trace_ave-trace_std-voltage_scaling*tsf.Siteloc[k*2+1], color='blue', alpha=0.25)
+
+    #plt.plot([t[-1]+10,t[-1]+10], [-250, 0 ], color='black', linewidth=3)
+
+    ##Set ylabel
+    #old_ylabel = -voltage_scaling*np.linspace(0, np.max(tsf.Siteloc), 5)
+    #new_ylabel = np.int16(np.linspace(0, np.max(tsf.Siteloc), 5))
+    #plt.locator_params(axis='y',nbins=5)
+    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    #plt.ylabel("Depth (um)", fontsize=font_size)
+
+        ##Set xlabel
+        #old_xlabel = np.linspace(t[0],t[-1],3)
+        #new_xlabel = np.linspace(float(t[0])/tsf.SampleFrequency*1E3, float(t[-1])/tsf.SampleFrequency*1E3, 3)
+        #plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+
+        #plt.xlabel("Time (ms)", fontsize = font_size)
+        #plt.tick_params(axis='both', which='both', labelsize=font_size)
+        #plt.locator_params(axis='x',nbins=10)
+
+        #plt.ylim(old_ylabel[-1],old_ylabel[0])
+        #plt.xlim(old_xlabel[0], old_xlabel[-1])
+    
+    plt.show()
+
+
+
+    
+    
+
 def tsf_to_lfp(filenames):
     '''Read .tsf files - subsample to 1Khz, save as *_lp.tsf
     '''
@@ -2321,10 +2475,11 @@ def view_traces(self):
 
     for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
         trace_out = self.tsf.ec_traces[k][t0:t1]
-        trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
+        if float(self.low_cutoff.text())!=0.0: trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
         
-        plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=5)
+        plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1)
 
+    plt.plot(t, -1500*self.camera_pulses[t0:t1], color='blue')
     #Set labels
     depth_offset = float(self.probe_penentration.text()) #Percent of probe inserted into brain
     old_ylabel = -voltage_scaling*np.linspace(np.max(self.tsf.Siteloc) - depth_offset*np.max(self.tsf.Siteloc),np.max(self.tsf.Siteloc), 5)
@@ -2429,7 +2584,99 @@ def view_all_csd(self):
         plt.suptitle("Cluster: " + str(p), fontsize=25)
     plt.show()
 
+def compute_csd_event_triggered(self):
     
+    print "...excluded trials: ", self.excluded_trials.text()
+    excluded_trials = self.excluded_trials.text()
+        
+    print self.triggers
+
+    font_size = 30
+    n_samples = int(self.n_sample_pts.text())
+    
+    print self.selected_sort
+
+    #Remove bottom power..
+    #if self.low_cutoff.text()!='0.0':
+        #if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
+            #for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
+                #print "...filtering ch: ", k
+                #self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+            #np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', self.tsf.ec_traces)
+        #else: 
+            #self.tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
+    
+    #Raw traces
+    tsf = Tsf_file(self.selected_recording)
+    tsf.read_ec_traces()
+    
+    #load single units
+    #Sort = Ptcs(self.selected_sort)
+
+    #Load spiketimes as event_trigges 
+    event_times = self.triggers
+
+    lfp_ave = np.zeros((tsf.n_electrodes,2*n_samples),dtype=np.float32)
+    for ch in range(tsf.n_electrodes):
+        ctr=0
+        for idx, event in enumerate(event_times):
+            if str(idx) in excluded_trials: continue
+            trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]
+            if len(trace_temp)==(n_samples*2):
+                lfp_ave[ch]+= trace_temp
+                ctr+=1
+        lfp_ave[ch]=lfp_ave[ch]/ctr
+
+
+    #********Compute CSD
+    if tsf.n_electrodes >10: 
+        print "...loading every other channel, NeuroNexus A64 probe ..."
+        probe_layout = tsf.Siteloc[1::2][::2]
+        lfp_ave=lfp_ave[::2]
+    else:
+        probe_layout = tsf.Siteloc[1::2]
+        lfp_ave=lfp_ave
+
+    print probe_layout
+    
+    z = probe_layout*1E-3 #Convert to mm size
+
+
+    import imp
+    csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
+    
+    sigma = 0.3  # extracellular conductivity (mS/mm)
+    b = 1.0   # assumed radius of the column (mm)
+    SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
+
+    [A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
+    [W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
+    [W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
+
+
+    CSD=np.dot(W,lfp_ave)   # units: mS/mm^3*mV = uA/mm^3
+    
+    t = np.linspace(-n_samples, n_samples, 6)
+
+    #ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    plt.imshow(CSD, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
+
+    plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
+    plt.xlim(t[0], t[-1])
+
+    plt.tick_params(axis='both', which='major', labelsize=15)
+    #plt.ylabel("Depth along probe (mm)", fontsize=20)
+    old_xlabel = np.float32(np.linspace(t[0], t[-1], 6), decimals=2)
+    new_xlabel = old_xlabel/tsf.SampleFrequency*1E3
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+    plt.xlabel("Time (msec)",fontsize=20)
+            
+    plt.show()
+
+
+
 def view_csd(self):
     
     n_samples = int(self.n_sample_pts.text())
@@ -2731,7 +2978,7 @@ def compute_sta(self, ptcs_file):
     #FIND START/END OF IMAGING (from ephys data; find where camera val goes to '1')
     indexes = np.where(camera_onoff==1)[0]
     start_offset = float(indexes[0])/25000      #NB: THIS NEEDS TO BE LOADED FROM tsf.SampleFrequency or highpass Sort.samplerate
-    end_offset = float(indexes[-1])/25000       #NB: compressed data samplerate is 50Khz or other so not reliable.
+    end_offset = float(indexes[-1])/25000       #NB: compressed data samplerate is 50Khz or other so DO NOT FIX.
     print "start/end: ", start_offset, end_offset
 
     #LOAD RAW IMAGES; FILTERED OR NOT

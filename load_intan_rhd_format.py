@@ -6,7 +6,7 @@ import sys, struct, math, os, time
 import numpy as np
 import gc
 
-from intanutil.read_header import read_header
+from intanutil.read_header import read_header as rd_header #Conflicts with another script
 from intanutil.get_bytes_per_data_block import get_bytes_per_data_block
 from intanutil.read_one_data_block import read_one_data_block
 from intanutil.notch_filter import notch_filter
@@ -22,7 +22,7 @@ def read_data(filename):
     fid = open(filename, 'rb')
     filesize = os.path.getsize(filename)
 
-    header = read_header(fid)
+    header = rd_header(fid)
 
     print('Found {} amplifier channel{}.'.format(header['num_amplifier_channels'], plural(header['num_amplifier_channels'])))
     print('Found {} auxiliary input channel{}.'.format(header['num_aux_input_channels'], plural(header['num_aux_input_channels'])))
