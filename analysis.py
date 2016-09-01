@@ -1169,6 +1169,7 @@ def compute_dff_events(self):
 
     compress_factor = 50.   #Needed to uncompress the LFP compressed sorts
 
+    print "... control computation: ", self.selected_control
 
     print "\n\n... dff computation event triggers..."
 
@@ -1200,13 +1201,13 @@ def compute_dff_events(self):
     #Check if DFF previously done
     print "... selected filter: ", self.selected_dff_filter
     if self.selected_dff_filter == 'nofilter':
-        self.traces_filename = images_file[:-4]+"_"+ self.n_sec_window.text()+"sec_"+ self.dff_method+ '_' + self.selected_dff_filter + ".npy"
+        self.stm_filename = images_file[:-4]+"_"+ self.n_sec_window.text()+"sec_"+ self.dff_method+ '_' + self.selected_dff_filter + ".npy"
     else:
-        self.traces_filename = images_file[:-4]+"_"+ self.n_sec_window.text()+"sec_"+ self.dff_method+ '_' + self.selected_dff_filter + '_' + str(lowcut)+"hz_"+str(highcut)+"hz.npy"
+        self.stm_filename = images_file[:-4]+"_"+ self.n_sec_window.text()+"sec_"+ self.dff_method+ '_' + self.selected_dff_filter + '_' + str(lowcut)+"hz_"+str(highcut)+"hz.npy"
     
-    print self.traces_filename
+    print self.stm_filename
     
-    if os.path.exists(self.traces_filename): 
+    if os.path.exists(self.stm_filename): 
         print "... DFF already computed ...skiping processing..."
         return
 
@@ -1248,8 +1249,15 @@ def compute_dff_events(self):
         events = events - img_start                                 #Align to imaging times by removing pre-imaging period
     else:
         events = np.loadtxt(self.selected_sort)                     #Manual time points are relative to ophys start; 
+
+    print "... original events: ", events[:10]
+
     
-    print events[:10]
+    if self.selected_control =="yes":       #Compute control DFF; select random time points same # as 
+        events = np.random.random(len(events))*events[-1]
+    
+        print "...control events: ", events[:10]
+    
     
     
     #*****************************************************************
@@ -1297,12 +1305,14 @@ def compute_dff_events(self):
 
     if self.selected_dff_filter !='nofilter':
         stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_'+str(len(events)).zfill(5)+"_spikes"
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'
     else:
         stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_'+str(len(events)).zfill(5)+"_spikes"
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'
         
     
+    if self.selected_control =="yes":       stm_file_name = stm_file_name + '_control'
+
     np.save(stm_file_name, average_stm)
 
     print ''
@@ -1501,42 +1511,48 @@ def view_static_stm_events(self):
     
     block_save = int(self.block_save.text())
     
+    control_text=''
+    if self.selected_control=="yes": control_text='_control'
+    
+    print "...control flag: ", self.selected_control, control_text
+    
     main_dir = os.path.dirname(os.path.dirname(self.selected_recording)[:-1])   #Strip file name and 'tif_files' directory 
     rec_name = self.selected_sort[:-5].replace(main_dir,'').replace('/tsf_files/','')
 
     if self.selected_dff_filter !='nofilter':
         stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_*')[0]
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'*')[0]
     else:
         stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_*')[0]
-        
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'*')[0]
+    
+    print stm_file_name
+    
     data = np.load(stm_file_name)
     print data.shape
     
-    #Mask data
-    #temp_array = quick_mask(self, data[int(self.selected_trial)])
     temp_array = data
 
     plt.close()
     ax = plt.subplot(1,1,1)
     img_rate = float(np.loadtxt(main_dir+'/img_rate.txt'))
-    start_time = float(self.window_start.text()); end_time = float(self.window_end.text())
+    start_time = float(self.window_start.text()); end_time = float(self.window_end.text()); window_len = float(self.n_sec_window.text())
     
     img_out = []
-    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
-        print i
+    for i in range(int(img_rate*(window_len+start_time)),int(img_rate*(window_len+end_time)), block_save):
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
     
+    #Mask data
     img_out = quick_mask_event(main_dir+'/genericmask.txt', img_out, int(self.midline_mask.text()))
-    
     img_out = np.ma.hstack((img_out))
 
-    v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
-    plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+    #Compute max/min values for non-control runs
+    if self.selected_control=='no':
+        self.v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    
+    plt.imshow(img_out, vmin = -self.v_abs, vmax=self.v_abs)
 
-    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    plt.ylabel(str(round(self.v_abs*100,2))+"%", fontsize=14)
     ax.yaxis.set_ticks([])
     ax.xaxis.set_ticks([])
 
@@ -1693,7 +1709,6 @@ def quick_mask_event(generic_mask_file, data, midline_mask_n_pixels):
     n_pixels = 128
     temp_array = np.ma.array(np.zeros((len(data),n_pixels,n_pixels),dtype=np.float32), mask=True)
     for i in range(0, len(data),1):
-        print data[i].shape
         temp_array[i] = np.ma.masked_array(data[i], mask=generic_mask_indexes, fill=np.nan)
     
     return temp_array

@@ -438,7 +438,7 @@ class EventTriggeredImaging(QtGui.QWidget):
         #**************************************************************************************
         #******************************** SELECT ANIMAL & SESSION *****************************
         #**************************************************************************************
-        self.vid_analysis_lbl = QLabel('EVENT TRIGGERED ANALYSIS', self)
+        self.vid_analysis_lbl = QLabel('EVENT TRIGGERED IMAGING', self)
         self.vid_analysis_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.vid_analysis_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.vid_analysis_lbl, row_index, 0); row_index+=1
@@ -490,8 +490,8 @@ class EventTriggeredImaging(QtGui.QWidget):
         layout.addWidget(self.selected_unit_spikes_lbl, row_index, 7)
 
 
-        layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
-
+        for k in range(2): layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
+                
         #**************************************************************************************
         #***************************** PRE-PROCESSING HEADER **********************************
         #**************************************************************************************
@@ -557,17 +557,26 @@ class EventTriggeredImaging(QtGui.QWidget):
         self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
         
         
-        self.n_sec_window = QLineEdit('3')
+        self.n_sec_window = QLineEdit('3.0')
         self.n_sec_window.setMaximumWidth(50)
         self.n_sec_window_lbl = QLabel('#Sec Window:', self)
         layout.addWidget(self.n_sec_window_lbl, row_index,4)
-        layout.addWidget(self.n_sec_window, row_index,5)        
+        layout.addWidget(self.n_sec_window, row_index,5)
         
+        self.control_lbl = QLabel('Control', self)
+        layout.addWidget(self.control_lbl, row_index, 6)
+        
+        self.comboBox_select_control = QtGui.QComboBox(self)
+        control_txt = ["no", "yes"]
+        for ctxt in control_txt: self.comboBox_select_control.addItem(ctxt)
+        layout.addWidget(self.comboBox_select_control, row_index,7)
+        self.comboBox_select_control.activated[str].connect(self.select_control); self.selected_control = "no" #Set default
+       
         row_index+=1
         
         self.button31 = QPushButton('Static STM')
         self.button31.setMaximumWidth(200)
-        self.button31.clicked.connect(self.static_stm_mouse_lever)
+        self.button31.clicked.connect(self.static_stm_event_trigger)
         layout.addWidget(self.button31, row_index, 0)
         
         self.button32 = QPushButton('Video STM')
@@ -746,13 +755,16 @@ class EventTriggeredImaging(QtGui.QWidget):
             
     def select_dff_method(self, text):
         self.dff_method = text
-            
+    
+    def select_control(self, text):
+        self.selected_control = text
 
-    def static_stm_mouse_lever(self):
+    def static_stm_event_trigger(self):
         view_static_stm_events(self)
 
 
     def video_stm_mouse_lever(self):
+        pass
         view_video_stm(self)
         
         
