@@ -430,7 +430,7 @@ class EventTriggeredImaging(QtGui.QWidget):
 
         #Default: july 11, 2016 experiment
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/' 
-        self.parent.root_dir = '/media/cat/500GB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         self.parent.n_sec = 3
         
         row_index = 0   #Keep track of button/box row
@@ -446,7 +446,7 @@ class EventTriggeredImaging(QtGui.QWidget):
         #Select recording
         self.button_select_recording = QPushButton('Select Recording')
         self.button_select_recording.setMaximumWidth(200)
-        self.button_select_recording.clicked.connect(self.slct_recording)
+        self.button_select_recording.clicked.connect(self.slct_recording_event)
         layout.addWidget(self.button_select_recording, row_index, 0)
         
         #self.parent.selected_recording  = os.getcwd()
@@ -504,7 +504,7 @@ class EventTriggeredImaging(QtGui.QWidget):
 
         self.button2 = QPushButton('Filter ==>')
         self.button2.setMaximumWidth(200)
-        self.button2.clicked.connect(self.fltr_npy)
+        self.button2.clicked.connect(self.fltr_npy_event)
         layout.addWidget(self.button2, row_index, 0)
         
 
@@ -596,13 +596,24 @@ class EventTriggeredImaging(QtGui.QWidget):
 
         self.block_save = QLineEdit('10')
         self.block_save.setMaximumWidth(50)
-        self.block_save_lbl = QLabel('Block Ave & Mid-Mask Pixels:', self)
+        self.block_save_lbl = QLabel('Block Ave:', self)
         layout.addWidget(self.block_save_lbl, row_index,4)
         layout.addWidget(self.block_save, row_index,5)
-        
+
         self.midline_mask = QLineEdit('5')
         self.midline_mask.setMaximumWidth(50)
-        layout.addWidget(self.midline_mask, row_index,6); row_index+=1
+        self.midline_mask_lbl = QLabel('Mid-Mask Pixels:', self)
+        layout.addWidget(self.midline_mask_lbl, row_index,6)
+        layout.addWidget(self.midline_mask, row_index,7)
+        
+        
+        self.vmax_default = QLineEdit('0.0')
+        self.vmax_default.setMaximumWidth(50)
+        layout.addWidget(self.vmax_default, row_index,8)
+        self.vmin_default = QLineEdit('0.0')
+        self.vmin_default.setMaximumWidth(50)
+        layout.addWidget(self.vmin_default, row_index,9); row_index+=1
+        
         
         #**************************************************************************************
         #************************************ VIEW ACTIVITY ***********************************
@@ -711,8 +722,8 @@ class EventTriggeredImaging(QtGui.QWidget):
         self.setLayout(layout)
 
 
-    def slct_recording(self):
-        self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, ".bin, .npy", self.selected_recording,"(*.bin *.tif)") 
+    def slct_recording_event(self):
+        self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, ".bin, *.tif, .npy", self.selected_recording,"(*.bin *.tif *.npy)") 
         path_name, file_name = os.path.split(self.selected_recording)
         self.select_recording_lbl.setText(file_name)
 
@@ -748,19 +759,18 @@ class EventTriggeredImaging(QtGui.QWidget):
     def dff_compute(self):
         compute_dff_events(self)
 
+    def static_stm_event_trigger(self):
+        view_static_stm_events(self)
+
 
     def select_dff_filter(self,text):
         self.selected_dff_filter=text
-        
             
     def select_dff_method(self, text):
         self.dff_method = text
     
     def select_control(self, text):
         self.selected_control = text
-
-    def static_stm_event_trigger(self):
-        view_static_stm_events(self)
 
 
     def video_stm_mouse_lever(self):
@@ -771,7 +781,7 @@ class EventTriggeredImaging(QtGui.QWidget):
     def bn_to_npy(self):
         convert_bin_to_npy(self)
             
-    def fltr_npy(self):
+    def fltr_npy_event(self):
         filter_for_event_trigger_analysis(self)
         
         

@@ -1230,7 +1230,7 @@ def compute_dff_events(self):
     session_img_rate = self.n_images/self.reclength
     print "# img frames: ", self.n_images, " rec length: ", self.reclength, " img_rate: ", session_img_rate
 
-    if abs(session_img_rate-float(self.parent.animal.img_rate))<0.01:         #Compare computed session img_rate w. experimentally set img_rate
+    if abs(session_img_rate-float(fs))<0.01:         #Compare computed session img_rate w. experimentally set img_rate
         print "Correct img rate: ", session_img_rate, ",  # img frames: ", self.n_images, ",  rec length: ", self.reclength
         np.save(images_file.replace('_aligned.npy','')+'_img_rate', session_img_rate)
     else:
@@ -1250,13 +1250,13 @@ def compute_dff_events(self):
     else:
         events = np.loadtxt(self.selected_sort)                     #Manual time points are relative to ophys start; 
 
-    print "... original events: ", events[:10]
+    print "... original events: ", events[:10], events[-10:]
 
     
     if self.selected_control =="yes":       #Compute control DFF; select random time points same # as 
         events = np.random.random(len(events))*events[-1]
     
-        print "...control events: ", events[:10]
+        print "...control events: ", events[:10], events[-10:]
     
     
     
@@ -1284,16 +1284,16 @@ def compute_dff_events(self):
     n_pixels = len(self.images_filtered[0])
     data_stm = np.zeros((int(self.window*2),n_pixels,n_pixels), dtype=np.float32)
     for trigger in img_frame_triggers:
-        print "...spike: ", trigger
+        print "...frame0: ", trigger
 
-        data_chunk = np.float32(self.images_filtered[int(trigger-self.window):int(trigger+self.window)])
-
+        data_chunk = np.float32(self.images_filtered[int(trigger-self.window):int(trigger+self.window)])[:int(self.window*2)]
+        
         if self.dff_method == 'globalAverage':
             if self.selected_dff_filter!='nofilter':  data_stm+=data_chunk/global_mean    #Only need to divide by global mean as original data_chunk did not have mean img added in
             else: data_stm+=(data_chunk-global_mean)/global_mean
             
         elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
-            baseline = np.average(self.images_unfiltered[int(trigger-2*self.window):int(trigger-self.window)], axis=0)
+            baseline = np.average(np.float32(self.images_unfiltered[int(trigger-2*self.window):int(trigger-self.window)]), axis=0)
             
             if self.selected_dff_filter!='nofilter': data_stm+=data_chunk/baseline      #ignore subtracting baseline because it was never added back in 
             else: data_stm+=(data_chunk-baseline)/baseline
@@ -1520,15 +1520,15 @@ def view_static_stm_events(self):
     rec_name = self.selected_sort[:-5].replace(main_dir,'').replace('/tsf_files/','')
 
     if self.selected_dff_filter !='nofilter':
-        stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'*')[0]
+        stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'.npy'
     else:
-        stm_file_name = glob.glob(main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
-        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'*')[0]
-    
+        stm_file_name = main_dir + '/stm_files/img_avg_' + rec_name+'_'+self.selected_dff_filter+'_'+\
+        self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window'+control_text+'.npy'
+        
     print stm_file_name
     
-    data = np.load(stm_file_name)
+    data = np.float32(np.load(stm_file_name))
     print data.shape
     
     temp_array = data
@@ -1547,10 +1547,14 @@ def view_static_stm_events(self):
     img_out = np.ma.hstack((img_out))
 
     #Compute max/min values for non-control runs
-    if self.selected_control=='no':
+    #if self.selected_control=='no':
+    if (self.vmin_default.text()=='0.0') and (self.vmax_default.text()=='0.0'):
         self.v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
-    
-    plt.imshow(img_out, vmin = -self.v_abs, vmax=self.v_abs)
+        v_min = -self.v_abs; v_max = self.v_abs
+    else:
+        v_min = float(self.vmin_default.text()); v_max = float(self.vmax_default.text())
+
+    plt.imshow(img_out, vmin = v_min, vmax=v_max)
 
     plt.ylabel(str(round(self.v_abs*100,2))+"%", fontsize=14)
     ax.yaxis.set_ticks([])
@@ -2062,7 +2066,7 @@ def compress_lfp(self):
         
     #*********** SAVE COMPRESSED LOW PASS .TSF FILE *********
     #Save compression file name
-    file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compression.tsf'
+    file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compressed.tsf'
     print "Saving LFP : ", file_out
     
     #DON"T USE SUBSAMPLING - CAUSES PROBLEMS LATER
