@@ -14,7 +14,6 @@ from rat import *
 
 from analysis import *
 from mouse_lever_analysis import *
-from mouse import *
 
 np.set_printoptions(suppress=True)      #Supress scientific notation printing
 
@@ -1653,19 +1652,24 @@ class MSL(QtGui.QWidget):
         parent.n_spikes.setMaximumWidth(50)
         n_spikes_lbl = QLabel('min_spikes:', self)
         layout.addWidget(n_spikes_lbl,row_index,8)
-        layout.addWidget(parent.n_spikes,row_index,9)
+        layout.addWidget(parent.n_spikes,row_index,9); row_index+=1
 
 
         #MAKE BUTTONS             
+        self.button_peth = QPushButton('PETH & Rasters')
+        self.button_peth.setMaximumWidth(200)
+        self.button_peth.clicked.connect(self.view_peth)
+        layout.addWidget(self.button_peth, row_index, 0); row_index+=1
+
         self.button1 = QPushButton('Compute MSL')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.view_msl)
-        layout.addWidget(self.button1, 5, 0)
+        layout.addWidget(self.button1, row_index, 0); row_index+=1
 
         self.button1 = QPushButton('View P-vals')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.view_msl_Pvals)
-        layout.addWidget(self.button1, 6, 0)
+        layout.addWidget(self.button1, row_index, 0); row_index+=1
         
         self.setLayout(layout)
 
@@ -1675,13 +1679,19 @@ class MSL(QtGui.QWidget):
         self.button_set_sua_file_lbl.setText(self.parent.sua_file)
         #self.parent.setWindowTitle(self.parent.sua_file)
 
+
     def set_lfp_event_file(self):
         self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self.parent, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(self.parent.root_dir,''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
         
+
+    def view_peth(self):
+        
+        peth_scatter_plots(self)
+        
+        
     def view_msl(self, main_widget):
-        self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
         
         msl_plots(self)
 

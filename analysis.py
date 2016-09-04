@@ -3434,13 +3434,258 @@ def plot_rasters(self):
     ax.tick_params(axis='both', which='major', labelsize=30)
 
     plt.show()
-
-
-def msl_plots(self):
-    #(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs, track_name):
+    
+#Function convolves spike times with a 20ms gaussian; 
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+    
+def peth_scatter_plots(self):
+    
     '''Align msl latencies by lfp cluster 
     '''
     
+    self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1.0  #NB: ************* SET THIS VALUE TO ALLOW ARBITRARY ZOOM IN AND OUT ALONG WITH 2000 sized arrays below
+    
+    lock_window = int(self.parent.lock_window.text())
+    
+    #Loading .tsf to compute length of record
+    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    time_chunks=[]
+    for t in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    
+    #Load SUA Sort
+    #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+
+    #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
+    #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
+    start_lfp = min(int(self.parent.start_lfp.text()), len(Sort_lfp.units))
+    end_lfp = min(int(self.parent.end_lfp.text()), len(Sort_lfp.units))
+
+
+    #Load pop events during synch periods (secs)
+    compress_factor = 50.
+    print "... compress_factor is hardwired to: ", compress_factor
+    
+    #Alternative: save subsample value inside .ptcs files after all data;
+    #try:
+    #    self.subsample
+    #except NameError:
+    #    self.subsample = 1.0
+
+    min_lfp_isi = 0.100     #Minimum distance between lfp events 
+    print "... excluding lfp events with isi < : ", min_lfp_isi
+    
+    lfp_ctr=0
+    for lfp_cluster in range(start_lfp,end_lfp, 1):
+        #Pick a particular LFP event to lock to
+        fit_sum = np.zeros((total_units,2000), dtype=np.float32)
+
+        print "LFP Cluster # : ", lfp_cluster, " / ", len(Sort_lfp.units)
+
+          
+        pop_spikes = np.array(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
+        print " ... # events: ", len(pop_spikes)
+
+        ##Compute periods of synchrony from si index #**********SKIP FOR MSL PLOT ONLY ********
+        #data_in = lfp.data[rec_index][9]
+        #si, t, sync_periods = synchrony_index(data_in, lfp, rec_index, si_limit)
+        #temp_list = []
+        #for p in range(len(sync_periods)):
+        #    indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0], pop_spikes<=sync_periods[p][1]))[0]
+        #    temp_list.extend(pop_spikes[indexes])
+        #pop_spikes=np.array(temp_list)
+
+        #CELL RASTER LISTS TO HOLD SPIKES FOR EACH LFP EPOCH
+        cell_rasters = []
+        offset=0     #Used for plotting rasters from multiple cells
+        for chunk_ctr, time_chunk in enumerate(time_chunks):
+            print time_chunk
+            #Loop over single units, get LFP triggered rasters, build histograms
+            
+            #latencies=np.zeros((total_units, 2), dtype=np.float32)
+
+            cell_rasters.append([])
+            ctr=0
+            for unit in range(len(Sort_sua.units)):
+            #for unit in range(10):
+
+                #Load unique track-wide unit id 
+                unique_unit = Sort_sua.uid[unit]
+                
+                #Load sua spikes during synch periods (secs); use default unit
+                spike_array = np.array(Sort_sua.units[unit],dtype=np.float32)/float(Sort_sua.samplerate)  #This converts to seconds
+
+                temp3 = np.where(np.logical_and(spike_array>=time_chunk[0], spike_array<=time_chunk[1]))[0]
+                spike_array= spike_array[temp3]
+                
+                print "...unit: ", unit, " uid: ", unique_unit,  " #spikes: ", len(spike_array), " / ", len(Sort_sua.units[unit])
+                
+                xx_even=[]          #collect even spikes
+                xx_odd=[]           #collect odd spikes
+                xx1=[]              #collect all spikes for KS stat test
+                for j in range(len(pop_spikes)):
+                    #Skip pop spikes that occur w/in 100ms of each other
+                    if j<(len(pop_spikes)-1):
+                        if (pop_spikes[j+1]-pop_spikes[j])<min_lfp_isi: continue
+
+                    #find spikes that fall w/in +/- window of pop event
+                    temp2 = np.where(np.logical_and(spike_array>=pop_spikes[j]-window, spike_array<=pop_spikes[j]+window))[0]
+
+                    #NB: NOT excluding duplicate spikes from broader window; make sure to take into account for analysis
+                    x=(spike_array[temp2]-pop_spikes[j])*1E3 #Offset time of spike to t_0; convert to ms
+                    xx1.append(x)
+                    if j % 2 == 0:
+                        xx_even.append(x)
+                    else:
+                        xx_odd.append(x)
+                
+                if len(xx_even)>0: xx_even = np.hstack(xx_even)
+                if len(xx_odd)>0: xx_odd = np.hstack(xx_odd)
+
+                #Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
+                sig = 20
+                fit_even = np.zeros(2000, dtype=np.float32)
+                if len(xx_even)>0 : 
+                    for g in range(len(xx_even)):
+                        mu = np.array(xx_even[g]) 
+                        fit_even += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)  #Function defined above
+
+                fit_odd = np.zeros(2000, dtype=np.float32)
+                if len(xx_odd)>0 : 
+                    for g in range(len(xx_odd)):
+                        mu = xx_odd[g] 
+                        fit_odd += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
+
+                fit_sum[unit] += (fit_even + fit_odd)/2.
+                
+                #Plot smoothed curves
+                t = np.arange(-1000,1000,1)
+                if np.max(fit_sum[unit])<=0.: 
+                    print "...not enough spikes in window: ", np.max(fit_sum[unit])
+                    continue
+                ctr+=1
+                plt.plot(t, (fit_sum[unit]/np.max(fit_sum[unit])*len(xx1))+offset, linewidth=4, color='blue')
+                
+                #Plot rasters
+                for event in range(len(xx1)):
+                    ymin=np.zeros(len(xx1[event]))
+                    ymax=np.zeros(len(xx1[event]))
+                    ymin+=offset
+                    ymax+=offset+len(xx1)/30.
+                    offset+=1
+
+                    plt.vlines(xx1[event], ymin, ymax, linewidth=5, color='black',alpha=0.5) #colors[mod(counter,7)])
+                plt.plot([-1000,1000], [offset,offset], linewidth=3, color='black', alpha=.8)
+                
+                #Don't convert xx1 into stack until after plotting rasters
+                n_lfp_spikes= len(xx1)
+
+                if len(xx1)>0: xx1 = np.hstack(xx1)
+                cell_rasters[chunk_ctr].append(xx1)
+                
+                if ctr==10: break
+                
+            plt.plot([0,0], [0, n_lfp_spikes*10], 'r--', linewidth=3, color='black')
+
+            plt.xlim(-1000,1000)
+            plt.ylim(0, n_lfp_spikes*10)
+            old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*10-n_lfp_spikes/2.,10)
+            
+            new_ylabel = np.arange(1, 11,1)
+            plt.yticks(old_ylabel, new_ylabel, fontsize=30) #,rotation='vertical')
+            plt.ylabel("Cell #", fontsize=30)
+            plt.xlabel("Time from event (ms)", fontsize = 30)
+            plt.tick_params(axis='both', which='both', labelsize=30)
+
+            plt.title("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(n_lfp_spikes)+'\n'+self.parent.sua_file.replace(self.parent.root_dir,''))
+            plt.show()
+
+            return
+
+            #Pick an lfp cluster to order rest of data: 
+            img=[]
+            lock_time=[]
+            for unit in range(total_units):
+                if np.max(fit_sum[unit][1000-lock_window:1000+lock_window])>0:
+                    lock_time.append(np.argmax(fit_sum[unit][1000-lock_window:1000+lock_window]))
+                    img.append(fit_sum[unit][1000-lock_window:1000+lock_window]/max(fit_sum[unit][1000-lock_window:1000+lock_window]))
+                else:
+                    lock_time.append(200)
+                    img.append(np.zeros(lock_window*2, dtype=np.float32))
+            
+            #ORDER MSL IMG BY LOCK TIME
+            if (chunk_ctr ==0): inds = np.array(lock_time).argsort()
+            print "Order: ", inds
+            #if (chunk_ctr ==0) and (start_lfp==lfp_cluster): inds = np.array(lock_time).argsort()
+
+            img=np.array(img)[inds]
+            temp_img = []
+            for i in range(len(img)):
+                #if np.max(img[i])!=0:
+                    temp_img.append(img[i])
+            img=np.array(temp_img)
+            
+            
+            #********** PLOTING ROUTINES **************
+            ax=plt.subplot(end_lfp-start_lfp,len(time_chunks),lfp_ctr+1)
+            im = ax.imshow(img, origin='upper', extent=[0,lock_window*2, len(img),0], aspect='auto', interpolation='none')
+            #plt.plot([100,100],[1,total_units-1], 'r--', linewidth=2, color='white')
+
+            ax.set_xticklabels([])
+            if lfp_ctr>((end_lfp-start_lfp-1)*(len(time_chunks)-1)):
+                xx = np.arange(0,lock_window*2+1,lock_window)
+                x_label = np.arange(-lock_window,lock_window+1,lock_window)
+                plt.xticks(xx,x_label, fontsize=25)
+                plt.xlabel("Time (ms)", fontsize=30)
+
+            yy = np.arange(0,len(img),10)
+            y_label = np.arange(0,len(img),10)
+            plt.yticks(yy, y_label, fontsize=25)
+            
+            if (lfp_ctr%len(time_chunks))==0:
+                plt.ylabel("lfp: "+str(lfp_cluster)+"\n#"+str(len(pop_spikes)), fontsize=25)
+
+            if (lfp_ctr<len(time_chunks)):
+                plt.title(str(int(time_chunk[0]/60.))+".."+str(int(time_chunk[1]/60.))+" mins", fontsize=25)
+
+            plt.ylim(len(inds),0)
+            
+            #plt.ylabel("Neuron (lock order)", fontsize=30)
+            plt.plot([lock_window,lock_window],[0,total_units], 'r--', linewidth=4, color='white')
+            ax.tick_params(axis='both', which='both', labelsize=25)
+            ax.xaxis.labelpad = 0
+            lfp_ctr+=1
+    
+    self.cell_rasters = cell_rasters
+    self.Sort_sua = Sort_sua
+    self.t_chunks = time_chunks
+    plt.show()
+
+
+def msl_plots(self):
+    '''Align msl latencies by lfp cluster 
+    '''
+    
+    self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+
+
     print self.parent.sua_file 
     print self.parent.lfp_event_file
 
@@ -3486,10 +3731,11 @@ def msl_plots(self):
         #Pick a particular LFP event to lock to
         fit_sum = np.zeros((total_units,2000), dtype=np.float32)
 
-        print "LFP Cluster # : ", lfp_cluster, " / ", len(Sort_lfp.units),
+        print "LFP Cluster # : ", lfp_cluster, " / ", len(Sort_lfp.units)
 
         #Load pop events during synch periods (secs)
         compress_factor = 50.
+        print "... compress_factor is hardwired to: ", compress_factor
         #try:
         #    self.subsample
         #except NameError:
@@ -3562,8 +3808,6 @@ def msl_plots(self):
                 #Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
                 sig = 20
                 fit_even = np.zeros(2000, dtype=np.float32)
-                def gaussian(x, mu, sig):
-                    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
                 if len(xx_even)>0 : 
                     for g in range(len(xx_even)):
                         mu = np.array(xx_even[g]) 
