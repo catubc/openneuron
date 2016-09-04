@@ -1648,11 +1648,11 @@ class MSL(QtGui.QWidget):
         layout.addWidget(parent.lock_window,row_index,7)
 
 
-        parent.n_spikes = QLineEdit('250');               
-        parent.n_spikes.setMaximumWidth(50)
-        n_spikes_lbl = QLabel('min_spikes:', self)
-        layout.addWidget(n_spikes_lbl,row_index,8)
-        layout.addWidget(parent.n_spikes,row_index,9); row_index+=1
+        self.min_spikes = QLineEdit('0');               
+        self.min_spikes.setMaximumWidth(50)
+        self.min_spikes_lbl = QLabel('min_spikes:', self)
+        layout.addWidget(self.min_spikes_lbl,row_index,8)
+        layout.addWidget(self.min_spikes,row_index,9); row_index+=1
 
 
         #MAKE BUTTONS             
