@@ -1589,7 +1589,8 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         
         layout = QtGui.QGridLayout()
 
@@ -1661,11 +1662,24 @@ class MSL(QtGui.QWidget):
         self.button_peth.clicked.connect(self.view_peth)
         layout.addWidget(self.button_peth, row_index, 0); row_index+=1
 
-        self.button1 = QPushButton('Compute MSL')
-        self.button1.setMaximumWidth(200)
-        self.button1.clicked.connect(self.view_msl)
-        layout.addWidget(self.button1, row_index, 0); row_index+=1
-
+        self.button_msl = QPushButton('Compute MSL')
+        self.button_msl.setMaximumWidth(200)
+        self.button_msl.clicked.connect(self.view_msl)
+        layout.addWidget(self.button_msl, row_index, 0); row_index+=1
+        
+        self.button_percentages = QPushButton('% Lock Plots')
+        self.button_percentages.setMaximumWidth(200)
+        self.button_percentages.clicked.connect(self.sua_lockpercentage)
+        layout.addWidget(self.button_percentages, row_index, 0)
+        
+        
+        self.specgram_ch = QLineEdit('9');               
+        self.specgram_ch.setMaximumWidth(50)
+        self.specgram_ch_lbl = QLabel('Specgram Ch', self)
+        layout.addWidget(self.specgram_ch_lbl,row_index,8)
+        layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
+        
+        
         self.button1 = QPushButton('View P-vals')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.view_msl_Pvals)
@@ -1695,9 +1709,16 @@ class MSL(QtGui.QWidget):
         
         msl_plots(self)
 
+    
+    def sua_lockpercentage(self):
+        
+        sua_lock_percentage(self)
+
             
     def view_msl_Pvals(self):
         compute_msl_pvals(self.parent)
+
+
 
 
 class CountMatrix(QtGui.QWidget):
@@ -2033,15 +2054,24 @@ class Track(QtGui.QWidget):
         layout.addWidget(end_time_lbl,row_index,2)
         layout.addWidget(parent.end_time,row_index,3); row_index+=1
 
-        self.button_tsf_to_lfp = QPushButton('Convert .tsf to low-pass (1khz) .tsf')
-        self.button_tsf_to_lfp.setMaximumWidth(250)
+
+        self.button_tsf_to_lfp = QPushButton('Convert .raw .tsf to low-pass (1khz) .tsf')
+        self.button_tsf_to_lfp.setMaximumWidth(350)
         self.button_tsf_to_lfp.clicked.connect(self.tsftolfp)
         layout.addWidget(self.button_tsf_to_lfp, row_index, 0); row_index+=1
+        
+
+        self.button_lfpzip_to_lptsf = QPushButton('Convert .lpf.zip to _lp.tsf')
+        self.button_lfpzip_to_lptsf.setMaximumWidth(250)
+        self.button_lfpzip_to_lptsf.clicked.connect(self.lfpzip_to_lptsf)
+        layout.addWidget(self.button_lfpzip_to_lptsf, row_index, 0); row_index+=1
+
 
         self.button1 = QPushButton('Concatenate multiple .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.multi_tsf)
         layout.addWidget(self.button1, row_index, 0); row_index+=1
+
 
         self.button1 = QPushButton('Concatenate .lfp.zip files')
         self.button1.setMaximumWidth(250)
@@ -2067,6 +2097,11 @@ class Track(QtGui.QWidget):
         tsf_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
         tsf_to_lfp(tsf_files)
     
+
+    def lfpzip_to_lptsf(self):
+        lfpzip_file = QtGui.QFileDialog.getOpenFileName(self.parent, "LFP ZIP (*.lfp.zip)", self.parent.root_dir,"*.lfp.zip (*.lfp.zip)")
+        lfp_to_lptsf(lfpzip_file)
+        
 
     def multi_tsf(self):
         print "... selecting multiple recordings ..."

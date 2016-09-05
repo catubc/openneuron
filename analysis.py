@@ -358,7 +358,7 @@ class Probe(object):
  
 
 #DUPLICATE FUNCTION WITH TSF CLASS FUNCTION; May still need it for stand alone functions; but LIKELY OBSOLETE... ERASE!!!!!!!!!!!!
-def save_tsf_single(tsf,file_name):
+def save_tsf_single(tsf, file_name):
     
     fout = open(file_name, 'wb')
     print file_name
@@ -1776,7 +1776,7 @@ def synchrony_index(data, SampleFrequency, si_limit):
     lfptres=5     #Time resolution: bin width for analysis in seconds
     
     lowband = [0.1, 4]; highband = [15,100]     #Martin's suggestions; Saleem 2010?
-    #lowband = [0.1, 4]; highband = [15,100]     #variations
+    #lowband = [0.1, 5]; highband = [15,100]     #variations
     #lowband = [0.1, 4]; highband = [20,100]     #variations
 
     f0, f1 = lowband
@@ -1807,6 +1807,7 @@ def synchrony_index(data, SampleFrequency, si_limit):
 
     #**** Find periods of synchrony > si_limit = 0.7:
     #si_limit = 0.7
+    print "...finding sync periods..."
     sync_periods = []
     in_out = 0
     for i in range(len(t)):
@@ -2086,24 +2087,26 @@ def compress_lfp(self):
                
 def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to their data.
     
-    class Object_empty(object):
-        def __init__(self):
-            pass
-    
     tsf = Object_empty()
     tsf.file_name = file_name
     
+    #Set defaults
+    tsf.header = 'Test spike file '
+    tsf.iformat = 1002
+    tsf.n_cell_spikes = 0
+    
+    #Load tsf.data
     data_in = np.load(file_name)
+    
     tsf.SampleFrequency = data_in['tres']
     tsf.chans = data_in['chans']
     tsf.n_electrodes = len(tsf.chans)
-    tsf.Siteloc = data_in['chanpos']
+    tsf.Siteloc = data_in['chanpos'][tsf.chans]
     tsf.vscale_HP = data_in['uVperAD']
     tsf.ec_traces = data_in['data']
-    tsf.ec_traces = tsf.ec_traces
 
-    #Home made notch filter; filter.notch doesn't seem to work...
-    offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)      #Convert microsecond offset to miliseconds;
+    #Apply notch filter
+    offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)      #Convert microsecond offset to miliseconds; Martin didn't save offset period as zeros... so add it back in
     temp_traces = []
     for k in range(tsf.n_electrodes):
         tsf.ec_traces[k] = Notch_Filter(tsf.ec_traces[k])
@@ -2351,9 +2354,6 @@ def compute_lfp_triggered_template(self):
     
     plt.show()
 
-
-
-    
     
 
 def tsf_to_lfp(filenames):
@@ -2393,7 +2393,27 @@ def tsf_to_lfp(filenames):
         tsf.save_tsf(file_name[:-4]+'_lp.tsf')
 
 
+def lfp_to_lptsf(lfpzip_file):
+    '''Read .tsf files - subsample to 1Khz, save as *_lp.tsf
+    '''
+    
+    tsf = load_lfpzip(lfpzip_file)
+
+    print tsf.Siteloc
+    temp_chs = []
+    for k in range(len(tsf.Siteloc)):
+        temp_chs.extend(tsf.Siteloc[k])
+    tsf.Siteloc = np.array(temp_chs)
+    print tsf.Siteloc
+
+    #Save data to .tsf file
+    save_tsf_single(tsf, lfpzip_file.replace('.lfp.zip','_lp.tsf'))
+    
+
+
 def Notch_Filter(data, fs=1000, band=.5, freq=60., ripple=10, order=2, filter_type='ellip'):
+    """Using iirfilter instead of Martin's LFP work
+    """
     from scipy.signal import iirfilter, lfilter
     #fs   = 1/time
     nyq  = fs/2.0
@@ -3446,6 +3466,8 @@ def peth_scatter_plots(self):
     
     self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
 
+    min_spikes = float(self.min_spikes.text())
+
     print self.parent.sua_file 
     print self.parent.lfp_event_file
 
@@ -3621,6 +3643,15 @@ def peth_scatter_plots(self):
             plt.show()
 
             return
+            
+            
+            #********************************************************************************************************************
+            #********************************************************************************************************************
+            #********************************************* ADDITIONAL CODE; TO REMOVE *******************************************
+            #********************************************************************************************************************
+            #********************************************************************************************************************
+            #********************************************************************************************************************
+
 
             #Pick an lfp cluster to order rest of data: 
             img=[]
@@ -3939,232 +3970,221 @@ def compute_msl_pvals(self):
 
 
 
-def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs, track_name):
+def sua_lock_percentage(self):
 
-    #colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
-    colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+    self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+
+    min_spikes = float(self.min_spikes.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1.0  #NB: ************* SET THIS VALUE TO ALLOW ARBITRARY ZOOM IN AND OUT ALONG WITH 2000 sized arrays below
+    
+
+    lock_window = int(self.parent.lock_window.text())
+    
+    #Loading low pass LFP; read just header and then required channel for sync index computation below
+    tsf = Tsf_file(self.parent.sua_file.replace('_hp.ptcs','_lp.tsf')) 
+    tsf.read_trace(int(self.specgram_ch.text()))
+    print tsf.header
+    print tsf.iformat
+    print tsf.SampleFrequency
+    print tsf.n_vd_samples
+    print tsf.vscale_HP
+    print len(tsf.ec_traces)
+        
+        
+    print tsf.n_electrodes
+    
+    
+    data_in = tsf.ec_traces
+    if len(tsf.ec_traces)==0: print "... channel incorrect..."; return
+        
+    #Load SUA Sort
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+
+    start_lfp = min(int(self.parent.start_lfp.text()), len(Sort_lfp.units))
+    end_lfp = min(int(self.parent.end_lfp.text()), len(Sort_lfp.units))
+    
+   
+    
+    #******************* OLD CODE STARTS ****************
 
     window=1
     small_window = 100 # ms of window for luczak plots
     large_window = window*1E3
-    start_lfp = 0; end_lfp = len(Sorts_lfp[0])# 
     #start_lfp = 0; end_lfp = len(Sorts_lfp[0])# 
 
-    print "# lfp cluters: ", end_lfp
-    n_recs = len(recs)
     plotting=True
-    start_window = -0.04
+    plotting_sync = False
+    start_window = -0.04                            #*********************************** CODE THESE INTO THE GUI AS TEXT BOXES
     end_window = 0.01
+    min_lfp_isi = 0.100   #Lockout lfp events more 
     
-    si_limit = 0.7
+    si_limit = 0.7                                  #*********************************** MAYBE ALSO THIS!?
     
-    #Convert rec name from string to relative index in concatenated data; 
-    #also compute # recordings w. minimum required lfp events
-    rec_indexes=[]
-    n_lfprecs = 0
-    for rec in recs:
-        rec_indexes.append(lfp.rec.index(rec))  #Function .index provides the index of (rec) in lfp.rec
-        if len(Sorts_lfp[lfp.rec.index(rec)][start_lfp])>5: n_lfprecs+=1
-    if n_lfprecs==0:
-        print "No lfp_event recordings!"
-        return
+    
+    ##Convert rec name from string to relative index in concatenated data; 
+    ##also compute # recordings w. minimum required lfp events
+    #rec_indexes=[]
+    #n_lfprecs = 0
+    #for rec in recs:
+        #rec_indexes.append(lfp.rec.index(rec))  #Function .index provides the index of (rec) in lfp.rec
+        #if len(Sorts_lfp[lfp.rec.index(rec)][start_lfp])>5: n_lfprecs+=1
+    #if n_lfprecs==0:
+        #print "No lfp_event recordings!"
+        #return
+
 
     #compute track recording length:
-    track_length = 0
-    for rec_index in rec_indexes:
-        track_length+= lfp.t_end[rec_index] #Recording length in seconds
+    track_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
+    print "...rec length: ", track_length
+    
 
     #Search all SUA sorts to find max # units 
-    total_units = 0
-    for rec_index in rec_indexes:
-        if max(Sorts_sua[rec_index].uid)>total_units: total_units = max(Sorts_sua[rec_index].uid)
-    total_units +=1 #Adjust for zero based indexes
+    total_units = len(Sort_sua.units)
+    #for rec_index in rec_indexes:
+    #    if max(Sorts_sua[rec_index].uid)>total_units: total_units = max(Sorts_sua[rec_index].uid)
+    #total_units +=1 #Adjust for zero based indexes
     
-    #Make array to collect locked spikes for each unit across all recs
+    #Collect all locked spikes for each LFP cluster
     total_locked_spikes_allrecs=np.zeros((end_lfp-start_lfp, total_units),dtype=np.float32)
     
     #Make array to collect all single unit spikes:
     sua_allspikes = np.zeros(total_units, dtype=np.float32)
-                
-    #Loop over all recordings and plot data where # lfp events > minimum (5)
-    gs = gridspec.GridSpec(end_lfp-start_lfp+2,n_lfprecs)       #Make rows = # of lfp clusters + 1 additional row for summary plots
 
-    #Pick a particular LFP event to lock to
-    all_pop_spikes = 0 #add up all pop spikes over all recordings to use as control for final plot
+
+    #********************* COMPUTE SYNC PERIODS AND ONLY SELECT POP SPIKES DURING THOSE PERIODS *************************
+    samp_freq = 1000 #Sample frequency
+    print "... computing sync index..."
+    filename_sync_values = self.parent.sua_file.replace('_hp.ptcs','_lp_syncindex_ch'+self.specgram_ch.text()+'.npz')
+    if os.path.exists(filename_sync_values):
+        data = np.load(filename_sync_values)
+        si = data['arr_0']; t = data['arr_1']; sync_periods = data['arr_2'] #Load default array names; if time, save proper variable names in .npz file
+    else:
+        si, t, sync_periods = synchrony_index(data_in, samp_freq, si_limit)
+        np.savez(filename_sync_values[:-4], si, t, sync_periods)
+
+    if plotting_sync: 
+        plt.plot(t, si*10-10, linewidth=3, color='black')
+        plt.plot([t[0],t[-1]],[0,0], linewidth=2, color='black')
+        plt.plot([t[0],t[-1]],[-10,-10], linewidth=2, color='black')
+        plt.plot([t[0],t[-1]],[-10*si_limit,-10*si_limit], 'r--', linewidth=2, color='red')
+        
+        print sync_periods
+        
+        print "computing specgram..."
+        f0 = 0.1; f1 = 110
+        p0 = -60. #float(self.parent.specgram_db_clip.text())
+        P, extent = Compute_specgram_signal(data_in, samp_freq, f0, f1, p0)
+        plt.imshow(P, extent=extent, aspect='auto')
+        plt.show()
+
+    #Save total length of sync periods; DO IT ONCE ONLY!
     sync_period_total_time = 0 #total period of synchronization across all recs (secs)
+    for k in range(len(sync_periods)):
+        sync_period_total_time += sync_periods[k][1]-sync_periods[k][0]
+
+
+    #*********** LOOP OVER POP SPIKES
+    all_pop_spikes = 0 #add up all pop spikes over all recordings to use as control for final plot
     
-    #************************************************ LIMIT ANALYSIS TO SYNC PERIODS - HARRIS SPECIAL!!!
     for ss in range(start_lfp, end_lfp, 1):
         print ""
         print ""
-        print "LFP Cluster # : ", ss+1, " / ", len(Sorts_lfp[0])
+        print "LFP Cluster # : ", ss+1, " / ", len(Sort_lfp.units)
 
         cluster_pop_spikes = 0  #Keep track of all pop spikes during sync periods for each LFP cluster
+       
+        #* LIMIT ANALYSIS TO SYNC PERIODS - HARRIS SPECIAL!!!
+        #Make lists to hold # unique spikes that lock to lfp events
+        n_lock_spikes = [[] for x in xrange(total_units)]
 
-        rec_counter=0
-        for rec_index in rec_indexes:
-            print "...rec: ", rec_index, " / ", len(rec_indexes)
-            if len(Sorts_lfp[rec_index][start_lfp])>5:  #If there are < 5 lfp events - skip recording;
-                pass
-            else:
-                print "...too few lfp events... skipping."
-                continue
+        #Load pop events during synch periods (secs)
+        pop_spikes = np.array(Sort_lfp.units[ss])*1E-3      #Convert from 1Khz sampling rate to seconds
+        print "... total lfp events: ", len(pop_spikes)
+        temp_list = []
+        for p in range(len(sync_periods)):
+            indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0], pop_spikes<=sync_periods[p][1]))[0]
+            temp_list.extend(pop_spikes[indexes])
+        pop_spikes=np.array(temp_list)
+        
+        print "...no. of sync period lfp events: ", len(pop_spikes)
+        
+        
+        #************************TRACK POP SPIKES *****************************
+        #Track all pop_spikes for individual clusters
+        cluster_pop_spikes+= len(pop_spikes)
+        
+        #Track cumulative total of pop_spikes
+        all_pop_spikes+= len(pop_spikes)
+        
+        Sorts_sua_sync_spikes = np.zeros(total_units, dtype=np.float32)
+        
+        #Loop over all single units for each recording
+        for unit in range(len(Sort_sua.units)):
+            #Load unique track-wide unit id 
+            #unique_unit = Sort_sua.uid[unit]   #NOT NEEDED FOR CONCATENATED SORTS
 
-            #Compute periods of synchrony from si index
-            data_in = lfp.data[rec_index][9]
-            si, t, sync_periods = synchrony_index(data_in, lfp, rec_index, si_limit)
-
-            #Save total length of sync periods; DO IT ONCE ONLY!
-            if (ss-start_lfp)==0:
-                for k in range(len(sync_periods)):
-                    sync_period_total_time += sync_periods[k][1]-sync_periods[k][0]
-
-            #Make lists to hold # unique spikes that lock to lfp events
-            n_lock_spikes = [[] for x in xrange(total_units)]
-
-            #Load pop events during synch periods (secs)
-            pop_spikes = Sorts_lfp[rec_index][ss]*1E-3  
+            #Load sua spikes during synch periods (secs); use default unit
+            spike_array = np.array(Sort_sua.units[unit],dtype=np.float32)/float(Sort_sua.samplerate)  #This converts to seconds
             temp_list = []
             for p in range(len(sync_periods)):
-                indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0], pop_spikes<=sync_periods[p][1]))[0]
-                temp_list.extend(pop_spikes[indexes])
-            pop_spikes=np.array(temp_list)
+                indexes = np.where(np.logical_and(spike_array>=sync_periods[p][0], spike_array<=sync_periods[p][1]))[0]
+                temp_list.extend(spike_array[indexes])
             
-            print "...no. of sync period pop events: ", len(pop_spikes)
+            spike_array=np.array(temp_list)
             
-            #Track all pop_spikes for individual clusters
-            cluster_pop_spikes+= len(pop_spikes)
+            #Track total # spikes for each unit during synch periods   #NB: COUNT ONLY ONCE DURING MULTIPLE LFP LOOPS!!!
+            if (ss-start_lfp)==0: sua_allspikes[unit]+=len(spike_array)
             
-            #Track cumulative total of pop_spikes
-            all_pop_spikes+= len(pop_spikes)
+            #Save # of spikes during sync period; use sequential unit id - only used w/in a recording
+            Sorts_sua_sync_spikes[unit]=len(spike_array)
             
-            Sorts_sua_sync_spikes = np.zeros(total_units, dtype=np.float32)
-            #Loop over all single units for each recording
-            for unit in range(len(Sorts_sua[rec_index].units)):
-                #Load unique track-wide unit id 
-                unique_unit = Sorts_sua[rec_index].uid[unit]
+            #NB: May wish to remove LARGE SPIKE TIMES due to bug 1E+8 for secs should do it.
+            xx1=[]              #collect all spikes for KS stat test
+            
+            for j in range(len(pop_spikes)):
 
-                #Load sua spikes during synch periods (secs); use default unit
-                spike_array = np.array(Sorts_sua[rec_index].units[unit],dtype=float32)/float(Sorts_sua[rec_index].samplerate)  #This converts to seconds
-                temp_list = []
-                for p in range(len(sync_periods)):
-                    indexes = np.where(np.logical_and(spike_array>=sync_periods[p][0], spike_array<=sync_periods[p][1]))[0]
-                    temp_list.extend(spike_array[indexes])
-                spike_array=np.array(temp_list)
+                #Skip pop spikes that occur w/in 100ms of each other
+                if j<(len(pop_spikes)-1):
+                    if (pop_spikes[j+1]-pop_spikes[j])<min_lfp_isi: continue
                 
-                #Track cumulative total # spikes during synch period across all recs; use unique unit as it's cumulative across all recs
-                #NB: COUNT ONLY ONCE DURING MULTIPLE LFP LOOPS!!!
-                if (ss-start_lfp)==0: sua_allspikes[unique_unit]+=len(spike_array)
-                
-                #Save # of spikes during sync period; use sequential unit id - only used w/in a recording
-                Sorts_sua_sync_spikes[unit]=len(spike_array)
-                
-                #NB: May wish to remove LARGE SPIKE TIMES due to bug 1E+8 for secs should do it.
-                xx_even=[]          #collect even spikes
-                xx_odd=[]           #collect odd spikes
-                xx1=[]              #collect all spikes for KS stat test
-                control_list=[]     #Collect all spikes from unit that locked to control spike
-                control_n_spikes=0. #number of spikes locked to control lfp event
-                
-                #print cross-correlogram plots
-                if False:
-                    from brian import correlogram
-                    cor_width = 30
-                    cor_plot = correlogram(pop_spikes,spike_array,width=cor_width,bin=1,T=None)
-                    
-                    print len(pop_spikes)
-                    print len(spike_array)
-                    
-                    #cor_plot = xcorr(pop_spikes, spike_array, [spike_array[0], spike_array[-1]])
-                    #print cor_plot
-                    plt.plot(cor_plot)
-                    plt.plot([cor_width, cor_width],[0,max(cor_plot)*1.2], 'r--')
-                    plt.ylim(bottom=0)
-                    plt.title("LFP Cluster: "+str(ss)+"  Unit: "+str(unit)+ " / "+str(len(Sorts_sua[rec_index].units)))
-                    plt.show()
-                    #quit()
-                
-                for j in range(len(pop_spikes)):
-                    #Skip pop spikes that occur w/in 100ms of each other
-                    if j<(len(pop_spikes)-1):
-                        if (pop_spikes[j+1]-pop_spikes[j])<0.100: continue
-                    
-                    #find spikes that fall w/in +/- window of pop event
-                    temp2 = np.where(np.logical_and(spike_array>=pop_spikes[j]-window, spike_array<=pop_spikes[j]+window))[0]
+                #find spikes that fall w/in +/- window of pop event
+                temp2 = np.where(np.logical_and(spike_array>=pop_spikes[j]-window, spike_array<=pop_spikes[j]+window))[0]
 
-                    #NB: NOT excluding duplicate spikes from broader window; make sure to take into account for analysis
-                    x=(spike_array[temp2]-pop_spikes[j])*1E3 #Offset time of spike to t_0; convert to ms
-                    xx1.append(x)
-                    
-                    if j % 2 == 0:
-                        xx_even.append(x)
-                    else:
-                        xx_odd.append(x)
+                #NB: NOT excluding duplicate spikes from broader window; make sure to take into account for analysis
+                x=(spike_array[temp2]-pop_spikes[j])*1E3 #Offset time of spike to t_0; convert to ms
+                xx1.append(x)
 
-                    #Add # spikes occuring w/in 25ms of lfp event
-                    n_lock_spikes[unit].extend(spike_array[np.where(np.logical_and(spike_array>=pop_spikes[j]+start_window, spike_array<=pop_spikes[j]+end_window))[0]])
+                #Add # spikes occuring w/in start_window..end_window (~50ms) of lfp event
+                n_lock_spikes[unit].extend(spike_array[np.where(np.logical_and(spike_array>=pop_spikes[j]+start_window, spike_array<=pop_spikes[j]+end_window))[0]])
 
-            #****************************************************************************************
-            #************** SCATTER PLOT DISTRIBUTION OF LOCKED SPIKES TO LFP ***************************
-            #****************************************************************************************
 
-            #Plot blue-scatter plot: real fire rate vs. % of spikes 
-            percent_lock = []
-            for unit in range(len(Sorts_sua[rec_index].units)):
-                n_spikes_unique = len(np.unique(n_lock_spikes[unit]))*100
-                percent_lock.append(float(n_spikes_unique)/Sorts_sua_sync_spikes[unit])
-                
-                #Save number of unique spikes locked for each lfp cluster, each unit, and each recording
-                total_locked_spikes_allrecs[ss-start_lfp][Sorts_sua[rec_index].uid[unit]] += n_spikes_unique*1E-2          #Add # locked spikes to total for each unique unit id
-            
-            percent_lock = np.array(percent_lock)
-            
-            #x-axis is firing rate of cell
-            fire_rate = []
-            for unit in range(len(Sorts_sua[rec_index].units)):
-                fire_rate.append(float(len(Sorts_sua[rec_index].units[unit]))/lfp.t_end[rec_index])
-            fire_rate = np.array(fire_rate)
-            
-            ax1 = plt.subplot(gs[ss-start_lfp, rec_counter])
-
-            plt.scatter(fire_rate, percent_lock, color=colors[ss%10])
-
-            #Compute total % of recording that pop spikes occupy = n_pop_spikes x length_pop_spike/ recording_length
-            rec_length = lfp.t_end[rec_index] #Recording length in seconds
-            exp_lock = len(pop_spikes)*(end_window - start_window)/rec_length*100
-            plt.plot([0,100],[exp_lock, exp_lock], 'r--', color='black',  linewidth=2., alpha=0.8)
-            
-            if rec_counter ==0:
-                pass
-                #plt.ylabel("LFP Clstr: " + str(ss) + ", "+str(total_pop_spikes) + "\n%Spks Lock", fontsize=8)
-            else:
-                ax1.yaxis.set_visible(False)
-            
-            if (ss-start_lfp)==0: plt.title("rec: "+str(recs[rec_index]), fontsize=10)
-            plt.plot([0,0], [-1,101], color='black')
-            plt.plot([-1,100], [0,0], color='black')
-            
-            ax1.set_yscale('symlog', linthreshy=0.1, basex=10)
-            ax1.set_xscale('symlog', linthreshx=0.001, basex=10)
-
-            y_min = -0.01
-            y_max = 110
-            x_min = np.min(fire_rate[fire_rate!=0])*.8
-            x_max = 100.
-            plt.ylim(y_min,y_max)
-            plt.xlim(x_min,x_max)
-            plt.tick_params(axis='x', which='both', labelsize=8)
-
-            rec_counter+=1
+        #**********************************************************************************************
+        #******************************** PERCENTAGE LOCK PLOTS ***************************************
+        #**********************************************************************************************
         
-        #Go back and write the number of lfp events in ylabel for cluster
-        ax1 = plt.subplot(gs[ss-start_lfp, 0])
-        plt.ylabel(str(cluster_pop_spikes))
+        percent_lock = []
+        for unit in range(len(Sort_sua.units)):
+            n_spikes_unique = len(np.unique(n_lock_spikes[unit]))*100
+            percent_lock.append(float(n_spikes_unique)/Sorts_sua_sync_spikes[unit])
+            
+            #Save number of unique spikes locked for each lfp cluster, each unit, and each recording
+            total_locked_spikes_allrecs[ss-start_lfp][Sort_sua.uid[unit]] += n_spikes_unique*1E-2          #Add # locked spikes to total for each unique unit id
+        
+        percent_lock = np.array(percent_lock)
+        
 
-
-        #*******************************************************************************
-        #Bottom Graphs: Bar graph of % of sua spikes for each lfp cluster **************
-        #*******************************************************************************
         #First, normalize the number of spikes for each unit:
         for u in range(total_units):
             if sua_allspikes[u]>0: #make sure recording looped over contain spikes from unit - not all recs do
@@ -4173,13 +4193,14 @@ def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs
                 total_locked_spikes_allrecs[ss-start_lfp][u] = 0
         
         #Plot bar graphs by depth of cell
-        ax1 = plt.subplot(gs[end_lfp-start_lfp, :])
+        ax1 = plt.subplot(2,1,1)
         indexes = np.arange(0,len(sua_allspikes),1)
         if (ss-start_lfp)==0: #Plot first bar graphs
             x_count = 0
             for u in indexes: 
                 plt.bar(x_count, total_locked_spikes_allrecs[ss-start_lfp][u]*100., 1, color=colors[ss])
                 x_count+=1
+                
         #Plot cumulative bar graphs for additional lfp clusters
         else:
             cumulative=np.zeros(len(indexes),dtype=np.float32)
@@ -4191,15 +4212,19 @@ def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs
                 plt.bar(x_count, total_locked_spikes_allrecs[ss-start_lfp][u]*100., 1, color=colors[ss%10], bottom=cumulative[u]*100.)
                 x_count+=1
 
-        #Sort indexes in order of firing rate; use master list of sua_allspikes, otherwise incorrect;
-        ax1 = plt.subplot(gs[end_lfp-start_lfp+1, :])
+        #Plot bar graphs by firing rate order 
+        ax1 = plt.subplot(2,1,2)
+        
+        #set indexes in order of firing rate; use master list of sua_allspikes, otherwise incorrect;
         indexes = sua_allspikes.argsort()
+        
         #Plot lfp cluster 0
         if (ss-start_lfp)==0: #Plot first bar graphs
             x_count = 0
             for u in indexes: 
                 plt.bar(x_count, total_locked_spikes_allrecs[ss-start_lfp][u]*100., 1, color=colors[ss])
                 x_count+=1
+        
         #Plot cumulative bar graphs for additional lfp clusters
         else:
             cumulative=np.zeros(len(indexes),dtype=np.float32)
@@ -4212,8 +4237,18 @@ def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs
                 x_count+=1
                 
 
-    #Put labels on depth histograms:
-    ax1 = plt.subplot(gs[end_lfp-start_lfp, :])
+
+    #Compute expected lock for allc ells also
+    exp_lock = all_pop_spikes*(end_window-start_window)/sync_period_total_time*1E2
+    print "total # pop spikes: ", all_pop_spikes
+    print "track_length: ", track_length
+    print "track_length - sync periods only: ", sync_period_total_time
+    print "expected % lock: ", exp_lock
+
+
+    #********** LABELS FOR DEPTH HISTOGRAMS
+    ax1 = plt.subplot(2,1,1)
+    plt.plot([0,len(sua_allspikes)],[exp_lock,exp_lock], 'r--', color='cyan', linewidth=2) #Plot cyan expected lock line
     plt.xlim(0,len(sua_allspikes))
     plt.ylim(0,100.0)
     plt.tick_params(axis='x', which='both', labelsize=8)
@@ -4221,16 +4256,9 @@ def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs
     plt.xlabel("Depth of cell (relative Units)", fontsize=15)
     
 
-    #Put labels on firing rate ordered histograms
-    ax1 = plt.subplot(gs[end_lfp-start_lfp+1, :])
-    
-    #Compute expected lock for allc ells also
-    exp_lock = all_pop_spikes*(end_window-start_window)/sync_period_total_time*1E2
-    print "total # pop spikes: ", all_pop_spikes
-    print "track_length: ", track_length
-    print "track_length - sync periods only: ", sync_period_total_time
-    print "expected % lock: ", exp_lock
-    plt.plot([0,len(sua_allspikes)],[exp_lock,exp_lock], 'r--', color='cyan', linewidth=2)
+    #********* LABELS FOR FIRE RATE HISTOGRAMS
+    ax1 = plt.subplot(2,1,2)
+    plt.plot([0,len(sua_allspikes)],[exp_lock,exp_lock], 'r--', color='cyan', linewidth=2) #Plot cyan expected lock line
 
     #Compute ratio of expected lock to actual lock and plot on top of bar graphs
     cumulative=np.zeros(len(indexes),dtype=np.float32)
@@ -4259,7 +4287,7 @@ def Plot_percentlock_synchronized_state(sim_dir, Sorts_sua, Sorts_lfp, lfp, recs
     plt.xticks(xx, x_label, fontsize=8)
     plt.xticks(rotation=90)
     plt.xlabel("Firing rates - during sync periods (Hz)", fontsize=15)
-    plt.suptitle(sim_dir+track_name + ", clusters: "+ str(len(Sorts_lfp[rec_index]))+", si_limit: "+str(si_limit)+ ", "+str(int(start_window*1E3))+
+    plt.suptitle(self.parent.sua_file+"\n # Clusters: "+ str(len(Sort_lfp.units))+", si_limit: "+str(si_limit)+ ", "+str(int(start_window*1E3))+
     "ms.."+str(int(end_window*1E3))+"ms.", fontsize=25)
     
         
