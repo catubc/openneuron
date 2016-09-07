@@ -1623,17 +1623,17 @@ class MSL(QtGui.QWidget):
         #**************************************************************************************
         #*********************************** SET LFP #  **************************************
         #**************************************************************************************
-        parent.start_lfp = QLineEdit('0');                   
-        parent.start_lfp.setMaximumWidth(50)
-        start_lfp_lbl = QLabel('start_lfp_cluster:', self)
-        layout.addWidget(start_lfp_lbl, row_index,0)
-        layout.addWidget(parent.start_lfp, row_index,1)
+        parent.lfp_cluster = QLineEdit('0');                   
+        parent.lfp_cluster.setMaximumWidth(50)
+        lfp_cluster_lbl = QLabel('lfp_cluster:', self)
+        layout.addWidget(lfp_cluster_lbl, row_index,0)
+        layout.addWidget(parent.lfp_cluster, row_index,1)
                
-        parent.end_lfp = QLineEdit('1');                     
-        parent.end_lfp.setMaximumWidth(50)
-        end_lfp_lbl = QLabel('end_lfp_cluster:', self)
-        layout.addWidget(end_lfp_lbl,row_index,2)
-        layout.addWidget(parent.end_lfp,row_index,3)
+        #parent.end_lfp = QLineEdit('1');                     
+        #parent.end_lfp.setMaximumWidth(50)
+        #end_lfp_lbl = QLabel('end_lfp_cluster:', self)
+        #layout.addWidget(end_lfp_lbl,row_index,2)
+        #layout.addWidget(parent.end_lfp,row_index,3)
 
 
         parent.time_chunks = QLineEdit('1');               
@@ -1641,21 +1641,38 @@ class MSL(QtGui.QWidget):
         time_chunks_lbl = QLabel('# of time_chunks:', self)
         layout.addWidget(time_chunks_lbl,row_index,4)
         layout.addWidget(parent.time_chunks,row_index,5)
-                
-        parent.lock_window = QLineEdit('200');               
-        parent.lock_window.setMaximumWidth(50)
-        lock_window_lbl = QLabel('lock_window (ms):', self)
-        layout.addWidget(lock_window_lbl,row_index,6)
-        layout.addWidget(parent.lock_window,row_index,7)
 
+        self.chunks_to_plot = QLineEdit('1');               
+        self.chunks_to_plot.setMaximumWidth(50)
+        chunks_to_plot_lbl = QLabel('# chunks to plot:', self)
+        layout.addWidget(chunks_to_plot_lbl,row_index+1,4)
+        layout.addWidget(self.chunks_to_plot,row_index+1,5)
+                
+        parent.lock_window_start = QLineEdit('-100');               
+        parent.lock_window_start.setMaximumWidth(50)
+        lock_window_start_lbl = QLabel('start window (ms):', self)
+        layout.addWidget(lock_window_start_lbl,row_index,6)
+        layout.addWidget(parent.lock_window_start,row_index,7)
+
+        parent.lock_window_end = QLineEdit('100');               
+        parent.lock_window_end.setMaximumWidth(50)
+        lock_window_end_lbl = QLabel('end window (ms):', self)
+        layout.addWidget(lock_window_end_lbl,row_index+1,6)
+        layout.addWidget(parent.lock_window_end,row_index+1,7)
 
         self.min_spikes = QLineEdit('0');               
         self.min_spikes.setMaximumWidth(50)
         self.min_spikes_lbl = QLabel('min_spikes:', self)
         layout.addWidget(self.min_spikes_lbl,row_index,8)
-        layout.addWidget(self.min_spikes,row_index,9); row_index+=1
+        layout.addWidget(self.min_spikes,row_index,9)
 
-
+        self.sigma_width = QLineEdit('20');               
+        self.sigma_width.setMaximumWidth(50)
+        self.sigma_width_lbl = QLabel('Sigma Width:', self)
+        layout.addWidget(self.sigma_width_lbl,row_index,10)
+        layout.addWidget(self.sigma_width,row_index,11); row_index+=1
+        
+        
         #MAKE BUTTONS             
         self.button_peth = QPushButton('PETH & Rasters')
         self.button_peth.setMaximumWidth(200)
