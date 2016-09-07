@@ -3777,9 +3777,14 @@ def msl_plots(self):
         #    self.subsample = 1.0
           
         pop_spikes = np.array(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
-        print " ... # events: ", len(pop_spikes)
+        original_n_popspikes = len(pop_spikes)
+        
+        #ENSURE THAT NO WEIRD DUPLICATE POP SPIKES MAKE IT THROUGH DUE TO SORTING LOCKOUT WINDOWS
+        pop_spikes=np.sort(np.unique(pop_spikes))       
+        
+        print " ... # LFP events: ", len(pop_spikes), "   #duplicates: ", original_n_popspikes-len(pop_spikes)
 
-        ##Compute periods of synchrony from si index #**********SKIP FOR MSL PLOT ONLY ********
+        ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
         #data_in = lfp.data[rec_index][9]
         #si, t, sync_periods = synchrony_index(data_in, lfp, rec_index, si_limit)
         #temp_list = []
@@ -3792,36 +3797,38 @@ def msl_plots(self):
         cell_rasters = []
         for chunk_ctr, time_chunk in enumerate(time_chunks):
             print time_chunk
-            #Loop over single units, get LFP triggered rasters, build histograms
-            
-            #latencies=np.zeros((total_units, 2), dtype=np.float32)
 
             cell_rasters.append([])            
             for unit in range(len(Sort_sua.units)):
-            #for unit in range(10):
+
                 #Load unique track-wide unit id 
                 unique_unit = Sort_sua.uid[unit]
                 
                 #Load sua spikes during synch periods (secs); use default unit
                 spike_array = np.array(Sort_sua.units[unit],dtype=np.float32)/float(Sort_sua.samplerate)  #This converts to seconds
+                original_nspikes = len(spike_array)
+                spike_array = np.sort(np.unique(spike_array))       
+                print " ... Unit # : ", unit, " total # spikes: ", len(spike_array), "   #duplicates: ", original_nspikes-len(spike_array)
+                
 
                 if len(spike_array)<min_spikes:continue
 
                 temp3 = np.where(np.logical_and(spike_array>=time_chunk[0], spike_array<=time_chunk[1]))[0]
                 spike_array= spike_array[temp3]
                 
-                print "...unit: ", unit, " uid: ", unique_unit,  " #spikes: ", len(spike_array), " / ", len(Sort_sua.units[unit])
+                #print "...unit: ", unit, " uid: ", unique_unit,  " #spikes: ", len(spike_array), " / ", len(Sort_sua.units[unit])
                 
 
-                #SKIP SYNC PERIOD FOR NOW
+                #SKIP SYNC PERIOD FOR NOW                        #***********************************REIMPLEMENT ASAP
                 #temp_list = []
                 #for p in range(len(sync_periods)):
                 #    indexes = np.where(np.logical_and(spike_array>=sync_periods[p][0], spike_array<=sync_periods[p][1]))[0]
                 #    temp_list.extend(spike_array[indexes])
                 #spike_array=np.array(temp_list)
 
-                xx_even=[]          #collect even spikes
-                xx_odd=[]           #collect odd spikes
+
+                xx_even=[]          #collect even spikes                    
+                xx_odd=[]           #collect odd spikes                     
                 xx1=[]              #collect all spikes for KS stat test
                 for j in range(len(pop_spikes)):
                     #Skip pop spikes that occur w/in 100ms of each other
@@ -3839,52 +3846,54 @@ def msl_plots(self):
                     else:
                         xx_odd.append(x)
                 
-                if len(xx_even)>0: xx_even = np.hstack(xx_even)
+                if len(xx_even)>0: xx_even = np.hstack(xx_even) #ANNOYING, TRY TO AVOID/REMOVE THESE CONVERSIONS
                 if len(xx_odd)>0: xx_odd = np.hstack(xx_odd)
                 if len(xx1)>0: xx1 = np.hstack(xx1)
 
                 #Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
                 sig = 20
-                fit_even = np.zeros(2000, dtype=np.float32)
-                if len(xx_even)>0 : 
-                    for g in range(len(xx_even)):
-                        mu = np.array(xx_even[g]) 
-                        fit_even += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
+                
+                #OLD METHOD SPLIT DATA AND THEN COMPUTE SUM
+                #fit_even = np.zeros(2000, dtype=np.float32)
+                #if len(xx_even)>0 : 
+                    #for g in range(len(xx_even)):
+                        #mu = np.array(xx_even[g]) 
+                        #fit_even += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
 
-                fit_odd = np.zeros(2000, dtype=np.float32)
-                if len(xx_odd)>0 : 
-                    for g in range(len(xx_odd)):
-                        mu = xx_odd[g] 
-                        fit_odd += gaussian(np.linspace(-1E3,1E3, 2000), mu, sig)
+                #fit_odd = np.zeros(2000, dtype=np.float32)
+                #if len(xx_odd)>0 : 
+                    #for g in range(len(xx_odd)):
+                        #mu = xx_odd[g] 
+                        #fit_odd += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
+                #fit_sum[unit] += (fit_even + fit_odd)/2.
 
-                ##Plot control plots
-                #if False:
-                    #plt.plot(fit_even[960:1040], color='blue')
-                    #plt.plot(fit_odd[960:1040], color='red')
-                    #plt.plot([40,40],[0,max(np.max(fit_even),np.max(fit_odd))*1.2], 'r--', linewidth=3, color='black')
-                    #plt.title(track_name)
-                    #plt.show()
+                #NEW METHOD: JUST COMPUTE DISTRIBUTION DIRECTLY FROM 
+                if len(xx1)>0 : 
+                    for g in range(len(xx1)):
+                        mu = np.array(xx1[g]) 
+                        fit_sum[unit] += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
 
-                fit_sum[unit] += (fit_even + fit_odd)/2.
 
-                cell_rasters[chunk_ctr].append(xx1)
+                #Save cell rasters for each epoch chunk
+                cell_rasters[chunk_ctr].append(xx1)             #************** IS THIS MAINTAINING THE SAME CELL ORDER ACROSS CHUNKS?! CHECK!!!!!!!!
 
-            #Pick an lfp cluster to order rest of data: 
+            #CONVERT GAUSSIAN FITTED PETH TO IMAGE STACK OF LINES
             img=[]
             lock_time=[]
             for unit in range(total_units):
-                if np.max(fit_sum[unit][1000-lock_window:1000+lock_window])>0:
+                if np.max(fit_sum[unit][1000-lock_window:1000+lock_window])>0:  #Check that spike time isn't exactly 0 (which means likely no spikes)
                     lock_time.append(np.argmax(fit_sum[unit][1000-lock_window:1000+lock_window]))
                     img.append(fit_sum[unit][1000-lock_window:1000+lock_window]/max(fit_sum[unit][1000-lock_window:1000+lock_window]))
                 else:
-                    lock_time.append(200)
+                    #lock_time.append(200)
+                    lock_time.append(lock_window)
                     img.append(np.zeros(lock_window*2, dtype=np.float32))
             
-            #ORDER MSL IMG BY LOCK TIME
+            #ORDER MSL IMG BY LOCK TIME OF FIRST EPOCH
             if (chunk_ctr ==0): inds = np.array(lock_time).argsort()
             print "Order: ", inds
-            #if (chunk_ctr ==0) and (start_lfp==lfp_cluster): inds = np.array(lock_time).argsort()
 
+            
             img=np.array(img)[inds]
             temp_img = []
             for i in range(len(img)):
@@ -3896,29 +3905,28 @@ def msl_plots(self):
             #********** PLOTING ROUTINES **************
             ax=plt.subplot(end_lfp-start_lfp,len(time_chunks),lfp_ctr+1)
             im = ax.imshow(img, origin='upper', extent=[0,lock_window*2, len(img),0], aspect='auto', interpolation='none')
-            #plt.plot([100,100],[1,total_units-1], 'r--', linewidth=2, color='white')
 
 
             ax.set_xticklabels([])
             #if lfp_ctr>((end_lfp-start_lfp-1)*(len(time_chunks)-1)):
-            xx = np.arange(0,lock_window*2+1,lock_window)
-            x_label = np.arange(-lock_window,lock_window+1,lock_window)
-            plt.xticks(xx,x_label, fontsize=25)
-            plt.xlabel("Time from LFP event (ms)", fontsize=30)
+            if chunk_ctr ==0:
+                xx = np.arange(0,lock_window*2+1,lock_window)
+                x_label = np.arange(-lock_window,lock_window+1,lock_window)
+                plt.xticks(xx,x_label, fontsize=25)
+                plt.xlabel("Time from LFP event (ms)", fontsize=30)
 
+                yy = np.arange(0,len(img),20)
+                y_label = np.arange(0,len(img),20)
+                plt.yticks(yy, y_label, fontsize=30)
 
-            yy = np.arange(0,len(img),20)
-            y_label = np.arange(0,len(img),20)
-            plt.yticks(yy, y_label, fontsize=30)
-
-            
-            if (lfp_ctr%len(time_chunks))==0:
-                #plt.ylabel("lfp: "+str(lfp_cluster)+"\n#"+str(len(pop_spikes)), fontsize=30)
                 plt.ylabel("Cell #", fontsize=30)
+            
+            #if (lfp_ctr%len(time_chunks))==0:
+                #plt.ylabel("lfp: "+str(lfp_cluster)+"\n#"+str(len(pop_spikes)), fontsize=30)
 
 
             if (lfp_ctr<len(time_chunks)):
-                plt.title(str(int(time_chunk[0]/60.))+".."+str(int(time_chunk[1]/60.))+" mins", fontsize=25)
+                plt.title(str(int(time_chunk[0]/60.))+".."+str(int(time_chunk[1]/60.))+" mins", fontsize=15)
 
 
             plt.ylim(len(inds),0)
@@ -3933,6 +3941,10 @@ def msl_plots(self):
     self.cell_rasters = cell_rasters
     self.Sort_sua = Sort_sua
     self.t_chunks = time_chunks
+    
+    np.save(self.parent.sua_file.replace('.ptcs','')+"_time_chunks" , time_chunks)
+    np.save(self.parent.sua_file.replace('.ptcs','')+"_cell_rasters" , cell_rasters)
+    
     plt.show()
 
 def compute_msl_pvals(self):
@@ -3943,26 +3955,52 @@ def compute_msl_pvals(self):
     #COMPUTE P-VALUES FOR CURRENT LFP CLUSTER
     from scipy import stats
 
-    n_spikes = int(self.n_spikes.text()) #Min number of spikes in clusters considered
-    cell_rasters = self.cell_rasters
-    Sort_sua = self.Sort_sua
-    time_chunks = self.t_chunks
+    n_spikes = int(self.min_spikes.text()) #Min number of spikes in clusters considered
+
+    print "... loading data from file..."
+    cell_rasters = np.load(self.parent.sua_file.replace('.ptcs','')+"_cell_rasters.npy")        #array dimensions (epochs, no. cells)
+    time_chunks = np.load(self.parent.sua_file.replace('.ptcs','')+"_time_chunks.npy")
     
+    
+    for k in range(len(cell_rasters)):
+        for p in range(len(cell_rasters[k])):
+            original_len = len(cell_rasters[k][p])
+            cell_rasters[k][p]=np.sort(np.unique(cell_rasters[k][p]))
+            print "...duplicate spikes in epoch/unit: ", k, p, "   = ", original_len - len(cell_rasters[k][p]), "  /  ", original_len
+    
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+
+    ax = plt.subplot(1,1,1)
     p_val_array = []
     for p in range(len(Sort_sua.units)):
         p_val_array.append([])
         if len(Sort_sua.units[p])<n_spikes: continue
-        for c in range(len(time_chunks)):
+        for c in range(1,len(time_chunks),1):
+            #print p, cell_rasters[0][p][:10], cell_rasters[c][p][:10]
             if (len(cell_rasters[0][p])>0) and (len(cell_rasters[c][p])>0):
                 KS, p_val = stats.ks_2samp(cell_rasters[0][p], cell_rasters[c][p])
                 p_val_array[p].append(p_val)
+            else:
+                p_val_array[p].append(1.1)
     
     for p in range(len(Sort_sua.units)):
         if len(Sort_sua.units[p])<250: continue
-        plt.scatter([p]*len(p_val_array[p]), p_val_array[p], color=colors[p%9])
-        
-    plt.ylim(0,1)
-    plt.xlim(-1,len(Sort_sua.units))
+        plt.scatter(p_val_array[p], -np.array([p]*len(p_val_array[p])), s=75, color=colors[p%9])
+        #plt.scatter([p]*len(p_val_array[p]), p_val_array[p], color='black')
+    
+    plt.plot([5E-2, 5E-2], [0 , -len(Sort_sua.units)], 'r--', color='black', linewidth=3, alpha=0.7)
+    plt.plot([1E-2, 1E-2], [0 , -len(Sort_sua.units)], 'r--', color='black', linewidth=4, alpha=0.7)
+    plt.plot([1E-3, 1E-3], [0 , -len(Sort_sua.units)], 'r--', color='black', linewidth=5, alpha=0.7)
+    
+    plt.xlim(-1E-7,1)
+    plt.tick_params(axis='both', which='both', labelsize=25)
+
+    plt.xlabel("Kolmogorov-Smirnov 2-Sample P-Value", fontsize=30)
+    plt.ylabel("Cell #", fontsize=30)
+    
+    plt.xscale('symlog', linthreshx=1E-7)
+    
+    plt.ylim(-len(Sort_sua.units),1)
     plt.show()
 
     #quit()

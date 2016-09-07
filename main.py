@@ -1716,7 +1716,7 @@ class MSL(QtGui.QWidget):
 
             
     def view_msl_Pvals(self):
-        compute_msl_pvals(self.parent)
+        compute_msl_pvals(self)
 
 
 
