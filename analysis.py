@@ -3515,109 +3515,6 @@ def peth_scatter_plots(self):
     
     
 
-    #Alternative: save subsample value inside .ptcs files after all data;
-    #try:
-    #    self.subsample
-    #except NameError:
-    #    self.subsample = 1.0
-
-    #min_lfp_isi = 0.100     #Minimum distance between lfp events 
-    #print "... excluding lfp events with isi < : ", min_lfp_isi
-    
-    #lfp_ctr=0
-    #for lfp_cluster in range(start_lfp,end_lfp, 1):
-        ##Pick a particular LFP event to lock to
-        #fit_sum = np.zeros((total_units,2000), dtype=np.float32)
-
-        #print "LFP Cluster # : ", lfp_cluster, " / ", len(Sort_lfp.units)
-
-          
-        #pop_spikes = np.array(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
-        #print " ... # events: ", len(pop_spikes)
-
-        ###Compute periods of synchrony from si index #**********SKIP FOR MSL PLOT ONLY ********
-        ##data_in = lfp.data[rec_index][9]
-        ##si, t, sync_periods = synchrony_index(data_in, lfp, rec_index, si_limit)
-        ##temp_list = []
-        ##for p in range(len(sync_periods)):
-        ##    indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0], pop_spikes<=sync_periods[p][1]))[0]
-        ##    temp_list.extend(pop_spikes[indexes])
-        ##pop_spikes=np.array(temp_list)
-
-        ##CELL RASTER LISTS TO HOLD SPIKES FOR EACH LFP EPOCH
-        #cell_rasters = []
-        #offset=0     #Used for plotting rasters from multiple cells
-        #for chunk_ctr, time_chunk in enumerate(time_chunks):
-            #print time_chunk
-            ##Loop over single units, get LFP triggered rasters, build histograms
-            
-            ##latencies=np.zeros((total_units, 2), dtype=np.float32)
-
-            #cell_rasters.append([])
-            #ctr=0
-            #for unit in range(len(Sort_sua.units)):
-            ##for unit in range(10):
-
-                ##Load unique track-wide unit id 
-                #unique_unit = Sort_sua.uid[unit]
-                
-                ##Load sua spikes during synch periods (secs); use default unit
-                #spike_array = np.array(Sort_sua.units[unit],dtype=np.float32)/float(Sort_sua.samplerate)  #This converts to seconds
-
-                #if len(spike_array)<min_spikes:continue #loop over cell with too few spikes
-
-
-                #temp3 = np.where(np.logical_and(spike_array>=time_chunk[0], spike_array<=time_chunk[1]))[0]
-                #spike_array= spike_array[temp3]
-                
-                #print "...unit: ", unit, " uid: ", unique_unit,  " #spikes: ", len(spike_array), " / ", len(Sort_sua.units[unit])
-                
-                #xx_even=[]          #collect even spikes
-                #xx_odd=[]           #collect odd spikes
-                #xx1=[]              #collect all spikes for KS stat test
-                #for j in range(len(pop_spikes)):
-                    ##Skip pop spikes that occur w/in 100ms of each other
-                    #if j<(len(pop_spikes)-1):
-                        #if (pop_spikes[j+1]-pop_spikes[j])<min_lfp_isi: continue
-
-                    ##find spikes that fall w/in +/- window of pop event
-                    #temp2 = np.where(np.logical_and(spike_array>=pop_spikes[j]-window, spike_array<=pop_spikes[j]+window))[0]
-
-                    ##NB: NOT excluding duplicate spikes from broader window; make sure to take into account for analysis
-                    #x=(spike_array[temp2]-pop_spikes[j])*1E3 #Offset time of spike to t_0; convert to ms
-                    #xx1.append(x)
-                    #if j % 2 == 0:
-                        #xx_even.append(x)
-                    #else:
-                        #xx_odd.append(x)
-                
-                #if len(xx_even)>0: xx_even = np.hstack(xx_even)
-                #if len(xx_odd)>0: xx_odd = np.hstack(xx_odd)
-
-                ##Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
-                #sig = float(self.sigma_width.text())
-                #fit_even = np.zeros(2000, dtype=np.float32)
-                #if len(xx_even)>0 : 
-                    #for g in range(len(xx_even)):
-                        #mu = np.array(xx_even[g]) 
-                        #fit_even += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)  #Function defined above
-
-                #fit_odd = np.zeros(2000, dtype=np.float32)
-                #if len(xx_odd)>0 : 
-                    #for g in range(len(xx_odd)):
-                        #mu = xx_odd[g] 
-                        #fit_odd += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
-
-                #fit_sum[unit] += (fit_even + fit_odd)/2.
-                
-                ##Plot smoothed curves
-                #t = np.arange(-1000,1000,1)
-                #if np.max(fit_sum[unit])<=0.: 
-                    #print "...not enough spikes in window: ", np.max(fit_sum[unit])
-                    #continue
-                #ctr+=1
-                #plt.plot(t, (fit_sum[unit]/np.max(fit_sum[unit])*len(xx1))+offset, linewidth=4, color='blue')
-
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     cell_rasters = np.load(cell_rasters_filename+".npy")
 
@@ -3804,7 +3701,6 @@ def msl_plots(self):
             #Save cell rasters for each epoch chunk
             cell_rasters.append(locked_spikes)             #************** IS THIS MAINTAINING THE SAME CELL ORDER ACROSS CHUNKS?! CHECK!!!!!!!!
        
-        #np.save(self.parent.sua_file.replace('.ptcs','')+"_time_chunks" , time_chunks)
         np.save( cell_rasters_filename, cell_rasters)
     
     else:
@@ -3814,6 +3710,10 @@ def msl_plots(self):
     
     #PLOT MSL DATA ONCE COMPUTED            #************************** DO ONE LFP CLUSTER AT A TIME!!!!
     #Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
+
+    rec_length = self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency)
+    time_chunks = [[0.0,3600.], [rec_length-3600, rec_length]]  #Look at 1st and last hour only.
+    #time_chunks = [[0.0,3600.], [3600, 7200]]  #Look at 1st and last hour only.
 
     sig = float(self.sigma_width.text())
     for chunk_ctr in range(int(self.chunks_to_plot.text())):
@@ -3899,18 +3799,55 @@ def compute_msl_pvals(self):
     #COMPUTE P-VALUES FOR CURRENT LFP CLUSTER
     from scipy import stats
 
+    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50.
+    print "... compress_factor is hardcoded to: ", compress_factor
+
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+
+    
+    
+    
+
     n_spikes = int(self.min_spikes.text()) #Min number of spikes in clusters considered
 
     print "... loading data from file..."
-    cell_rasters = np.load(self.parent.sua_file.replace('.ptcs','')+"_cell_rasters.npy")        #array dimensions (epochs, no. cells)
-    time_chunks = np.load(self.parent.sua_file.replace('.ptcs','')+"_time_chunks.npy")
     
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+'.npy')        #array dimensions (epochs, no. cells)
     
+    temp_rasters = []
     for k in range(len(cell_rasters)):
-        for p in range(len(cell_rasters[k])):
-            original_len = len(cell_rasters[k][p])
-            cell_rasters[k][p]=np.sort(np.unique(cell_rasters[k][p]))
-            print "...duplicate spikes in epoch/unit: ", k, p, "   = ", original_len - len(cell_rasters[k][p]), "  /  ", original_len
+        original_len = len(cell_rasters[k])
+        temp_rasters.append(np.sort(np.unique(cell_rasters[k])))
+        #print "...duplicate spikes in epoch/unit: ", k, p, "   = ", original_len - len(cell_rasters[k][p]), "  /  ", original_len
+    cell_rasters = np.array(temp_rasters)
+
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = np.float32(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
+    original_n_popspikes = len(pop_spikes)
+    pop_spikes=np.sort(np.unique(pop_spikes))       
+    print " ... # LFP events: ", len(pop_spikes), "   #duplicates: ", original_n_popspikes-len(pop_spikes)
+     
+    #time_chunks = np.load(self.parent.sua_file.replace('.ptcs','')+"_time_chunks.npy")
+    rec_length = self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency)
+    time_chunks = [[0.0,3600.], [rec_length-3600, rec_length]]  #Look at 1st and last hour only.
+    #time_chunks = [[0.0,3600.], [3600, 7200]]  #Look at 1st and last hour only.
+
+    locked_spikes = []
+    sig = float(self.sigma_width.text())
+    for chunk_ctr in range(int(self.chunks_to_plot.text())):
+        time_chunk = time_chunks[chunk_ctr]
+        print time_chunk
+        locked_spikes.append([])
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+        
+        for unit in range(total_units):
+            locked_spikes[chunk_ctr].append(np.hstack(cell_rasters[unit][temp3]))
     
     Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
 
@@ -3920,15 +3857,14 @@ def compute_msl_pvals(self):
         p_val_array.append([])
         if len(Sort_sua.units[p])<n_spikes: continue
         for c in range(1,len(time_chunks),1):
-            #print p, cell_rasters[0][p][:10], cell_rasters[c][p][:10]
-            if (len(cell_rasters[0][p])>0) and (len(cell_rasters[c][p])>0):
-                KS, p_val = stats.ks_2samp(cell_rasters[0][p], cell_rasters[c][p])
+            if (len(locked_spikes[0][p])>0) and (len(locked_spikes[c][p])>0):
+                KS, p_val = stats.ks_2samp(locked_spikes[0][p], locked_spikes[c][p])
                 p_val_array[p].append(p_val)
             else:
                 p_val_array[p].append(1.1)
     
     for p in range(len(Sort_sua.units)):
-        if len(Sort_sua.units[p])<250: continue
+        if len(Sort_sua.units[p])<n_spikes: continue
         plt.scatter(p_val_array[p], -np.array([p]*len(p_val_array[p])), s=75, color=colors[p%9])
         #plt.scatter([p]*len(p_val_array[p]), p_val_array[p], color='black')
     
