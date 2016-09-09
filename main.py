@@ -1677,7 +1677,21 @@ class MSL(QtGui.QWidget):
         self.button_peth = QPushButton('PETH & Rasters')
         self.button_peth.setMaximumWidth(200)
         self.button_peth.clicked.connect(self.view_peth)
-        layout.addWidget(self.button_peth, row_index, 0); row_index+=1
+        layout.addWidget(self.button_peth, row_index, 0)
+        
+        self.starting_cell = QLineEdit('0');               
+        self.starting_cell.setMaximumWidth(50)
+        self.starting_cell_lbl = QLabel('start window (ms):', self)
+        layout.addWidget(self.starting_cell_lbl,row_index,8)
+        layout.addWidget(self.starting_cell,row_index,9)
+        
+        
+        self.ending_cell = QLineEdit('10');               
+        self.ending_cell.setMaximumWidth(50)
+        self.ending_cell_lbl = QLabel('start window (ms):', self)
+        layout.addWidget(self.ending_cell_lbl,row_index,10)
+        layout.addWidget(self.ending_cell,row_index,11); row_index+=1
+        
 
         self.button_msl = QPushButton('Compute MSL')
         self.button_msl.setMaximumWidth(200)
@@ -1706,13 +1720,13 @@ class MSL(QtGui.QWidget):
 
 
     def set_sua_file(self):
-        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self.parent, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs)")
+        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs)")
         self.button_set_sua_file_lbl.setText(self.parent.sua_file)
         #self.parent.setWindowTitle(self.parent.sua_file)
 
 
     def set_lfp_event_file(self):
-        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self.parent, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
+        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(self.parent.root_dir,''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
         
@@ -2684,7 +2698,9 @@ class Window(QtGui.QMainWindow):
         self.setMenuBar(toolMenu)
 
         #***** TEXT PARAMETERS FIELDS ******
-        if True: 
+        self.animal_name_text='' 
+        self.rec_name_text=''
+        if False: 
             #Mouse July 11 as default experiment
             self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/' 
             self.animal_name_text='2016_07_11_vsd' 
@@ -2696,7 +2712,7 @@ class Window(QtGui.QMainWindow):
             self.animal.load_tsf_header(self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','_hp.tsf'))
             self.exp_type = 'mouse'
 
-        else: 
+        if False: 
             #Cat ptc20 as default experiment
             self.root_dir = '/media/cat/8TB/in_vivo/nick/' 
             self.animal_name_text='ptc20' 
@@ -2710,7 +2726,7 @@ class Window(QtGui.QMainWindow):
 
         #Load default experiment
 
-        self.animal.rec_length = self.animal.tsf.n_vd_samples/float(self.animal.tsf.SampleFrequency)
+        #self.animal.rec_length = self.animal.tsf.n_vd_samples/float(self.animal.tsf.SampleFrequency)
 
 
         #Menu Item Lists
