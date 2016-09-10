@@ -14,6 +14,9 @@ import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
 from load_intan_rhd_format import *
 
+from numpy import nan
+
+np.set_printoptions(precision=20, threshold=nan, edgeitems=None, suppress=None)
 
 from openglclasses import *     #Custom plotting functions
 
@@ -131,7 +134,11 @@ class Ptcs(object):
                
             #print "SAMPLERATE: ", self.samplerate
             #if ptcs_flag: #Martin's data has wrong flag for saves
-            self.units[k]=[x*self.samplerate/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
+            
+            #CONVERT UNITS TO TIMESTEPS
+            #self.units[k]=[x*self.samplerate/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
+            
+            
             #else:
             #    self.units[k]=[x*self.samplerate/2/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
 
@@ -173,7 +180,7 @@ class Ptcs(object):
         self.spikes = np.fromfile(f, dtype=np.uint64, count=self.nspikes) # spike timestamps (us):
 
         # convert from unsigned to signed int for calculating intervals:
-        self.spikes = np.asarray(self.spikes, dtype=np.float64)
+        #self.spikes = np.asarray(self.spikes, dtype=np.float64)
 
             
     def read_wave(self, f):
@@ -3480,10 +3487,11 @@ def peth_scatter_plots(self):
     
     #Loading .tsf to compute length of record
     self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
     time_chunks=[]
     for t in range(len(temp_chunks)-1):
         time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    print temp_chunks
     
     #Load SUA Sort
     #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
@@ -3501,23 +3509,25 @@ def peth_scatter_plots(self):
     lfp_cluster = int(self.parent.lfp_cluster.text())
 
     #Load pop events during synch periods (secs)
-    compress_factor = 50.
+    compress_factor = 50
     print "... compress_factor is hardwired to: ", compress_factor
     
     
     #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
-    pop_spikes = np.float32(Sort_lfp.units[lfp_cluster])/float(Sort_lfp.samplerate)*compress_factor#*1E-3  
-    original_n_popspikes = len(pop_spikes)
-    pop_spikes=np.sort(np.unique(pop_spikes))       
-    print " ... # LFP events: ", len(pop_spikes), "   #duplicates: ", original_n_popspikes-len(pop_spikes)
+    pop_spikes = Sort_lfp.units[lfp_cluster]*compress_factor#*1E-3  
+    #original_n_popspikes = len(pop_spikes)
+    #pop_spikes=np.sort(np.unique(pop_spikes))       
+    #print " ... # LFP events: ", len(pop_spikes), "   #duplicates: ", original_n_popspikes-len(pop_spikes)
+    print type(pop_spikes[0])
+    
     
     n_units = int(self.ending_cell.text()) - int(self.starting_cell.text())
 
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     cell_rasters = np.load(cell_rasters_filename+".npy")
-    print cell_rasters
-    return
 
+    ax = plt.subplot(1,1,1)
+    
     sig = float(self.sigma_width.text())
     for chunk_ctr in range(int(self.chunks_to_plot.text())):
         offset=0     #Used for plotting rasters from multiple cells
@@ -3531,10 +3541,10 @@ def peth_scatter_plots(self):
         #for unit in range(total_units):
         for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text())):
             
-            fit_sum = np.zeros(2E6, dtype=np.float32)
 
             locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
-            #print locked_spikes
+            print type(locked_spikes[0])
+            
                
             print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(np.hstack(locked_spikes)), " / ", len(Sort_sua.units[unit]), \
             "   duplicates: ", len(np.hstack(locked_spikes)) - len(np.unique(np.hstack(locked_spikes)))
@@ -3544,10 +3554,10 @@ def peth_scatter_plots(self):
                 ymin=np.zeros(len(locked_spikes[event]))
                 ymax=np.zeros(len(locked_spikes[event]))
                 ymin+=offset
-                ymax+=offset+len(locked_spikes[event])*1
+                ymax+=offset+0.9
                 offset+=1
 
-                plt.vlines(locked_spikes[event], ymin, ymax, linewidth=5, color='black',alpha=1) #colors[mod(counter,7)])
+                plt.vlines(np.float64(locked_spikes[event])*1E-3, ymin, ymax, linewidth=5, color='black',alpha=1) #colors[mod(counter,7)])
             plt.plot([-100,100], [offset,offset], linewidth=3, color='black', alpha=.8)
             
             #Don't convert xx1 into stack until after plotting rasters
@@ -3557,25 +3567,47 @@ def peth_scatter_plots(self):
             #cell_rasters[chunk_ctr].append(xx1)
             
             all_spikes = np.sort(np.hstack(locked_spikes))
-            for g in range(len(all_spikes)):
-                print "...spike: ", all_spikes[g]
-                mu = np.array(all_spikes[g]) 
-                fit_sum += gaussian(np.linspace(-1000,1000, 2E6), mu, sig)
+            if len(all_spikes)>0:
+                #print all_spikes[:30]
+                ##Convolve w. gaussian
+                #fit_sum = np.zeros(2000000, dtype=np.float32)
+                #for g in range(len(all_spikes)):
+                    #print "...spike: ", all_spikes[g]
+                    #mu = np.array(all_spikes[g]) 
+                    #fit_sum += gaussian(np.linspace(-1000,1000, 2000000), mu, sig)
 
-            t = np.linspace(-1000, 1000, 2E6)
-            plt.plot(t, fit_sum/np.max(fit_sum)*offset, linewidth=2, alpha=.9)
+                #t = np.linspace(-1000, 1000, 2000000)
+                #plt.plot(t, fit_sum/np.max(fit_sum)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='black', linewidth=2, alpha=.9)
                     
+                    
+                bin_width = sig*1E3   # histogram bin width in usec
+                y = np.histogram(all_spikes, bins = np.arange(-1000000,1000000,bin_width))
+                plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
+                #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
 
         plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black')
 
         plt.xlim(-100,100)
         plt.ylim(0, n_lfp_spikes*n_units)
-        old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*n_units-n_lfp_spikes/2.,n_units)
         
-        new_ylabel = np.arange(1, 11,1)
-        plt.yticks(old_ylabel, new_ylabel, fontsize=30) #,rotation='vertical')
-        plt.ylabel("Cell #", fontsize=30)
-        plt.xlabel("Time from event (ms)", fontsize = 30)
+        #old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*n_units-n_lfp_spikes/2.,n_units)
+        #new_ylabel = np.arange(1, 11,1)
+        #plt.yticks(old_ylabel, new_ylabel, fontsize=30) #,rotation='vertical')
+        
+        #old_xlabel = np.linspace(-100000, 100000, 101)
+        #new_xlabel = np.linspace(-100, 100,101)
+        #plt.xticks(old_xlabel, new_xlabel, fontsize=30) #,rotation='vertical')
+
+        #ax.xaxis.set_major_locator(MaxNLocator(9)) 
+
+        #start, end = ax.get_xlim()
+        #ax.xaxis.set_ticks(np.linspace(start, end, 9))
+        ax.locator_params(nbins=9, axis='x')
+        ax.locator_params(nbins=9, axis='y')
+
+
+        plt.ylabel("LFP Event #", fontsize=30)
+        plt.xlabel("Time from event (msec)", fontsize = 30)
         plt.tick_params(axis='both', which='both', labelsize=30)
 
     plt.title("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(n_lfp_spikes)+'\n'+self.parent.sua_file.replace(self.parent.root_dir,''))
@@ -3587,7 +3619,7 @@ def msl_plots(self):
     '''Align msl latencies by lfp cluster 
     '''
     
-    self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
 
     min_spikes = float(self.min_spikes.text())
 
@@ -3598,8 +3630,10 @@ def msl_plots(self):
     #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
 
     si_limit = 0.7
-    window=1.0  #NB: ************* SET THIS VALUE TO ALLOW ARBITRARY ZOOM IN AND OUT ALONG WITH 2000 sized arrays below
+    window=1000000  # window width in usec
     
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+
 
     lock_window_start = int(self.parent.lock_window_start.text())
     lock_window_end = int(self.parent.lock_window_end.text())
@@ -3609,7 +3643,7 @@ def msl_plots(self):
     
     self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
     
-    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    temp_chunks = np.int64(np.linspace(0,self.parent.tsf.n_vd_samples*1E6/self.parent.tsf.SampleFrequency, int(self.parent.time_chunks.text())+1))
     time_chunks=[]
     for t in range(len(temp_chunks)-1):
         time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
@@ -3622,6 +3656,7 @@ def msl_plots(self):
     #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
     Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
+    print type(Sort_sua.units[0][-1])
 
     #Load LFP Sort
     #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
@@ -3632,19 +3667,23 @@ def msl_plots(self):
     lfp_cluster = int(self.parent.lfp_cluster.text())
     
     #Load pop events during synch periods (secs)
-    compress_factor = 50.
+    compress_factor = 50
     print "... compress_factor is hardcoded to: ", compress_factor
     #try:
     #    self.subsample
     #except NameError:
     #    self.subsample = 1.0
 
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
       
     #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
-    pop_spikes = np.float32(Sort_lfp.units[lfp_cluster])/Sort_lfp.samplerate*compress_factor#*1E-3  
+    #print Sort_lfp.units[lfp_cluster]
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
     original_n_popspikes = len(pop_spikes)
     pop_spikes=np.sort(np.unique(pop_spikes))       
-    print " ... # LFP events: ", len(pop_spikes), "   #duplicates: ", original_n_popspikes-len(pop_spikes)
+    print " ... # LFP events: ", len(pop_spikes)
+    print type(pop_spikes[0])
+
     
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     if os.path.exists(cell_rasters_filename+'.npy')==False:
@@ -3665,16 +3704,17 @@ def msl_plots(self):
 
         #CELL RASTER LISTS TO HOLD SPIKES FOR EACH LFP EPOCH
         cell_rasters = []
-        for unit in range(len(Sort_sua.units)):
+        for unit in range(total_units):         #PREPROCESS ALL UNIT MSLs
 
             #Load unique track-wide unit id 
             #unique_unit = Sort_sua.uid[unit]  #NOT USED FOR TRACK WIDE CONCATENATED SORTS
             
             #Load sua spikes during synch periods (secs); use default unit
-            spike_array = np.float32(Sort_sua.units[unit])/float(Sort_sua.samplerate)  #This converts to seconds
+            spike_array = Sort_sua.units[unit]  #This loads into usec
             original_nspikes = len(spike_array)
             spike_array = np.sort(np.unique(spike_array))       
             print " ... Unit # : ", unit, " total # spikes: ", len(spike_array), "   #duplicates: ", original_nspikes-len(spike_array)
+            spike_array = np.int64(spike_array)
             
             if len(spike_array)<min_spikes:
                 cell_rasters.append([]) 
@@ -3700,37 +3740,43 @@ def msl_plots(self):
             for j in range(len(pop_spikes)):
                 #Skip pop spikes that occur w/in 100ms of each other
                 if j<(len(pop_spikes)-1):
-                    if (pop_spikes[j+1]-pop_spikes[j])<0.100: 
+                    if (pop_spikes[j+1]-pop_spikes[j])<100000: 
                         locked_spikes.append([])                    #*************************NB: ADDING NO LOCKING FOR CLOSE LFP CLUSTERS; OVERDOING IT
+                        print "... lfp events too close, skipping..."
                         continue
 
                 #find spikes that fall w/in +/- window of pop event
                 temp2 = np.where(np.logical_and(spike_array>=pop_spikes[j]-window, spike_array<=pop_spikes[j]+window))[0]
 
                 #NB: NOT excluding duplicate spikes from broader window; make sure to take into account for analysis
-                x=(spike_array[temp2]-pop_spikes[j])*1E3 #Offset time of spike to t_0; convert to ms
+                x=spike_array[temp2]-pop_spikes[j]  #Offset time of spike to t_0; stay in usec units
                 locked_spikes.append(x)
 
             #Save cell rasters for each epoch chunk
             cell_rasters.append(locked_spikes)             #************** IS THIS MAINTAINING THE SAME CELL ORDER ACROSS CHUNKS?! CHECK!!!!!!!!
        
         np.save( cell_rasters_filename, cell_rasters)
+        print cell_rasters[0][0]
+        print type(cell_rasters[0][0])
     
     else:
         cell_rasters = np.load(cell_rasters_filename+".npy")
 
         #fit_sum = np.load(msl_filename+'.npy')
     
+    #print cell_rasters[0]
+    
     #PLOT MSL DATA ONCE COMPUTED            #************************** DO ONE LFP CLUSTER AT A TIME!!!!
     #Convolve all spike train data w. 20ms gaussian  - Martin's suggestion; also in Luczak 2007, 2009;
 
-    rec_length = self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency)
-    time_chunks = [[0.0,3600.], [rec_length-3600, rec_length]]  #Look at 1st and last hour only.
+    rec_length = self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency)
+    time_chunks = [[0,3600000000], [rec_length-3600000000, rec_length]]  #Look at 1st and last hour only.
     #time_chunks = [[0.0,3600.], [3600, 7200]]  #Look at 1st and last hour only.
 
     sig = float(self.sigma_width.text())
     for chunk_ctr in range(int(self.chunks_to_plot.text())):
         time_chunk = time_chunks[chunk_ctr]
+        
         print time_chunk
         fit_sum = np.zeros((total_units,2000), dtype=np.float32)
 
@@ -3738,14 +3784,18 @@ def msl_plots(self):
         
         for unit in range(total_units):
         #for unit in range(1):
-            locked_spikes = np.hstack(cell_rasters[unit][temp3])
+            locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+            
+            n_spikes_pre = len(locked_spikes)
+            locked_spikes = np.unique(np.sort(locked_spikes))
                
-            print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(locked_spikes), " / ", len(Sort_sua.units[unit])
+            print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(locked_spikes), " / ", len(Sort_sua.units[unit]), \
+            "   duplicates: ", n_spikes_pre - len(locked_spikes)
 
             #NEW METHOD: JUST COMPUTE DISTRIBUTION DIRECTLY FROM ALL LOCKED SPIKES
             if len(locked_spikes)>0 : 
                 for g in range(len(locked_spikes)):
-                    mu = np.array(locked_spikes[g]) 
+                    mu = np.array(locked_spikes[g])*1E-3        #Convert back to milliseconds; No need for MSL to be in usec
                     fit_sum[unit] += gaussian(np.linspace(-1E3, 1E3, 2000), mu, sig)
             
         img=[]
@@ -3791,7 +3841,7 @@ def msl_plots(self):
 
             plt.ylabel("Cell #", fontsize=30)
 
-        plt.title(str(int(time_chunk[0]/60.))+".."+str(int(time_chunk[1]/60.))+" mins", fontsize=15)
+        plt.title(str(int(time_chunk[0]/(60.*1E6)))+".."+str(int(time_chunk[1]/(60.*1E6)))+" mins", fontsize=15)
 
         plt.ylim(len(inds),0)
 

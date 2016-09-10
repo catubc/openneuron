@@ -1681,14 +1681,14 @@ class MSL(QtGui.QWidget):
         
         self.starting_cell = QLineEdit('0');               
         self.starting_cell.setMaximumWidth(50)
-        self.starting_cell_lbl = QLabel('start window (ms):', self)
+        self.starting_cell_lbl = QLabel('start cell:', self)
         layout.addWidget(self.starting_cell_lbl,row_index,8)
         layout.addWidget(self.starting_cell,row_index,9)
         
         
         self.ending_cell = QLineEdit('10');               
         self.ending_cell.setMaximumWidth(50)
-        self.ending_cell_lbl = QLabel('start window (ms):', self)
+        self.ending_cell_lbl = QLabel('end cell:', self)
         layout.addWidget(self.ending_cell_lbl,row_index,10)
         layout.addWidget(self.ending_cell,row_index,11); row_index+=1
         
