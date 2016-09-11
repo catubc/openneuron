@@ -3520,35 +3520,49 @@ def cell_msl_drift(self):
 
 
     #**************************************************************************
-    #************************ DEFINE CHUNKS ***********************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
     #**************************************************************************
-    #Divide into chunks of recording length
-    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    #OPTION 1: Divide into chunks of recording length
+    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
     
-    #Divide into chunks of single unit spikes 
-    n_spikes = len(Sort_sua.units[selected_unit])
+
+    #OPTION 2: Divide into chunks of LFP events
+    n_spikes = len(Sort_lfp.units[lfp_cluster])
     temp_chunks=[]
     chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
     for t in range(0, n_spikes, chunk_width):
-        temp_chunks.append(Sort_sua.units[selected_unit][t])
-    temp_chunks.append(Sort_sua.units[selected_unit][-1])
+        temp_chunks.append(Sort_lfp.units[lfp_cluster][t]*compress_factor)
+    #temp_chunks.append(Sort_lfp.units[lfp_cluster][-1])
 
     time_chunks = []
     for t in range(len(temp_chunks)-1):
         time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
     print time_chunks[:10]
-        
-    
-    #Divide into chunks of LFP events
     #int(self.starting_cell.text())      
+
+
+    #OPTION 4: Divide into chunks of single unit spikes; DO LOCKED SPIKES VS ALL SPIKES
+    #n_spikes = len(Sort_sua.units[selected_unit])
+    #temp_chunks=[]
+    #chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    #for t in range(0, n_spikes, chunk_width):
+        #temp_chunks.append(Sort_sua.units[selected_unit][t])
+    #temp_chunks.append(Sort_sua.units[selected_unit][-1])
+
+    #time_chunks = []
+    #for t in range(len(temp_chunks)-1):
+        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    #print time_chunks[:10]
+
+
+
+    #Load chunks into data
+    #chunk_index = []
+    #for chk in self.chunks_to_plot.text().split(','):
+        #chunk_index.append(int(chk))
     
-    
-    chunk_index = []
-    for chk in self.chunks_to_plot.text().split(','):
-        chunk_index.append(int(chk))
-    
-    print "...chunk_index: ", chunk_index
+    #print "...chunk_index: ", chunk_index
     
     #**************************************************************************
     #************************ LOOP OVER CHUNKS ********************************
@@ -3558,99 +3572,151 @@ def cell_msl_drift(self):
     sig = float(self.sigma_width.text())
     #for chunk_ctr in range(int(self.chunks_to_plot.text())):
 
-    for ctr in len(time_chunks):
+    msl_array = []
+    control_array = []
+
+    for ctr in range(len(time_chunks)):
         offset=0     #Used for plotting rasters from multiple cells
         time_chunk = time_chunks[ctr]
         print "...time chunk: ", time_chunk[0]*1E-6/60., time_chunk[1]*1E-6/60., "  mins."
-        ax = plt.subplot(1, len(chunk_index), ctr+1)
+        #ax = plt.subplot(1, len(time_chunks), ctr+1)
         
         temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
         #print temp3
         
         #for unit in range(total_units):
-        for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1):
-
-            locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
-            print type(locked_spikes[0])
-            
-               
-            print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(np.hstack(locked_spikes)), " / ", len(Sort_sua.units[unit]), \
-            "   duplicates: ", len(np.hstack(locked_spikes)) - len(np.unique(np.hstack(locked_spikes)))
-
-            #Plot rasters
-            for event in range(len(locked_spikes)):
-                ymin=np.zeros(len(locked_spikes[event]))
-                ymax=np.zeros(len(locked_spikes[event]))
-                ymin+=offset
-                ymax+=offset+0.9
-                offset+=1
-
-                plt.vlines(np.float64(locked_spikes[event])*1E-3, ymin, ymax, linewidth=5, color='black',alpha=1) #colors[mod(counter,7)])
-            plt.plot([-100,100], [offset,offset], linewidth=3, color='black', alpha=.8)
-            
-            #Don't convert xx1 into stack until after plotting rasters
-            n_lfp_spikes= len(locked_spikes)
-
-            #if len(xx1)>0: xx1 = np.hstack(xx1)
-            #cell_rasters[chunk_ctr].append(xx1)
-            
-            all_spikes = np.sort(np.hstack(locked_spikes))
-            if len(all_spikes)>0:
-                #print all_spikes[:30]
-                #Convolve w. gaussian
-                fit_sum_even = np.zeros(2000000, dtype=np.float32)
-                fit_sum_odd = np.zeros(2000000, dtype=np.float32)
-                
-                x = np.linspace(-1000,1000, 2000000)    #Make an array from -1000ms .. +1000ms with microsecond precision
-                sig_gaussian = np.float32(gaussian(x, 0, sig))
-                for g in range(len(all_spikes)):
-                    print "...spike: ", all_spikes[g]
-                    mu = int(all_spikes[g])
-                    if g%2==0: fit_sum_even += np.roll(sig_gaussian, mu)
-                    else: fit_sum_odd += np.roll(sig_gaussian, mu , axis=0)
-                
-
-                t = np.linspace(-1000, 1000, 2000000)
-                plt.plot(t, fit_sum_even/np.max(fit_sum_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=6, alpha=.6)
-                plt.plot(t, fit_sum_odd/np.max(fit_sum_odd)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='red', linewidth=6, alpha=.6)
-                    
-                    
-                #bin_width = sig*1E3   # histogram bin width in usec
-                #y = np.histogram(all_spikes, bins = np.arange(-1000000,1000000,bin_width))
-                #plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
-                #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
-
-        t_max = t[np.argmax(fit_sum_even)]
-        plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
-        plt.title("#spks: "+ str(len(all_spikes)) + "  Lock time: "+str(round(t_max,1)))
-
-        #plt.xticks(list(plt.xticks()[0]) + [round(t_max,1)])
-        ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
-
-        plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black', alpha=.8)
-
-        plt.xlim(lock_window_start-1,lock_window_end+1)
-        plt.ylim(0, n_lfp_spikes*n_units)
+        #for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1):
+        unit = int(self.starting_cell.text())
+        locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
+        print type(locked_spikes[0])
         
-        #old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*n_units-n_lfp_spikes/2.,n_units)
-        #new_ylabel = np.arange(1, 11,1)
-        #plt.yticks(old_ylabel, new_ylabel, fontsize=30) #,rotation='vertical')
+           
+        print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(np.hstack(locked_spikes)), " / ", len(Sort_sua.units[unit]), \
+        "   duplicates: ", len(np.hstack(locked_spikes)) - len(np.unique(np.hstack(locked_spikes)))
+
+        ##Plot rasters
+        #for event in range(len(locked_spikes)):
+            #ymin=np.zeros(len(locked_spikes[event]))
+            #ymax=np.zeros(len(locked_spikes[event]))
+            #ymin+=offset
+            #ymax+=offset+0.9
+            #offset+=1
+
+            #plt.vlines(np.float64(locked_spikes[event])*1E-3, ymin, ymax, linewidth=5, color='black',alpha=1) #colors[mod(counter,7)])
+        #plt.plot([-100,100], [offset,offset], linewidth=3, color='black', alpha=.8)
         
-        #old_xlabel = np.linspace(-100000, 100000, 101)
-        #new_xlabel = np.linspace(-100, 100,101)
-        #plt.xticks(old_xlabel, new_xlabel, fontsize=30) #,rotation='vertical')
-        plt.yticks([])
-        #ax.xaxis.set_major_locator(MaxNLocator(9)) 
+        #Don't convert xx1 into stack until after plotting rasters
+        n_lfp_spikes= len(locked_spikes)
 
-        #start, end = ax.get_xlim()
-        #ax.xaxis.set_ticks(np.linspace(start, end, 9))
-        #ax.locator_params(nbins=9, axis='x')
-        #ax.locator_params(nbins=9, axis='y')
+        #if len(xx1)>0: xx1 = np.hstack(xx1)
+        #cell_rasters[chunk_ctr].append(xx1)
+        
+        all_spikes = np.sort(np.hstack(locked_spikes))*1E-3
+        if len(all_spikes)>0:
+            #print all_spikes[:30]
+            #Convolve w. gaussian
+            fit_even = np.zeros(2000, dtype=np.float32)
+            fit_odd = np.zeros(2000, dtype=np.float32)
+            
+            x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+            sig_gaussian = np.float32(gaussian(x, 0, sig))
+            for g in range(len(all_spikes)):
+                print "...spike: ", all_spikes[g]
+                mu = int(all_spikes[g])
+                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+            
+
+            #plt.plot(t, fit_even/np.max(fit_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=6, alpha=.6)
+            #plt.plot(t, fit_odd/np.max(fit_odd)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='red', linewidth=6, alpha=.6)
+                
+                
+            #bin_width = sig*1E3   # histogram bin width in usec
+            #y = np.histogram(all_spikes, bins = np.arange(-1000000,1000000,bin_width))
+            #plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
+            #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
+        
+        fit_sum= (fit_even+fit_odd)/2.
+        
+        msl_array.append(fit_sum/np.max(fit_sum))
+        t = np.linspace(-1000, 1000, 2000)
+        control_array.append([t[np.argmax(fit_even)],t[np.argmax(fit_odd)]])
+
+    ax = plt.subplot(1,2,1)
+    
+    max_locs = []
+    for k in range(len(msl_array)):
+        max_locs.append(np.argmax(msl_array[k]))
+    
+    msl_array = np.vstack(msl_array)
+    ax.imshow(msl_array, aspect='auto', cmap=plt.get_cmap('jet'), interpolation='none', alpha=0.4)
+
+    for k in range(len(max_locs)-1):
+        plt.plot([max_locs[k],max_locs[k+1]],[k,k+1], linewidth=8, color='black')
+        plt.scatter([max_locs[k],max_locs[k+1]],[k,k+1], s=200, color='black')
+        print [max_locs[k],max_locs[k+1]],[k,k+1]
+
+    plt.xlim([950,1051])
+    plt.ylim([-0.5, len(msl_array)-0.5])
+    
+    ax.set_yticks([])
+    ax.set_ylabel("Later <-------Time--------> Early",  fontsize = 40, labelpad=0)
+    
+    old_xlabel = np.arange(950, 1051, 25)
+    new_xlabel = np.arange(-50, 51, 25)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=30) #,rotation='vertical')
+    plt.xlabel("Time from event (ms)", fontsize=30)
+    
+    plt.plot([1000,1000],[-0.5,len(msl_array)-0.5], 'r--', color='black', linewidth=3, alpha=.9)
+    
+    
+    #Plot controls
+    ax = plt.subplot(1,2,2)
+    for k in range(len(control_array)):
+        plt.scatter(control_array[k][0], control_array[k][1], s=500, color='black')
+        print control_array[k][0], control_array[k][1]
+    plt.plot([-30, 30], [-30, 30], 'r--', linewidth = 5, color='black', alpha=0.5)
+    #min_limit = min(np.min(control_array[:][0]), np.min(control_array[:][1]))
+    #max_limit = max(np.max(control_array[:][0]), np.max(control_array[:][1]))
+    plt.xlim([-30,30])
+    plt.ylim([-30,30])
+    plt.tick_params(axis='both', which='both', labelsize=30)
+    plt.xlabel("Even Peaks (ms)", fontsize=30)
+    plt.ylabel("Odd Peaks (ms)", fontsize=30, labelpad=-20)
 
 
-        plt.ylabel("Time Chunk: "+str(int(time_chunk[0]*1E-6/60.)) + ".."+str(int(time_chunk[1]*1E-6/60.))+" mins", fontsize=30,  labelpad=-2)
-        plt.xlabel("Time from event (msec)", fontsize = 30)
-        plt.tick_params(axis='both', which='both', labelsize=30)
+
+    #t_max = t[np.argmax(fit_sum_even)]
+    #plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
+    #plt.title("#spks: "+ str(len(all_spikes)) + "  Lock time: "+str(round(t_max,1)))
+
+    ##plt.xticks(list(plt.xticks()[0]) + [round(t_max,1)])
+    #ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
+
+    #plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black', alpha=.8)
+
+    #plt.xlim(lock_window_start-1,lock_window_end+1)
+    #plt.ylim(0, n_lfp_spikes*n_units)
+    
+    ##old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*n_units-n_lfp_spikes/2.,n_units)
+    ##new_ylabel = np.arange(1, 11,1)
+    ##plt.yticks(old_ylabel, new_ylabel, fontsize=30) #,rotation='vertical')
+    
+    ##old_xlabel = np.linspace(-100000, 100000, 101)
+    ##new_xlabel = np.linspace(-100, 100,101)
+    ##plt.xticks(old_xlabel, new_xlabel, fontsize=30) #,rotation='vertical')
+    #plt.yticks([])
+    ##ax.xaxis.set_major_locator(MaxNLocator(9)) 
+
+    ##start, end = ax.get_xlim()
+    ##ax.xaxis.set_ticks(np.linspace(start, end, 9))
+    ##ax.locator_params(nbins=9, axis='x')
+    ##ax.locator_params(nbins=9, axis='y')
+
+
+    #plt.ylabel("Time Chunk: "+str(int(time_chunk[0]*1E-6/60.)) + ".."+str(int(time_chunk[1]*1E-6/60.))+" mins", fontsize=30,  labelpad=-2)
+    #plt.xlabel("Time from event (msec)", fontsize = 30)
+    #plt.tick_params(axis='both', which='both', labelsize=30)
 
     plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(n_lfp_spikes)+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
                 '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
