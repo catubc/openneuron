@@ -1642,8 +1642,8 @@ class MSL(QtGui.QWidget):
         layout.addWidget(time_chunks_lbl,row_index,4)
         layout.addWidget(parent.time_chunks,row_index,5)
 
-        self.chunks_to_plot = QLineEdit('1');               
-        self.chunks_to_plot.setMaximumWidth(50)
+        self.chunks_to_plot = QLineEdit('0');               
+        self.chunks_to_plot.setMaximumWidth(250)
         chunks_to_plot_lbl = QLabel('# chunks to plot:', self)
         layout.addWidget(chunks_to_plot_lbl,row_index+1,4)
         layout.addWidget(self.chunks_to_plot,row_index+1,5)
@@ -1678,6 +1678,12 @@ class MSL(QtGui.QWidget):
         self.button_peth.setMaximumWidth(200)
         self.button_peth.clicked.connect(self.view_peth)
         layout.addWidget(self.button_peth, row_index, 0)
+        
+        self.button_MSL_drift = QPushButton('Cell MSL Drift')
+        self.button_MSL_drift.setMaximumWidth(200)
+        self.button_MSL_drift.clicked.connect(self.view_msl_drift)
+        layout.addWidget(self.button_MSL_drift, row_index, 1)
+        
         
         self.starting_cell = QLineEdit('0');               
         self.starting_cell.setMaximumWidth(50)
@@ -1735,7 +1741,11 @@ class MSL(QtGui.QWidget):
         
         peth_scatter_plots(self)
         
+    
+    def view_msl_drift(self):
         
+        cell_msl_drift(self)
+    
     def view_msl(self, main_widget):
         
         msl_plots(self)
