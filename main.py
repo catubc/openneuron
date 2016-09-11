@@ -1712,10 +1712,26 @@ class MSL(QtGui.QWidget):
         self.button_allcell_drift = QPushButton('All Cell MSL Stats')
         self.button_allcell_drift.setMaximumWidth(200)
         self.button_allcell_drift.clicked.connect(self.view_allcell_drift)
-        layout.addWidget(self.button_allcell_drift, row_index, 2);row_index+=1
-
-
+        layout.addWidget(self.button_allcell_drift, row_index, 4)
         
+        self.button_drift_trends = QPushButton('MSL Drift Trends')
+        self.button_drift_trends.setMaximumWidth(200)
+        self.button_drift_trends.clicked.connect(self.view_drift_trends)
+        layout.addWidget(self.button_drift_trends, row_index, 5)
+        
+        self.button_drift_speed = QPushButton('')
+        self.button_drift_speed.setMaximumWidth(200)
+        self.button_drift_speed.clicked.connect(self.view_drift_speed)
+        layout.addWidget(self.button_drift_speed, row_index, 6); row_index+=1
+
+
+        self.button1 = QPushButton('View P-vals')
+        self.button1.setMaximumWidth(200)
+        self.button1.clicked.connect(self.view_msl_Pvals)
+        layout.addWidget(self.button1, row_index, 0); row_index+=1
+
+
+
         self.button_percentages = QPushButton('% Lock Plots')
         self.button_percentages.setMaximumWidth(200)
         self.button_percentages.clicked.connect(self.sua_lockpercentage)
@@ -1728,11 +1744,8 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
         
-        
-        self.button1 = QPushButton('View P-vals')
-        self.button1.setMaximumWidth(200)
-        self.button1.clicked.connect(self.view_msl_Pvals)
-        layout.addWidget(self.button1, row_index, 0); row_index+=1
+
+
         
         self.setLayout(layout)
 
@@ -1764,6 +1777,13 @@ class MSL(QtGui.QWidget):
         all_cell_drift_stats(self)       
         
         
+    def view_drift_trends(self):
+        
+        drift_trends(self)
+    
+    def view_drift_speed(self):
+        
+        drift_speed(self)
     
     def view_msl(self, main_widget):
         
