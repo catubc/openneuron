@@ -1670,19 +1670,19 @@ class MSL(QtGui.QWidget):
         self.sigma_width.setMaximumWidth(50)
         self.sigma_width_lbl = QLabel('Sigma Width:', self)
         layout.addWidget(self.sigma_width_lbl,row_index,10)
-        layout.addWidget(self.sigma_width,row_index,11); row_index+=1
+        layout.addWidget(self.sigma_width,row_index,11)
         
+        self.min_fire_rate = QLineEdit('0.1');               
+        self.min_fire_rate.setMaximumWidth(50)
+        self.min_fire_rate_lbl = QLabel('min_rate:', self)
+        layout.addWidget(self.min_fire_rate_lbl,row_index,12)
+        layout.addWidget(self.min_fire_rate,row_index,13); row_index+=1
         
         #MAKE BUTTONS             
         self.button_peth = QPushButton('PETH & Rasters')
         self.button_peth.setMaximumWidth(200)
         self.button_peth.clicked.connect(self.view_peth)
         layout.addWidget(self.button_peth, row_index, 0)
-        
-        self.button_MSL_drift = QPushButton('Cell MSL Drift')
-        self.button_MSL_drift.setMaximumWidth(200)
-        self.button_MSL_drift.clicked.connect(self.view_msl_drift)
-        layout.addWidget(self.button_MSL_drift, row_index, 1)
         
         
         self.starting_cell = QLineEdit('0');               
@@ -1702,7 +1702,19 @@ class MSL(QtGui.QWidget):
         self.button_msl = QPushButton('Compute MSL')
         self.button_msl.setMaximumWidth(200)
         self.button_msl.clicked.connect(self.view_msl)
-        layout.addWidget(self.button_msl, row_index, 0); row_index+=1
+        layout.addWidget(self.button_msl, row_index, 0)
+        
+        self.button_MSL_drift = QPushButton('Single Cell MSL Drift')
+        self.button_MSL_drift.setMaximumWidth(200)
+        self.button_MSL_drift.clicked.connect(self.view_msl_drift)
+        layout.addWidget(self.button_MSL_drift, row_index, 1)
+        
+        self.button_allcell_drift = QPushButton('All Cell MSL Stats')
+        self.button_allcell_drift.setMaximumWidth(200)
+        self.button_allcell_drift.clicked.connect(self.view_allcell_drift)
+        layout.addWidget(self.button_allcell_drift, row_index, 2);row_index+=1
+
+
         
         self.button_percentages = QPushButton('% Lock Plots')
         self.button_percentages.setMaximumWidth(200)
@@ -1745,6 +1757,13 @@ class MSL(QtGui.QWidget):
     def view_msl_drift(self):
         
         cell_msl_drift(self)
+        
+        
+    def view_allcell_drift(self):
+        
+        all_cell_drift_stats(self)       
+        
+        
     
     def view_msl(self, main_widget):
         
