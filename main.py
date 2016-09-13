@@ -1592,6 +1592,7 @@ class MSL(QtGui.QWidget):
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21/tr5c/'
+        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
         
         layout = QtGui.QGridLayout()
 
@@ -1767,7 +1768,12 @@ class MSL(QtGui.QWidget):
         
         peth_scatter_plots(self)
         
-    
+        
+    def view_msl(self, main_widget):
+        
+        msl_plots(self)
+        
+        
     def view_msl_drift(self):
         
         cell_msl_drift(self)
@@ -1782,13 +1788,11 @@ class MSL(QtGui.QWidget):
         
         drift_trends(self)
     
+    
     def view_drift_speed(self):
         
         drift_speed(self)
-    
-    def view_msl(self, main_widget):
-        
-        msl_plots(self)
+
 
     
     def sua_lockpercentage(self):

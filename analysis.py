@@ -4021,9 +4021,8 @@ def cell_msl_drift(self):
         
         print unit, control_array[ctr]
 
-
     ax = plt.subplot(1,2,1)
-    
+
     #Plot jet colored MSL image
     max_locs = []
     max_y = []
@@ -4037,8 +4036,8 @@ def cell_msl_drift(self):
 
     #Plot location of maxima and connect them with lines
     for k in range(len(max_y)-1):
-        plt.plot([max_locs[k],max_locs[k+1]],[max_y[k],max_y[k+1]], linewidth=8, color='black')
-        plt.scatter([max_locs[k],max_locs[k+1]], [max_y[k],max_y[k+1]], s=200, color='black')
+        plt.plot([max_locs[k],max_locs[k+1]],[max_y[k],max_y[k+1]], linewidth=10, color='black')
+        plt.scatter([max_locs[k],max_locs[k+1]], [max_y[k],max_y[k+1]], s=400, color='black')
 
     plt.xlim([0,101])
     plt.ylim([-0.5, len(msl_array)-0.5])
@@ -4061,11 +4060,16 @@ def cell_msl_drift(self):
             plt.scatter(control_array[k][0], control_array[k][1], s=500, color='black')
             print control_array[k][0], control_array[k][1]
         
-    plt.plot([-30, 30], [-30, 30], 'r--', linewidth = 5, color='black', alpha=0.5)
+    plt.plot([-50, 50], [-50, 50], 'r--', linewidth = 5, color='black', alpha=0.5)
     #min_limit = min(np.min(control_array[:][0]), np.min(control_array[:][1]))
     #max_limit = max(np.max(control_array[:][0]), np.max(control_array[:][1]))
-    plt.xlim([-30,30])
-    plt.ylim([-30,30])
+    
+    plt.xticks(np.arange(-50,51,25), fontsize=30) #,rotation='vertical')
+    plt.yticks(np.arange(-50,51,25), fontsize=30) #,rotation='vertical')
+    
+    
+    plt.xlim([-51,51])
+    plt.ylim([-51,51])
     plt.tick_params(axis='both', which='both', labelsize=30)
     plt.xlabel("Even Peaks (ms)", fontsize=30)
     plt.ylabel("Odd Peaks (ms)", fontsize=30, labelpad=-20)
@@ -4174,9 +4178,6 @@ def peth_scatter_plots(self):
     cell_rasters = np.load(cell_rasters_filename+".npy")
 
 
-
-
-
     #**************************************************************************
     #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
     #**************************************************************************
@@ -4217,18 +4218,11 @@ def peth_scatter_plots(self):
     chunk_index = []
     for chk in self.chunks_to_plot.text().split(','):
         chunk_index.append(int(chk))
-    
     print "...chunk_index: ", chunk_index
-    chunk_index = []
-    for chk in self.chunks_to_plot.text().split(','):
-        chunk_index.append(int(chk))
     
-    print "...chunk_index: ", chunk_index
     
     sig = float(self.sigma_width.text())
-    #for chunk_ctr in range(int(self.chunks_to_plot.text())):
     ax = plt.subplot(1,1,1)
-
     for ctr, chunk_ctr in enumerate(chunk_index):
         offset=0     #Used for plotting rasters from multiple cells
         time_chunk = time_chunks[chunk_ctr]
@@ -4283,7 +4277,7 @@ def peth_scatter_plots(self):
 
                 t = np.linspace(-1000, 1000, 2000000)
                 
-                if False: 
+                if True: 
                     plt.plot(t, fit_sum_even/np.max(fit_sum_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=6, alpha=.6)
                     plt.plot(t, fit_sum_odd/np.max(fit_sum_odd)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='red', linewidth=6, alpha=.6)
                 else:
@@ -4297,11 +4291,11 @@ def peth_scatter_plots(self):
                 #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
 
         t_max = t[np.argmax(fit_sum_even)]
-        #plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
+        plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
         plt.title("#spks: "+ str(len(all_spikes)) + "  Lock time: "+str(round(t_max,1)))
 
-        #plt.xticks(list(plt.xticks()[0]) + [round(t_max,1)])
-        #ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
+        plt.xticks(list(plt.xticks()[0]) + [round(t_max,1)])
+        ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
 
         plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black', alpha=.8)
 
@@ -4329,7 +4323,7 @@ def peth_scatter_plots(self):
         plt.tick_params(axis='both', which='both', labelsize=30)
 
     plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(n_lfp_spikes)+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
-                '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
+                ",  sigma: " + str(sig) +"(ms)" + '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
     plt.show()
 
 
@@ -4569,7 +4563,7 @@ def msl_plots(self):
                 lock_time.append(np.argmax(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
                 img.append(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]/max(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
             else:
-                lock_time.append(lock_window_end*2)
+                lock_time.append(lock_window_end*4)
                 img.append(np.zeros(lock_window_end-lock_window_start, dtype=np.float32))
                 
         
