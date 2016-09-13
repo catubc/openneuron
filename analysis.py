@@ -3609,7 +3609,9 @@ def drift_trends(self):
             
     control_array = np.float32(control_array)
                 
-    ax = plt.subplot(1,1,1)
+                
+    fig, ax = plt.subplots()
+    ax.ticklabel_format(useOffset=False, style='plain')
 
     #Compute distance of control to y=x line
     distances = []
@@ -3668,7 +3670,7 @@ def drift_trends(self):
 
     
 
-def all_cell_drift_stats(self):
+def all_cell_msl_stats(self):
     
 
     '''Plot single cell drift location relative MSL
@@ -3811,8 +3813,8 @@ def all_cell_drift_stats(self):
                 control_array[unit].append([50, 50]) 
             
                 
-                
-    ax = plt.subplot(1,1,1)
+    #fig, ax = plt.subplots()
+    #ax.ticklabel_format(useOffset=False, style='plain')
 
     #Compute distance of control to y=x line
     distances = []
@@ -3851,17 +3853,26 @@ def all_cell_drift_stats(self):
     plt.yscale('symlog', linthreshx=1E0)
     #plt.yscale('log')
     plt.xscale('log')
-    ax.tick_params(axis='both', which='major', labelsize=30)
     
     plt.ylim(0,1E2)
     plt.xlim(lowest_rate,highest_rate)
     
-    plt.xlabel("Firing Rate (Hz)", fontsize=30)
-    plt.ylabel("Control Error Averages (ms)", fontsize=30)
+    plt.xlabel("Firing Rate (Hz)", fontsize=20)
+    plt.ylabel("Control Error Averages (ms)", fontsize=20)
     
 
-    plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
-                '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
+    plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  sigma: " + str(sig) +"(ms)" + ", min rate: "+ str(min_fire_rate) + " hz" +\
+                '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=10)
+
+    ax = plt.gca()
+    #ax.get_xaxis().get_major_formatter().set_useOffset(False)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
+
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+
+
     plt.show()
 
     

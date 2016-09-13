@@ -1592,7 +1592,7 @@ class MSL(QtGui.QWidget):
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21/tr5c/'
-        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
+        #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
         
         layout = QtGui.QGridLayout()
 
@@ -1754,13 +1754,13 @@ class MSL(QtGui.QWidget):
 
     def set_sua_file(self):
         self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs)")
-        self.button_set_sua_file_lbl.setText(self.parent.sua_file)
+        self.button_set_sua_file_lbl.setText(self.parent.sua_file.replace(os.path.dirname(self.parent.sua_file),''))
         #self.parent.setWindowTitle(self.parent.sua_file)
 
 
     def set_lfp_event_file(self):
         self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
-        self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(self.parent.root_dir,''))
+        self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
         
 
@@ -1781,7 +1781,7 @@ class MSL(QtGui.QWidget):
         
     def view_allcell_drift(self):
         
-        all_cell_drift_stats(self)       
+        all_cell_msl_stats(self)       
         
         
     def view_drift_trends(self):
