@@ -12,7 +12,7 @@ import scipy
 import tifffile as tiff
 import cPickle as pickle
 import gc
-from skimage.measure import block_reduce
+#from skimage.measure import block_reduce
 import shutil
 from load_intan_rhd_format import *
 from scipy.signal import butter, filtfilt

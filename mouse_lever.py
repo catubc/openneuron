@@ -10,7 +10,7 @@ import scipy
 import tifffile as tiff
 import cPickle as pickle
 import gc
-from skimage.measure import block_reduce
+#from skimage.measure import block_reduce
 import matplotlib.pyplot as plt
 import shutil
 

@@ -1590,7 +1590,8 @@ class MSL(QtGui.QWidget):
         self.parent = parent
         
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
+        self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21/tr5c/'
         
         layout = QtGui.QGridLayout()
 

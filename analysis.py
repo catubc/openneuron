@@ -4131,13 +4131,13 @@ def peth_scatter_plots(self):
     lock_window_start = int(self.parent.lock_window_start.text())
     lock_window_end = int(self.parent.lock_window_end.text())
     
-    #Loading .tsf to compute length of record
-    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
-    time_chunks=[]
-    for t in range(len(temp_chunks)-1):
-        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
-    print temp_chunks
+    ##Loading .tsf to compute length of record
+    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    #time_chunks=[]
+    #for t in range(len(temp_chunks)-1):
+        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    #print temp_chunks
     
     #Load SUA Sort
     #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
@@ -4173,8 +4173,52 @@ def peth_scatter_plots(self):
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     cell_rasters = np.load(cell_rasters_filename+".npy")
 
-    ax = plt.subplot(1,1,1)
+
+
+
+
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    #OPTION 1: Divide into chunks of recording length
+    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
     
+
+    #OPTION 2: Divide into chunks of LFP events
+    n_spikes = len(Sort_lfp.units[lfp_cluster])
+    temp_chunks=[]
+    chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    for t in range(0, n_spikes, chunk_width):
+        temp_chunks.append(Sort_lfp.units[lfp_cluster][t]*compress_factor)
+    temp_chunks.append(Sort_lfp.units[lfp_cluster][-1]*compress_factor)
+
+    time_chunks = []
+    for t in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    print time_chunks[:10]
+    #int(self.starting_cell.text())      
+
+
+    #OPTION 3: Divide into chunks of single unit spikes; DO LOCKED SPIKES VS ALL SPIKES
+    #n_spikes = len(Sort_sua.units[selected_unit])
+    #temp_chunks=[]
+    #chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    #for t in range(0, n_spikes, chunk_width):
+        #temp_chunks.append(Sort_sua.units[selected_unit][t])
+    #temp_chunks.append(Sort_sua.units[selected_unit][-1])
+
+    #time_chunks = []
+    #for t in range(len(temp_chunks)-1):
+        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    #print time_chunks[:10]
+    
+
+    chunk_index = []
+    for chk in self.chunks_to_plot.text().split(','):
+        chunk_index.append(int(chk))
+    
+    print "...chunk_index: ", chunk_index
     chunk_index = []
     for chk in self.chunks_to_plot.text().split(','):
         chunk_index.append(int(chk))
@@ -4183,6 +4227,8 @@ def peth_scatter_plots(self):
     
     sig = float(self.sigma_width.text())
     #for chunk_ctr in range(int(self.chunks_to_plot.text())):
+    ax = plt.subplot(1,1,1)
+
     for ctr, chunk_ctr in enumerate(chunk_index):
         offset=0     #Used for plotting rasters from multiple cells
         time_chunk = time_chunks[chunk_ctr]
@@ -4207,7 +4253,7 @@ def peth_scatter_plots(self):
                 ymin=np.zeros(len(locked_spikes[event]))
                 ymax=np.zeros(len(locked_spikes[event]))
                 ymin+=offset
-                ymax+=offset+0.9
+                ymax+=offset+10
                 offset+=1
 
                 plt.vlines(np.float64(locked_spikes[event])*1E-3, ymin, ymax, linewidth=5, color='black',alpha=1) #colors[mod(counter,7)])
@@ -4236,9 +4282,14 @@ def peth_scatter_plots(self):
                 
 
                 t = np.linspace(-1000, 1000, 2000000)
-                plt.plot(t, fit_sum_even/np.max(fit_sum_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=6, alpha=.6)
-                plt.plot(t, fit_sum_odd/np.max(fit_sum_odd)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='red', linewidth=6, alpha=.6)
-                    
+                
+                if False: 
+                    plt.plot(t, fit_sum_even/np.max(fit_sum_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=6, alpha=.6)
+                    plt.plot(t, fit_sum_odd/np.max(fit_sum_odd)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='red', linewidth=6, alpha=.6)
+                else:
+                    fit_sum_even = (fit_sum_even+fit_sum_odd)/2.
+                    plt.plot(t, fit_sum_even/np.max(fit_sum_even)*len(locked_spikes) +len(locked_spikes)*(unit-int(self.starting_cell.text())), color='blue', linewidth=7, alpha=.9)
+
                     
                 #bin_width = sig*1E3   # histogram bin width in usec
                 #y = np.histogram(all_spikes, bins = np.arange(-1000000,1000000,bin_width))
@@ -4246,11 +4297,11 @@ def peth_scatter_plots(self):
                 #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
 
         t_max = t[np.argmax(fit_sum_even)]
-        plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
+        #plt.plot([t_max,t_max], [0,5000], 'r--', linewidth = 6, color='black')
         plt.title("#spks: "+ str(len(all_spikes)) + "  Lock time: "+str(round(t_max,1)))
 
         #plt.xticks(list(plt.xticks()[0]) + [round(t_max,1)])
-        ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
+        #ax.xaxis.set_ticks([50, 50, round(t_max,1), 0, 10])
 
         plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black', alpha=.8)
 
@@ -4306,15 +4357,8 @@ def msl_plots(self):
     lock_window_start = int(self.parent.lock_window_start.text())
     lock_window_end = int(self.parent.lock_window_end.text())
         
-    #Loading length of .tsf: NB: LOADING CH NOT NECESSARY; SHOULD BE ABLE TO READ JUST HEADER
-    #self.parent.animal.load_channel(self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp.tsf', channel=55) #Loads single channel as animal.tsf
-    
-    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    
-    temp_chunks = np.int64(np.linspace(0,self.parent.tsf.n_vd_samples*1E6/self.parent.tsf.SampleFrequency, int(self.parent.time_chunks.text())+1))
-    time_chunks=[]
-    for t in range(len(temp_chunks)-1):
-        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+
+
     
     #UPDATE PARAMS FROM CURRENT WIDGET TEXTBOXES
     #self.parent.name = self.animal_name.text()
@@ -4352,7 +4396,42 @@ def msl_plots(self):
     print " ... # LFP events: ", len(pop_spikes)
     print type(pop_spikes[0])
 
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    #OPTION 1: Divide into chunks of recording length
+    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
     
+
+    #OPTION 2: Divide into chunks of LFP events
+    n_spikes = len(Sort_lfp.units[lfp_cluster])
+    temp_chunks=[]
+    chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    for t in range(0, n_spikes, chunk_width):
+        temp_chunks.append(Sort_lfp.units[lfp_cluster][t]*compress_factor)
+    temp_chunks.append(Sort_lfp.units[lfp_cluster][-1]*compress_factor)
+
+    time_chunks = []
+    for t in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    print time_chunks[:10]
+    #int(self.starting_cell.text())      
+
+
+    #OPTION 3: Divide into chunks of single unit spikes; DO LOCKED SPIKES VS ALL SPIKES
+    #n_spikes = len(Sort_sua.units[selected_unit])
+    #temp_chunks=[]
+    #chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    #for t in range(0, n_spikes, chunk_width):
+        #temp_chunks.append(Sort_sua.units[selected_unit][t])
+    #temp_chunks.append(Sort_sua.units[selected_unit][-1])
+
+    #time_chunks = []
+    #for t in range(len(temp_chunks)-1):
+        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    #print time_chunks[:10]
+
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     if os.path.exists(cell_rasters_filename+'.npy')==False:
         lfp_ctr=0
@@ -4431,41 +4510,6 @@ def msl_plots(self):
         cell_rasters = np.load(cell_rasters_filename+".npy")
 
 
-    #**************************************************************************
-    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
-    #**************************************************************************
-    #OPTION 1: Divide into chunks of recording length
-    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
-    
-
-    #OPTION 2: Divide into chunks of LFP events
-    n_spikes = len(Sort_lfp.units[lfp_cluster])
-    temp_chunks=[]
-    chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
-    for t in range(0, n_spikes, chunk_width):
-        temp_chunks.append(Sort_lfp.units[lfp_cluster][t]*compress_factor)
-    temp_chunks.append(Sort_lfp.units[lfp_cluster][-1]*compress_factor)
-
-    time_chunks = []
-    for t in range(len(temp_chunks)-1):
-        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
-    print time_chunks[:10]
-    #int(self.starting_cell.text())      
-
-
-    #OPTION 3: Divide into chunks of single unit spikes; DO LOCKED SPIKES VS ALL SPIKES
-    #n_spikes = len(Sort_sua.units[selected_unit])
-    #temp_chunks=[]
-    #chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
-    #for t in range(0, n_spikes, chunk_width):
-        #temp_chunks.append(Sort_sua.units[selected_unit][t])
-    #temp_chunks.append(Sort_sua.units[selected_unit][-1])
-
-    #time_chunks = []
-    #for t in range(len(temp_chunks)-1):
-        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
-    #print time_chunks[:10]
     
 
     chunk_index = []
@@ -4482,12 +4526,7 @@ def msl_plots(self):
         #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
     #print temp_chunks
     
-    
-    chunk_index = []
-    for chk in self.chunks_to_plot.text().split(','):
-        chunk_index.append(int(chk))
-    
-    print "...chunk_index: ", chunk_index
+
 
 
     sig = float(self.sigma_width.text())
