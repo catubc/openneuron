@@ -4569,7 +4569,7 @@ def msl_plots(self):
                 lock_time.append(np.argmax(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
                 img.append(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]/max(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
             else:
-                lock_time.append(-lock_window_start)
+                lock_time.append(lock_window_end*2)
                 img.append(np.zeros(lock_window_end-lock_window_start, dtype=np.float32))
                 
         
