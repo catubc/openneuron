@@ -3479,7 +3479,8 @@ def drift_movies(self):
 
     '''Make sequence order movies
     '''
-    
+    from scipy.interpolate import InterpolatedUnivariateSpline
+
     
     min_spikes = float(self.min_spikes.text())
     min_fire_rate = float(self.min_fire_rate.text())
@@ -3508,7 +3509,47 @@ def drift_movies(self):
         plt.scatter(Sort_sua.xpos[k], Sort_sua.ypos[k], s=100, color='blue', alpha=.9)
 
         ax = plt.subplot(1,2,2)
-        plt.plot(Sort_sua.wavedata[k][Sort_sua.maxchan[k]]+k*50, linewidth=2, color='gray', alpha=.9)
+        waveform = Sort_sua.wavedata[k][Sort_sua.maxchan[k]]
+
+        xi = np.arange(0, len(waveform), 1)
+        yi = waveform
+
+        x = np.linspace(0, len(waveform), 1000)
+        order = 4
+        s = InterpolatedUnivariateSpline(xi, yi, k=order)
+        yinterp = s(x)
+
+        #plt.plot(xi, waveform+k*50, linewidth=2, color='gray', alpha=.9)
+        plt.plot(x, yinterp, linewidth=2, color='blue', alpha=.9)
+
+        #find peak width
+        max_loc = np.argmax(yinterp); max_val = yinterp[max_loc]
+        t2 = len(yinterp)
+        for k in range(max_loc, len(yinterp),1):
+            if yinterp[k]<(max_val/2.):
+                t2 = k; break
+        t1 = 0
+        for k in range(max_loc, 0, -1):
+            if yinterp[k]<(max_val/2.):
+                t1 = k; break
+        
+        plt.plot([t1,t2],[max_val, max_val], 'r--', color='black')
+        print t2-t1
+
+        #find trough width
+        min_loc = np.argmax(yinterp); min_val = yinterp[min_loc]
+        t4 = len(yinterp)
+        for k in range(min_loc, len(yinterp),1):
+            if yinterp[k]>(min_val/2.):
+                t4 = k; break
+        t1 = 0
+        for k in range(max_loc, 0, -1):
+            if yinterp[k]<max_val:
+                t1 = k; break
+        
+        plt.plot([t1,t2],[max_val, max_val], 'r--', color='black')
+        print t2-t1
+
     plt.show()
 
     return
