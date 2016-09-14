@@ -1720,11 +1720,11 @@ class MSL(QtGui.QWidget):
         self.button_drift_trends.setMaximumWidth(200)
         self.button_drift_trends.clicked.connect(self.view_drift_trends)
         layout.addWidget(self.button_drift_trends, row_index, 5)
-        
-        self.button_drift_speed = QPushButton('')
-        self.button_drift_speed.setMaximumWidth(200)
-        self.button_drift_speed.clicked.connect(self.view_drift_speed)
-        layout.addWidget(self.button_drift_speed, row_index, 6); row_index+=1
+
+        self.button_drift_movie = QPushButton('MSL Drift Movies')
+        self.button_drift_movie.setMaximumWidth(200)
+        self.button_drift_movie.clicked.connect(self.view_drift_movie)
+        layout.addWidget(self.button_drift_movie, row_index, 6); row_index+=1
 
 
         self.button1 = QPushButton('View P-vals')
@@ -1789,9 +1789,9 @@ class MSL(QtGui.QWidget):
         drift_trends(self)
     
     
-    def view_drift_speed(self):
+    def view_drift_movie(self):
         
-        drift_speed(self)
+        drift_movies(self)
 
 
     

@@ -122,7 +122,11 @@ class Ptcs(object):
         self.ptp=np.zeros((self.n_units), dtype=np.float32)
         self.size = []
         self.maxchan = []
-        
+        self.sigma = []
+        self.xpos = []
+        self.ypos = []
+        self.wavedata = []
+
         for k in range(self.n_units):
             self.readUnit(f)
             self.units[k]= self.spikes
@@ -145,6 +149,11 @@ class Ptcs(object):
             self.n_sorted_spikes[k] = len(self.units[k])
             self.size.append(self.nspikes)
             self.maxchan.append(self.maxchanu)
+            self.sigma.append(self.zps)
+            self.xpos.append(self.xps)
+            self.ypos.append(self.yps)
+            self.wavedata.append(self.wvdata)
+
             #self.ptp[k]=max(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) - \
             #            min(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) #compute PTP of template;
 
@@ -163,16 +172,16 @@ class Ptcs(object):
             except: pass
 
         self.clusterscore = float(np.fromfile(f, dtype=np.float64, count=1)) # clusterscore
-        self.xpos = float(np.fromfile(f, dtype=np.float64, count=1)) # xpos (um)
-        self.ypos = float(np.fromfile(f, dtype=np.float64, count=1)) # ypos (um)
-        self.zpos = float(np.fromfile(f, dtype=np.float64, count=1)) # zpos (um)
+        self.xps = float(np.fromfile(f, dtype=np.float64, count=1)) # xpos (um)
+        self.yps = float(np.fromfile(f, dtype=np.float64, count=1)) # ypos (um)
+        self.zps = float(np.fromfile(f, dtype=np.float64, count=1)) # zpos (um) #Replaced by spatial sigma
         self.nchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nchans
         self.chans = np.fromfile(f, dtype=np.uint64, count=self.nchans) #NB: Some errors here from older .ptcs formats
         self.maxchanu = int(np.fromfile(f, dtype=np.uint64, count=1)) # maxchanid
 
         self.nt = int(np.fromfile(f, dtype=np.uint64, count=1)) # nt: number of time points in template
 
-        self.nwavedatabytes, self.wavedata = self.read_wave(f) #TEMPLATE
+        self.nwavedatabytes, self.wvdata = self.read_wave(f) #TEMPLATE
 
         self.nwavestdbytes, self.wavestd = self.read_wave(f) #STANDARD DEVIATION
         self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
@@ -3466,13 +3475,11 @@ def plot_rasters(self):
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
-def drift_trends(self):
-    
-    '''Plot single cell drift location relative MSL
-    '''
-    tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
+def drift_movies(self):
 
+    '''Make sequence order movies
+    '''
+    
     
     min_spikes = float(self.min_spikes.text())
     min_fire_rate = float(self.min_fire_rate.text())
@@ -3493,9 +3500,34 @@ def drift_trends(self):
     #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
     Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
-    for k in range(total_units): print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k])
+    #for k in range(total_units): 
+    for k in range(1): 
+        print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k]), Sort_sua.xpos[k], Sort_sua.ypos[k]
+        
+        ax = plt.subplot(1,2,1)
+        plt.scatter(Sort_sua.xpos[k], Sort_sua.ypos[k], s=100, color='blue', alpha=.9)
+
+        ax = plt.subplot(1,2,2)
+        plt.plot(Sort_sua.wavedata[k][Sort_sua.maxchan[k]]+k*50, linewidth=2, color='gray', alpha=.9)
+    plt.show()
+
+    return
+
+
     selected_unit = int(self.starting_cell.text())
-    
+
+
+
+
+    #Find recording length; needed for plotting distributions
+    if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
+        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
+    else:
+        rec_length = 0
+        for k in range(len(Sort_sua.units)):
+            if np.max(Sort_sua.units[k])>rec_length: rec_length = np.max(Sort_sua.units[k])
+        rec_length = rec_length*1.E-6
     
     #Load LFP Sort
     #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
@@ -3628,10 +3660,10 @@ def drift_trends(self):
         fire_rate = len(Sort_sua.units[unit])/float(rec_length)
         control_ave = np.average(distances[unit], axis=0)
        
-        color = 'black'
         if control_ave<1: color='blue'
         elif control_ave<2: color='green'
-        
+        else: color = 'black'; continue
+
         print "...unit: ", unit, "  ave MSL error: ", control_ave, "   fire rate: ", fire_rate
 
         pts = [];  ctr = 0
@@ -3658,26 +3690,32 @@ def drift_trends(self):
     plt.ylim(-1E2,1E2)
     plt.xlim(0.1,len(time_chunks)+0.1)
     
-    plt.xticks(np.arange(0,len(time_chunks),1), fontsize=30) #,rotation='vertical')    
+    xtick_lbls = []
+    for k in range(len(time_chunks)):
+        #print time_chunks[k]
+        xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
     
-    plt.xlabel("Time Epoch", fontsize=30)
+    old_xlabel = np.arange(0, len(time_chunks), 1)
+    #new_xlabel = np.arange(-50, 51, 25)
+    plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
+    #plt.xticks(np.arange(0,len(time_chunks),1), fontsize=30) #,rotation='vertical')    
+    
+
+
+    plt.xlabel("Time (mins)", fontsize=30)
     plt.ylabel("Phase Lock in Each Epoch (ms)", fontsize=30)
     
 
     plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
                 '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
     plt.show()
-
     
 
-def all_cell_msl_stats(self):
+def drift_trends(self):
     
-
     '''Plot single cell drift location relative MSL
     '''
-    tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
-    rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
-
+    
     
     min_spikes = float(self.min_spikes.text())
     min_fire_rate = float(self.min_fire_rate.text())
@@ -3700,6 +3738,241 @@ def all_cell_msl_stats(self):
     total_units = len(Sort_sua.units)
     for k in range(total_units): print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k])
     selected_unit = int(self.starting_cell.text())
+    
+    #Find recording length; needed for plotting distributions
+    if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
+        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
+    else:
+        rec_length = 0
+        for k in range(len(Sort_sua.units)):
+            if np.max(Sort_sua.units[k])>rec_length: rec_length = np.max(Sort_sua.units[k])
+        rec_length = rec_length*1.E-6
+    
+    #Load LFP Sort
+    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+
+    #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
+    #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
+    #start_lfp = min(int(self.parent.start_lfp.text()), len(Sort_lfp.units))
+    #end_lfp = min(int(self.parent.end_lfp.text()), len(Sort_lfp.units))
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardwired to: ", compress_factor
+    
+    
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = Sort_lfp.units[lfp_cluster]*compress_factor#*1E-3  
+    
+    n_units = int(self.ending_cell.text()) - int(self.starting_cell.text())
+
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+
+
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    #OPTION 1: Divide into chunks of recording length
+    #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
+    
+
+    #OPTION 2: Divide into chunks of LFP events
+    n_spikes = len(Sort_lfp.units[lfp_cluster])
+    temp_chunks=[]
+    chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    for t in range(0, n_spikes, chunk_width):
+        temp_chunks.append(Sort_lfp.units[lfp_cluster][t]*compress_factor)
+    #temp_chunks.append(Sort_lfp.units[lfp_cluster][-1])
+
+    time_chunks = []
+    for t in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    print time_chunks[:10]
+    #int(self.starting_cell.text())      
+
+
+    #OPTION 3: Divide into chunks of single unit spikes; DO LOCKED SPIKES VS ALL SPIKES
+    #n_spikes = len(Sort_sua.units[selected_unit])
+    #temp_chunks=[]
+    #chunk_width = int(n_spikes/float(self.parent.time_chunks.text()))
+    #for t in range(0, n_spikes, chunk_width):
+        #temp_chunks.append(Sort_sua.units[selected_unit][t])
+    #temp_chunks.append(Sort_sua.units[selected_unit][-1])
+
+    #time_chunks = []
+    #for t in range(len(temp_chunks)-1):
+        #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
+    #print time_chunks[:10]
+
+
+    #Load chunks into data
+    #chunk_index = []
+    #for chk in self.chunks_to_plot.text().split(','):
+        #chunk_index.append(int(chk))
+    
+    #print "...chunk_index: ", chunk_index
+    
+    #**************************************************************************
+    #************************ LOOP OVER CHUNKS ********************************
+    #**************************************************************************
+
+
+    sig = float(self.sigma_width.text())
+    #for chunk_ctr in range(int(self.chunks_to_plot.text())):
+
+    #Make list to hold control peaks
+    control_array = []
+    for k in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1): control_array.append([])
+
+    for ctr in range(len(time_chunks)):
+        offset=0     #Used for plotting rasters from multiple cells
+        time_chunk = time_chunks[ctr]
+        print "...time chunk: ", time_chunk[0]*1E-6/60., time_chunk[1]*1E-6/60., "  mins."
+        #ax = plt.subplot(1, len(time_chunks), ctr+1)
+        
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+        #print temp3
+        
+        for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1):
+            locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
+            all_spikes = np.sort(np.hstack(locked_spikes))*1E-3
+
+            if float(len(all_spikes))/(float(time_chunk[1])*1E-6-float(time_chunk[0])*1E-6) >= min_fire_rate:    #**********NB: only include chunk for cell if sufficient spikes
+
+                fit_even = np.zeros(2000, dtype=np.float32)
+                fit_odd = np.zeros(2000, dtype=np.float32)
+                
+                x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+                sig_gaussian = np.float32(gaussian(x, 0, sig))
+                for g in range(len(all_spikes)):
+                    mu = int(all_spikes[g])
+                    if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                    else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+                #t = np.linspace(-1000, 1000, 2000)
+                control_array[unit-int(self.starting_cell.text())].append([x[950+np.argmax(fit_even[950:1050])],x[950+np.argmax(fit_odd[950:1050])]])  #******NB: LIMITING SEARCH TO 100ms window
+            else:
+                control_array[unit-int(self.starting_cell.text())].append([50, 50]) 
+            
+    control_array = np.float32(control_array)
+                
+                
+    fig, ax = plt.subplots()
+    ax.ticklabel_format(useOffset=False, style='plain')
+
+    #Compute distance of control to y=x line
+    distances = []
+    for unit in range(len(control_array)):
+        distances.append([])
+        for p in range(len(control_array[unit])):
+            if (control_array[unit][p][0]!=50.) and (control_array[unit][p][1]!=50.):          #**********Exclude chunks/epochs with insufficient spikes
+                distances[unit].append(abs(float(control_array[unit][p][0]-control_array[unit][p][1]))/np.sqrt(2))
+        print unit, distances[unit]
+
+    highest_rate = 0
+    lowest_rate = 1000
+    for unit in range(len(control_array)):
+        fire_rate = len(Sort_sua.units[unit])/float(rec_length)
+        control_ave = np.average(distances[unit], axis=0)
+       
+        if control_ave<1: color='blue'
+        elif control_ave<2: color='green'
+        else: color = 'black'; continue
+
+        print "...unit: ", unit, "  ave MSL error: ", control_ave, "   fire rate: ", fire_rate
+
+        pts = [];  ctr = 0
+        for k in range(len(control_array[unit])):
+            if (control_array[unit][k][0]==50) or (control_array[unit][k][1]==50):          #**********Exclude chunks/epochs with insufficient spikes
+                pass
+            else:
+                pts.append([k, np.average(control_array[unit][k])])
+                ctr+=1
+        
+        for k in range(len(pts)-1):
+            plt.scatter(pts[k][0],pts[k][1], s=500, color=color)
+            plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
+            plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
+    
+    
+    #plt.plot([lowest_rate,highest_rate], [1,1], 'r--', color='blue', linewidth=4, alpha=.7)
+    #plt.plot([lowest_rate,highest_rate], [2,2], 'r--', color='green', linewidth=4, alpha=.7)
+
+    #plt.yscale('symlog', linthreshx=(-1E0,1E0))
+    #plt.yscale('log')
+    ax.tick_params(axis='both', which='major', labelsize=30)
+    
+    plt.ylim(-1E2,1E2)
+    plt.xlim(0.1,len(time_chunks)+0.1)
+    
+    xtick_lbls = []
+    for k in range(len(time_chunks)):
+        #print time_chunks[k]
+        xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
+    
+    old_xlabel = np.arange(0, len(time_chunks), 1)
+    #new_xlabel = np.arange(-50, 51, 25)
+    plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
+    #plt.xticks(np.arange(0,len(time_chunks),1), fontsize=30) #,rotation='vertical')    
+    
+
+
+    plt.xlabel("Time (mins)", fontsize=30)
+    plt.ylabel("Phase Lock in Each Epoch (ms)", fontsize=30)
+    
+
+    plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
+                '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
+    plt.show()
+
+    
+
+def all_cell_msl_stats(self):
+    
+
+    '''Plot single cell drift location relative MSL
+    '''
+
+    #Load SUA Sort
+    #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+    for k in range(total_units): print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k])
+    selected_unit = int(self.starting_cell.text())
+
+
+    #Find recording length; needed for plotting distributions
+    if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
+        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
+    else:
+        rec_length = 0
+        for k in range(len(Sort_sua.units)):
+            if np.max(Sort_sua.units[k])>rec_length: rec_length = np.max(Sort_sua.units[k])
+        rec_length = rec_length*1.E-6
+
+
+    min_spikes = float(self.min_spikes.text())
+    min_fire_rate = float(self.min_fire_rate.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1.0  #NB: ************* SET THIS VALUE TO ALLOW ARBITRARY ZOOM IN AND OUT ALONG WITH 2000 sized arrays below
+    
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+    
+
     
     
     #Load LFP Sort
