@@ -2218,6 +2218,7 @@ class IntanTools(QtGui.QWidget):
         
         self.parent = parent
         layout = QtGui.QGridLayout()
+        self.root_dir = '/media/cat/2TB/in_vivo/tim/'
         
         row_index=0
         
@@ -2257,13 +2258,13 @@ class IntanTools(QtGui.QWidget):
         self.setLayout(layout)
 
     def slct_recording2(self):
-        self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "RHD (*.rhd)", self.selected_recording,"RHD (*.rhd)") 
-        path_name, file_name = os.path.split(self.selected_recording)
-        self.select_recording_lbl.setText(file_name)
+        self.selected_recording = QtGui.QFileDialog.getOpenFileNames(self, "RHD (*.rhd)", self.root_dir,"RHD (*.rhd)") 
+        #path_name, file_name = os.path.split(self.selected_recording)
+        self.select_recording_lbl.setText(self.selected_recording[0])
         
 
     def rhdtotsf(self):
-        rhd_to_tsf([self.selected_recording])   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
+        rhd_to_tsf(self.selected_recording)   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
     
     def rhd_digital_convert(self):
         rhd_digital_save(self.selected_recording)

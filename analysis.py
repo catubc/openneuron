@@ -2144,6 +2144,7 @@ def rhd_to_tsf(filenames):
     probe = Probe()
 
     for file_name in filenames:
+        print file_name
         #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
         ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
