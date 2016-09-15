@@ -1746,10 +1746,9 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
         
-
-
         
         self.setLayout(layout)
+
 
 
     def set_sua_file(self):

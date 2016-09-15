@@ -2169,9 +2169,9 @@ def rhd_to_tsf(filenames):
         print "Converting data to int16..."
         ec_traces = np.array(ec_traces, dtype=np.int16)
 
-        print "...plotting..."
-        plt.plot(ec_traces[30])
-        plt.show()
+        #print "...plotting..."
+        #plt.plot(ec_traces[30])
+        #plt.show()
 
 
         #SAVE RAW DATA - ******NB:  SHOULD CLEAN THIS UP: the write function should be shared by all, just data is changing so no need to repeat;
@@ -2192,7 +2192,7 @@ def rhd_to_tsf(filenames):
                 fout.write(struct.pack('i', i+1))
 
             for i in range(probe.n_electrodes):
-                print i,
+                print "...writing ch: ", i
                 ec_traces[probe.layout[i]].tofile(fout)  #Frontside
 
             fout.write(struct.pack('i', n_cell_spikes))
@@ -2219,7 +2219,7 @@ def rhd_to_tsf(filenames):
             print ec_traces_hp.shape
 
             for i in range(probe.n_electrodes):
-                print i,
+                print "...writing ch: ", i
                 ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
 
             fout.write(struct.pack('i', n_cell_spikes))
@@ -3503,13 +3503,11 @@ def drift_movies(self):
     Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
     #for k in range(total_units): 
-    for k in range(1): 
+    peaks=[]
+    troughs=[]
+    for k in range(total_units): 
         print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k]), Sort_sua.xpos[k], Sort_sua.ypos[k]
-        
-        ax = plt.subplot(1,2,1)
-        plt.scatter(Sort_sua.xpos[k], Sort_sua.ypos[k], s=100, color='blue', alpha=.9)
 
-        ax = plt.subplot(1,2,2)
         waveform = Sort_sua.wavedata[k][Sort_sua.maxchan[k]]
 
         xi = np.arange(0, len(waveform), 1)
@@ -3521,37 +3519,64 @@ def drift_movies(self):
         yinterp = s(x)
 
         #plt.plot(xi, waveform+k*50, linewidth=2, color='gray', alpha=.9)
-        plt.plot(x, yinterp, linewidth=2, color='blue', alpha=.9)
 
         #find peak width
         max_loc = np.argmax(yinterp); max_val = yinterp[max_loc]
-        t2 = len(yinterp)
-        for k in range(max_loc, len(yinterp),1):
-            if yinterp[k]<(max_val/2.):
-                t2 = k; break
+        t2 = len(yinterp)-1
+        for j in range(max_loc, len(yinterp),1):
+            if yinterp[j]<(max_val/2.):
+                t2 = j; break
         t1 = 0
-        for k in range(max_loc, 0, -1):
-            if yinterp[k]<(max_val/2.):
-                t1 = k; break
+        for j in range(max_loc, 0, -1):
+            if yinterp[j]<(max_val/2.):
+                t1 = j; break
         
-        plt.plot([t1,t2],[max_val, max_val], 'r--', color='black')
-        print t2-t1
+        #plt.plot([x[t1],x[t2]],[max_val/2., max_val/2.], 'r--', color='black')
+        peak = x[t2]-x[t1]
 
         #find trough width
-        min_loc = np.argmax(yinterp); min_val = yinterp[min_loc]
-        t4 = len(yinterp)
-        for k in range(min_loc, len(yinterp),1):
-            if yinterp[k]>(min_val/2.):
-                t4 = k; break
-        t1 = 0
-        for k in range(max_loc, 0, -1):
-            if yinterp[k]<max_val:
-                t1 = k; break
+        min_loc = np.argmin(yinterp); min_val = yinterp[min_loc]
+        t4 = len(yinterp)-1
+        for j in range(min_loc, len(yinterp),1):
+            if yinterp[j]>(min_val/2.):
+                t4 = j; break
+        t3 = 0
+        for j in range(min_loc, 0, -1):
+            if yinterp[j]>(min_val/2.):
+                t3 = j; break
         
-        plt.plot([t1,t2],[max_val, max_val], 'r--', color='black')
-        print t2-t1
+        #plt.plot([x[t3],x[t4]],[min_val/2., min_val/2.], 'r--', color='black')
+        trough = x[t4]-x[t3]
 
-    plt.show()
+        #Plot scatter plot distributions
+        ax = plt.subplot(1,3,3)
+        a = [0.4, 0]; b = [0, 0.3]
+        c = [peak*0.04, trough*0.04]
+        x_product = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0])
+
+        if (x_product>0): color='blue'
+        else: color='red'
+        plt.scatter(peak*0.04, trough*0.04, color=color)
+        plt.ylim(0,.5)
+        plt.xlim(0,.6)
+
+        #Plot scatter depth
+        ax = plt.subplot(1,3,1)
+        plt.scatter(Sort_sua.xpos[k], -Sort_sua.ypos[k], s=100, color=color, alpha=.9)
+        plt.plot([-100,100],[0,0], 'r--', color='black', linewidth=2, alpha=.7)
+        plt.plot([-50,-50],[0,-2000], 'r--',color='black', linewidth=2, alpha=.7)
+        plt.plot([50,50],[0,-2000], 'r--', color='black', linewidth=2, alpha=.7)
+        plt.xlim(-100,100)
+
+        #Plot curve
+        ax = plt.subplot(1,3,2)
+        plt.plot(x*0.04-x[len(x)/2]*0.04, yinterp, linewidth=2, color=color, alpha=.9)
+        plt.xlim(-0.5, 0.5)
+
+    plt.show()        
+
+
+
 
     return
 
