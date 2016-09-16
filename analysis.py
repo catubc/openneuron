@@ -3480,9 +3480,15 @@ def drift_movies(self):
 
     '''Make sequence order movies
     '''
+
+    #****************************************************************************************
+    #**************************** COMPUTE DEPTH, TEMPLATES, CELL TYPING *********************
+    #****************************************************************************************
+
+    plotting = True
+
     from scipy.interpolate import InterpolatedUnivariateSpline
 
-    
     min_spikes = float(self.min_spikes.text())
     min_fire_rate = float(self.min_fire_rate.text())
 
@@ -3510,6 +3516,7 @@ def drift_movies(self):
 
         waveform = Sort_sua.wavedata[k][Sort_sua.maxchan[k]]
 
+        #Interpolate max chan template to find fwhm values and do cell typing
         xi = np.arange(0, len(waveform), 1)
         yi = waveform
 
@@ -3517,8 +3524,6 @@ def drift_movies(self):
         order = 4
         s = InterpolatedUnivariateSpline(xi, yi, k=order)
         yinterp = s(x)
-
-        #plt.plot(xi, waveform+k*50, linewidth=2, color='gray', alpha=.9)
 
         #find peak width
         max_loc = np.argmax(yinterp); max_val = yinterp[max_loc]
@@ -3530,8 +3535,6 @@ def drift_movies(self):
         for j in range(max_loc, 0, -1):
             if yinterp[j]<(max_val/2.):
                 t1 = j; break
-        
-        #plt.plot([x[t1],x[t2]],[max_val/2., max_val/2.], 'r--', color='black')
         peak = x[t2]-x[t1]
 
         #find trough width
@@ -3544,47 +3547,49 @@ def drift_movies(self):
         for j in range(min_loc, 0, -1):
             if yinterp[j]>(min_val/2.):
                 t3 = j; break
-        
-        #plt.plot([x[t3],x[t4]],[min_val/2., min_val/2.], 'r--', color='black')
         trough = x[t4]-x[t3]
 
-        #Plot scatter plot distributions
-        ax = plt.subplot(1,3,3)
+        #Compute cross product to find which side of line points lie on
         a = [0.4, 0]; b = [0, 0.3]
         c = [peak*0.04, trough*0.04]
         x_product = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0])
 
-        if (x_product>0): color='blue'
-        else: color='red'
-        plt.scatter(peak*0.04, trough*0.04, color=color)
-        plt.ylim(0,.5)
-        plt.xlim(0,.6)
+        if (x_product>0): color='blue'; m = 'o'
+        else: color='red'; m = (3, 0) 
 
-        #Plot scatter depth
-        ax = plt.subplot(1,3,1)
-        plt.scatter(Sort_sua.xpos[k], -Sort_sua.ypos[k], s=100, color=color, alpha=.9)
-        plt.plot([-100,100],[0,0], 'r--', color='black', linewidth=2, alpha=.7)
-        plt.plot([-50,-50],[0,-2000], 'r--',color='black', linewidth=2, alpha=.7)
-        plt.plot([50,50],[0,-2000], 'r--', color='black', linewidth=2, alpha=.7)
-        plt.xlim(-100,100)
-
-        #Plot curve
-        ax = plt.subplot(1,3,2)
-        plt.plot(x*0.04-x[len(x)/2]*0.04, yinterp, linewidth=2, color=color, alpha=.9)
-        plt.xlim(-0.5, 0.5)
-
-    plt.show()        
+        if plotting: 
+            #Plot scatter depth
+            ax = plt.subplot(1,3,1)
+            plt.scatter(Sort_sua.xpos[k], -Sort_sua.ypos[k], s=100, marker = m, color=color, alpha=.9)
+            plt.plot([-100,100],[0,0], 'r--', color='black', linewidth=2, alpha=.7)
+            plt.plot([-50,-50],[0,-2000], 'r--',color='black', linewidth=2, alpha=.7)
+            plt.plot([50,50],[0,-2000], 'r--', color='black', linewidth=2, alpha=.7)
+            plt.xlim(-100,100)
+            plt.ylim(-2000,100)
 
 
+            #Plot curve
+            ax = plt.subplot(1,3,2)
+            plt.plot(x*0.04-x[len(x)/2]*0.04, yinterp, linewidth=2, color=color, alpha=.9)
+            plt.xlim(-0.5, 0.5)
+
+            #Plot scatter plot distributions
+            ax = plt.subplot(1,3,3)
+            plt.scatter(peak*0.04, trough*0.04, color=color)
+            plt.ylim(0,.5)
+            plt.xlim(0,.6)
+
+    if plotting: 
+            ax = plt.subplot(1,3,1)
+            plt.axhspan(-2000, 0, facecolor='black', alpha=0.1)
+            plt.show()        
 
 
-    return
-
+    #****************************************************************************************
+    #********************************* COMPUTE DRIFT VALUES *********************************
+    #****************************************************************************************
 
     selected_unit = int(self.starting_cell.text())
-
-
-
 
     #Find recording length; needed for plotting distributions
     if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
@@ -3597,13 +3602,7 @@ def drift_movies(self):
         rec_length = rec_length*1.E-6
     
     #Load LFP Sort
-    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
     Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
-
-    #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
-    #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
-    #start_lfp = min(int(self.parent.start_lfp.text()), len(Sort_lfp.units))
-    #end_lfp = min(int(self.parent.end_lfp.text()), len(Sort_lfp.units))
     lfp_cluster = int(self.parent.lfp_cluster.text())
 
     #Load pop events during synch periods (secs)
@@ -3611,7 +3610,7 @@ def drift_movies(self):
     print "... compress_factor is hardwired to: ", compress_factor
     
     
-    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    #Load LFP Cluster events              
     pop_spikes = Sort_lfp.units[lfp_cluster]*compress_factor#*1E-3  
     
     n_units = int(self.ending_cell.text()) - int(self.starting_cell.text())
@@ -3620,9 +3619,10 @@ def drift_movies(self):
     cell_rasters = np.load(cell_rasters_filename+".npy")
 
 
-    #**************************************************************************
-    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
-    #**************************************************************************
+    #**********************************************************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ********************************************************
+    #**********************************************************************************************************************
+
     #OPTION 1: Divide into chunks of recording length
     #self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
     #temp_chunks = np.linspace(0,self.parent.tsf.n_vd_samples*1E6/float(self.parent.tsf.SampleFrequency), int(self.parent.time_chunks.text())+1)
@@ -3656,21 +3656,8 @@ def drift_movies(self):
         #time_chunks.append([temp_chunks[t],temp_chunks[t+1]])
     #print time_chunks[:10]
 
-
-    #Load chunks into data
-    #chunk_index = []
-    #for chk in self.chunks_to_plot.text().split(','):
-        #chunk_index.append(int(chk))
-    
-    #print "...chunk_index: ", chunk_index
-    
-    #**************************************************************************
-    #************************ LOOP OVER CHUNKS ********************************
-    #**************************************************************************
-
-
+    #Loop over chunks
     sig = float(self.sigma_width.text())
-    #for chunk_ctr in range(int(self.chunks_to_plot.text())):
 
     #Make list to hold control peaks
     control_array = []
@@ -3680,10 +3667,8 @@ def drift_movies(self):
         offset=0     #Used for plotting rasters from multiple cells
         time_chunk = time_chunks[ctr]
         print "...time chunk: ", time_chunk[0]*1E-6/60., time_chunk[1]*1E-6/60., "  mins."
-        #ax = plt.subplot(1, len(time_chunks), ctr+1)
         
         temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
-        #print temp3
         
         for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1):
             locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
@@ -3701,16 +3686,16 @@ def drift_movies(self):
                     if g%2==0: fit_even += np.roll(sig_gaussian, mu)
                     else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
 
-                #t = np.linspace(-1000, 1000, 2000)
                 control_array[unit-int(self.starting_cell.text())].append([x[950+np.argmax(fit_even[950:1050])],x[950+np.argmax(fit_odd[950:1050])]])  #******NB: LIMITING SEARCH TO 100ms window
             else:
                 control_array[unit-int(self.starting_cell.text())].append([50, 50]) 
             
     control_array = np.float32(control_array)
-                
-                
-    fig, ax = plt.subplots()
-    ax.ticklabel_format(useOffset=False, style='plain')
+    
+    plotting = False
+    if plotting: 
+        fig, ax = plt.subplots()
+        ax.ticklabel_format(useOffset=False, style='plain')
 
     #Compute distance of control to y=x line
     distances = []
@@ -3721,15 +3706,17 @@ def drift_movies(self):
                 distances[unit].append(abs(float(control_array[unit][p][0]-control_array[unit][p][1]))/np.sqrt(2))
         print unit, distances[unit]
 
-    highest_rate = 0
-    lowest_rate = 1000
+    pts_array = []
     for unit in range(len(control_array)):
         fire_rate = len(Sort_sua.units[unit])/float(rec_length)
         control_ave = np.average(distances[unit], axis=0)
        
         if control_ave<1: color='blue'
         elif control_ave<2: color='green'
-        else: color = 'black'; continue
+        else: 
+            color = 'black'
+            pts_array.append([])
+            continue
 
         print "...unit: ", unit, "  ave MSL error: ", control_ave, "   fire rate: ", fire_rate
 
@@ -3740,43 +3727,106 @@ def drift_movies(self):
             else:
                 pts.append([k, np.average(control_array[unit][k])])
                 ctr+=1
-        
-        for k in range(len(pts)-1):
-            plt.scatter(pts[k][0],pts[k][1], s=500, color=color)
-            plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
-            plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
+        pts_array.append(pts)
+        if plotting: 
+            for k in range(len(pts)-1):
+                plt.scatter(pts[k][0],pts[k][1], s=500, color=color)
+                plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
+                plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
     
-    
-    #plt.plot([lowest_rate,highest_rate], [1,1], 'r--', color='blue', linewidth=4, alpha=.7)
-    #plt.plot([lowest_rate,highest_rate], [2,2], 'r--', color='green', linewidth=4, alpha=.7)
-
     #plt.yscale('symlog', linthreshx=(-1E0,1E0))
     #plt.yscale('log')
-    ax.tick_params(axis='both', which='major', labelsize=30)
-    
-    plt.ylim(-1E2,1E2)
-    plt.xlim(0.1,len(time_chunks)+0.1)
     
     xtick_lbls = []
     for k in range(len(time_chunks)):
-        #print time_chunks[k]
         xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
     
     old_xlabel = np.arange(0, len(time_chunks), 1)
-    #new_xlabel = np.arange(-50, 51, 25)
     plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
-    #plt.xticks(np.arange(0,len(time_chunks),1), fontsize=30) #,rotation='vertical')    
-    
-
 
     plt.xlabel("Time (mins)", fontsize=30)
     plt.ylabel("Phase Lock in Each Epoch (ms)", fontsize=30)
-    
 
     plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
                 '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
-    plt.show()
     
+    if plotting: 
+        ax.tick_params(axis='both', which='major', labelsize=30)
+        
+        plt.ylim(-1E2,1E2)
+        plt.xlim(0.1,len(time_chunks)+0.1)
+        plt.show()
+
+
+    #****************************************************************************************
+    #************************************* MAKE DRIFTING MOVIES *****************************
+    #****************************************************************************************
+
+    ##REMOVE THIS AFTER COMPLETING MOVIES
+    #for unit in range(len(control_array)):
+        #fire_rate = len(Sort_sua.units[unit])/float(rec_length)
+        #control_ave = np.average(distances[unit], axis=0)
+       
+        #if control_ave<1: color='blue'
+        #elif control_ave<2: color='green'
+        #else: color = 'black'; continue     #Skip cells with > 2ms control error values
+
+        #print "...unit: ", unit, "  ave MSL error: ", control_ave, "   fire rate: ", fire_rate
+
+        #pts = [];  ctr = 0
+        #for k in range(len(control_array[unit])):
+            #if (control_array[unit][k][0]==50) or (control_array[unit][k][1]==50):   #**********Exclude chunks/epochs with insufficient spikes
+                #pass
+            #else:
+                #pts.append([k, np.average(control_array[unit][k])])
+                #ctr+=1
+        
+        #for k in range(len(pts)-1):
+            #plt.scatter(pts[k][0],pts[k][1], s=500, color=color)
+            #plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
+            #plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
+
+
+    vid_array = np.zeros((len(control_array), time_chunks[len(time_chunks)-1][1]*1E-6/60., 2), dtype=np.float32)
+    print vid_array.shape
+    #pts_array contains [epoch, MSL time] pairs - or empty; len(control_array) = # epochs
+    for p in range(len(control_array)):
+        for k in range(len(pts_array[p])-1):
+            t1 = time_chunks[pts_array[p][k][0]][0]*1E-6/60.
+            t2 = time_chunks[pts_array[p][k][0]][1]*1E-6/60.
+            print p, k, pts_array[p][k], pts_array[p][k+1], t1, t2
+            
+            #Interpolate positions over epoch beginnning and ends;
+            interp_drift = np.linspace (pts_array[p][k][1], pts_array[p][k+1][1], int(t2)-int(t1))
+            print interp_drift
+            ctr = 0
+            for q in range(int(t1), int(t2)):
+                vid_array[p, q] = [interp_drift[ctr], 1]; ctr+=1
+                
+        print vid_array[p]
+        plt.close()
+        plt.plot(vid_array[p])
+        plt.show()
+        return
+    return
+        #for k in range(len(pts)-1):
+            
+
+
+    #
+    xtick_lbls = []
+    for k in range(len(time_chunks)):
+        xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
+    
+    old_xlabel = np.arange(0, len(time_chunks), 1)
+    plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
+    
+    
+    
+    
+
+
+
 
 def drift_trends(self):
     
