@@ -1981,8 +1981,8 @@ def concatenate_tsf(self):
     print "...concatenate multiple .tsf..."
     
     total_n_vd_samples = 0
-    for k in range(len(self.parent.animal.tsf_files)):  
-        tsf = Tsf_file(self.parent.animal.tsf_files[k])
+    for k in range(len(self.tsf_files)):  
+        tsf = Tsf_file(self.tsf_files[k])
         total_n_vd_samples += tsf.n_vd_samples
     
     print "...original layout: ",     
@@ -2000,7 +2000,7 @@ def concatenate_tsf(self):
     
     #Load each tsf data file 
     tsf_index = 0
-    for ctr, file_name in enumerate(self.parent.animal.tsf_files):
+    for ctr, file_name in enumerate(self.tsf_files):
         print "... loading: ", file_name
         temp_tsf = Tsf_file(file_name)
         temp_tsf.read_ec_traces()
@@ -2012,7 +2012,7 @@ def concatenate_tsf(self):
         
     print ''; print "...saving alltrack .tsf..."
 
-    file_name = self.parent.animal.tsf_files[0][:-4]+"_alltrack.tsf"
+    file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
     save_tsf_single(tsf, file_name)
         
 
