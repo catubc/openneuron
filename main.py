@@ -2121,8 +2121,10 @@ class Track(QtGui.QWidget):
         
         self.parent = parent
         layout = QtGui.QGridLayout()
-        
+        self.root_dir = '/media/cat/'
+
         row_index= 0
+        #*****************************************************************
         parent.start_time = QLineEdit('0.5');                #parent.start_time = self.start_time
         parent.start_time.setMaximumWidth(50)
         start_time_lbl = QLabel('low_pass (hz):', self)
@@ -2265,6 +2267,7 @@ class IntanTools(QtGui.QWidget):
     def rhdtotsf(self):
         rhd_to_tsf(self.selected_recording)   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
     
+
     def rhd_digital_convert(self):
         rhd_digital_save(self.selected_recording)
         
