@@ -2180,18 +2180,18 @@ class Track(QtGui.QWidget):
 
     
     def tsftolfp(self):
-        tsf_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
+        tsf_files = QtGui.QFileDialog.getOpenFileNames(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         tsf_to_lfp(tsf_files)
     
 
     def lfpzip_to_lptsf(self):
-        lfpzip_file = QtGui.QFileDialog.getOpenFileName(self.parent, "LFP ZIP (*.lfp.zip)", self.parent.root_dir,"*.lfp.zip (*.lfp.zip)")
+        lfpzip_file = QtGui.QFileDialog.getOpenFileName(self, "LFP ZIP (*.lfp.zip)", self.root_dir,"*.lfp.zip (*.lfp.zip)")
         lfp_to_lptsf(lfpzip_file)
         
 
     def multi_tsf(self):
         print "... selecting multiple recordings ..."
-        out_files = QtGui.QFileDialog.getOpenFileNames(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
+        out_files = QtGui.QFileDialog.getOpenFileNames(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         self.parent.animal.tsf_files = out_files
         
         concatenate_tsf(self) 
@@ -2208,7 +2208,7 @@ class Track(QtGui.QWidget):
 
     def comp_lfp(self):
         print "... selecting single lfp recording ..."
-        self.parent.animal.tsf_file = QtGui.QFileDialog.getOpenFileName(self.parent, "TSF (*.tsf)", self.parent.root_dir,"TSF (*.tsf)")
+        self.parent.animal.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
 
 
