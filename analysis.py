@@ -3476,6 +3476,9 @@ def plot_rasters(self):
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
+
+    
+
 def drift_movies(self):
 
     '''Make sequence order movies
@@ -3511,6 +3514,7 @@ def drift_movies(self):
     #for k in range(total_units): 
     peaks=[]
     troughs=[]
+    cell_type=[]
     for k in range(total_units): 
         print "... unit: ", k , "    #spikes: ", len(Sort_sua.units[k]), Sort_sua.xpos[k], Sort_sua.ypos[k]
 
@@ -3579,11 +3583,16 @@ def drift_movies(self):
             plt.ylim(0,.5)
             plt.xlim(0,.6)
 
+        peaks.append(peak)
+        troughs.append(troughs)
+        cell_type.append(m)
     if plotting: 
             ax = plt.subplot(1,3,1)
             plt.axhspan(-2000, 0, facecolor='black', alpha=0.1)
             plt.show()        
 
+    #np.save( , peaks)
+    #np.save( , troughs)
 
     #****************************************************************************************
     #********************************* COMPUTE DRIFT VALUES *********************************
@@ -3737,20 +3746,21 @@ def drift_movies(self):
     #plt.yscale('symlog', linthreshx=(-1E0,1E0))
     #plt.yscale('log')
     
-    xtick_lbls = []
-    for k in range(len(time_chunks)):
-        xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
-    
-    old_xlabel = np.arange(0, len(time_chunks), 1)
-    plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
-
-    plt.xlabel("Time (mins)", fontsize=30)
-    plt.ylabel("Phase Lock in Each Epoch (ms)", fontsize=30)
-
-    plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
-                '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
     
     if plotting: 
+        xtick_lbls = []
+        for k in range(len(time_chunks)):
+            xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
+        
+        old_xlabel = np.arange(0, len(time_chunks), 1)
+        plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
+
+        plt.xlabel("Time (mins)", fontsize=30)
+        plt.ylabel("Phase Lock in Each Epoch (ms)", fontsize=30)
+
+        plt.suptitle("LFP Cluster: "+str(lfp_cluster)+ " # events: " + str(len(Sort_lfp.units[lfp_cluster]))+",  Unit: "+self.starting_cell.text()+ " #spikes: " +str(len(Sort_sua.units[unit]))+ \
+                    '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
+
         ax.tick_params(axis='both', which='major', labelsize=30)
         
         plt.ylim(-1E2,1E2)
@@ -3786,11 +3796,13 @@ def drift_movies(self):
             #plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
             #plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
 
+    plt.close()
 
     vid_array = np.zeros((len(control_array), time_chunks[len(time_chunks)-1][1]*1E-6/60., 2), dtype=np.float32)
     print vid_array.shape
     #pts_array contains [epoch, MSL time] pairs - or empty; len(control_array) = # epochs
     for p in range(len(control_array)):
+        print "... control_array: ", p
         for k in range(len(pts_array[p])-1):
             t1 = time_chunks[pts_array[p][k][0]][0]*1E-6/60.
             t2 = time_chunks[pts_array[p][k][0]][1]*1E-6/60.
@@ -3798,31 +3810,141 @@ def drift_movies(self):
             
             #Interpolate positions over epoch beginnning and ends;
             interp_drift = np.linspace (pts_array[p][k][1], pts_array[p][k+1][1], int(t2)-int(t1))
-            print interp_drift
+            #print interp_drift
             ctr = 0
             for q in range(int(t1), int(t2)):
                 vid_array[p, q] = [interp_drift[ctr], 1]; ctr+=1
-                
-        print vid_array[p]
-        plt.close()
-        plt.plot(vid_array[p])
-        plt.show()
-        return
-    return
-        #for k in range(len(pts)-1):
+    
+
+    #**********************************************************************************
+    #********************************** RUN MOVIES ************************************
+    #**********************************************************************************
+
+    #Initialize plot arrays
+    plot_array = []
+
+    out_x = []
+    out_y = []
+    out_color = []
+    out_marker = []
+    out_alpha = []
+
+    for k in range(len(vid_array[p])):
+        temp_x = []
+        temp_y = []
+        temp_colour = [] 
+        for p in range(len(vid_array)):
+            #print vid_array[p]
+            if vid_array[p,k,1]==0: 
+                temp_colour.append([]); temp_x.append([]); temp_y.append([])
+                continue
+            if cell_type[p] == 'o': 
+                temp_colour.append('blue')
+            else: 
+                temp_colour.append('red')
+            temp_x.append(vid_array[p,k,0])
+            temp_y.append(k)
+            #out_marker.append(cell_type[p])
+            #out_marker.append('o')
+            #out_alpha.append(vid_array[p,k,1])
+        
+        out_x.append(np.hstack(temp_x))
+        out_y.append(np.hstack(temp_y))
+        out_color.append(np.hstack(temp_colour))
+        #plot_array.append(plt.scatter(out_x, out_y, color=out_color, marker = 'o'))
+        #plt.scatter(out_x, out_y, color=out_color, marker = 'o')
+        #plt.show()
+
+    #plt.scatter(out_x[10], out_y[10])
+    #plt.show()
+    #return
+
+    #**** INITIALIZE ANIMATIONS
+    plt.close()
+
+    from matplotlib.animation import FuncAnimation
+    from matplotlib import animation
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+
+    # Create new Figure and an Axes which fills it.
+    fig = plt.figure(figsize=(7, 7))
+    ax = fig.add_axes([0, 0, 1, 1], frameon=False)
+    ax.set_xlim(0, 1), ax.set_xticks([])
+    ax.set_ylim(0, 1), ax.set_yticks([])
+
+    # Create rain data
+    n_drops = 50
+    rain_drops = np.zeros(n_drops, dtype=[('position', float, 2),
+                                          ('size',     float, 1),
+                                          ('growth',   float, 1),
+                                          ('color',    float, 4)])
+
+    # Initialize the raindrops in random positions and with
+    # random growth rates.
+    rain_drops['position'] = np.random.uniform(0, 1, (n_drops, 2))
+    rain_drops['growth'] = np.random.uniform(50, 200, n_drops)
+
+    # Construct the scatter which we will update during animation
+    # as the raindrops develop.
+    scat = ax.scatter(rain_drops['position'][:, 0], rain_drops['position'][:, 1],
+                      s=rain_drops['size'], lw=0.5, edgecolors=rain_drops['color'],
+                      facecolors='none')
+
+
+    def update(frame_number):
+        # Get an index which we can use to re-spawn the oldest raindrop.
+        current_index = frame_number % n_drops
+
+        # Make all colors more transparent as time progresses.
+        rain_drops['color'][:, 3] -= 1.0/len(rain_drops)
+        rain_drops['color'][:, 3] = np.clip(rain_drops['color'][:, 3], 0, 1)
+
+        # Make all circles bigger.
+        rain_drops['size'] += rain_drops['growth']
+
+        # Pick a new position for oldest rain drop, resetting its size,
+        # color and growth factor.
+        rain_drops['position'][current_index] = np.random.uniform(0, 1, 2)
+        rain_drops['size'][current_index] = 5
+        rain_drops['color'][current_index] = (0, 0, 0, 1)
+        rain_drops['growth'][current_index] = np.random.uniform(50, 200)
+
+        # Update the scatter collection, with the new colors, sizes and positions.
+        scat.set_edgecolors(rain_drops['color'])
+        scat.set_sizes(rain_drops['size'])
+        scat.set_offsets(rain_drops['position'])
+
+
+    # Construct the animation, using the update function as the animation
+    # director.
+    ani = FuncAnimation(fig, update, interval=10)
+    
+    if True:
+    #if save_animation:
+        ani.save(self.parent.sua_file.replace('tsf_files','movie_files')+'.mp4', writer=writer)
+        print " DONE! "
+    plt.show()
+
+
+
+
+
+
+
+
+ 
+    #for k in range(len(pts)-1):
             
 
 
-    #
-    xtick_lbls = []
-    for k in range(len(time_chunks)):
-        xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
+    ##
+    #xtick_lbls = []
+    #for k in range(len(time_chunks)):
+        #xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
     
-    old_xlabel = np.arange(0, len(time_chunks), 1)
-    plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
-    
-    
-    
+    #old_xlabel = np.arange(0, len(time_chunks), 1)
+    #plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
     
 
 
