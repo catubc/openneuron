@@ -1611,7 +1611,7 @@ class MSL(QtGui.QWidget):
         self.button_set_sua_file_lbl = QLabel(self.parent.button_set_sua_file, self)
         layout.addWidget(self.button_set_sua_file_lbl, row_index,1); row_index+=1
 
-        #Set recording name; button, then label
+        #Set LFP event file
         self.button_set_lfp_event_file = QPushButton('LPF Event File')
         self.button_set_lfp_event_file.setMaximumWidth(200)
         self.button_set_lfp_event_file.clicked.connect(self.set_lfp_event_file)
@@ -1621,6 +1621,16 @@ class MSL(QtGui.QWidget):
         self.button_set_lfp_event_file_lbl = QLabel(self.parent.set_lfp_event_file, self)
         layout.addWidget(self.button_set_lfp_event_file_lbl, row_index,1); row_index+=1
         
+        #Set recording name
+        self.button_set_recording = QPushButton('Recording On Times')
+        self.button_set_recording.setMaximumWidth(200)
+        self.button_set_recording.clicked.connect(self.set_recording)
+        layout.addWidget(self.button_set_recording, row_index, 0)
+        
+        self.parent.button_set_recording = ''
+        self.button_set_recording_lbl = QLabel(self.parent.button_set_recording, self)
+        layout.addWidget(self.button_set_recording_lbl, row_index,1); row_index+=1
+
 
         #**************************************************************************************
         #*********************************** SET LFP #  **************************************
@@ -1746,9 +1756,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
         
-        
         self.setLayout(layout)
-
 
 
     def set_sua_file(self):
@@ -1761,7 +1769,11 @@ class MSL(QtGui.QWidget):
         self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs)")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
-        
+    
+    def set_recording(self):
+        self.parent.recording_file = QtGui.QFileDialog.getOpenFileName(self, "Select recording ontimes (*.txt)", self.parent.root_dir,"TXT (*.txt)")
+        self.button_set_recording_lbl.setText(self.parent.recording_file.replace(os.path.dirname(self.parent.recording_file),''))
+        #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
 
     def view_peth(self):
         

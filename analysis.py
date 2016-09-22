@@ -3488,7 +3488,7 @@ def drift_movies(self):
     #**************************** COMPUTE DEPTH, TEMPLATES, CELL TYPING *********************
     #****************************************************************************************
 
-    plotting = True
+    plotting = False
 
     from scipy.interpolate import InterpolatedUnivariateSpline
 
@@ -3559,7 +3559,7 @@ def drift_movies(self):
         x_product = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0])
 
         if (x_product>0): color='blue'; m = 'o'
-        else: color='red'; m = (3, 0) 
+        else: color='red'; m = '^'
 
         if plotting: 
             #Plot scatter depth
@@ -3588,8 +3588,27 @@ def drift_movies(self):
         cell_type.append(m)
     if plotting: 
             ax = plt.subplot(1,3,1)
+            plt.title("Unit location", fontsize=25)
             plt.axhspan(-2000, 0, facecolor='black', alpha=0.1)
+            plt.xlabel("Location (um)", fontsize=25)
+
+            plt.ylabel("Depth (um)", fontsize=25)
+            old_ylabel = np.arange(-2000, 0, 500)
+            new_ylabel = np.arange(2000, 0, -500)
+            plt.yticks(old_ylabel, new_ylabel, fontsize=20) #,rotation='vertical')
+            ax.tick_params(axis='both', which='major', labelsize=25)
+
+            ax = plt.subplot(1,3,2)
+            plt.title("Cell Types - Templates", fontsize=25)
+            ax.tick_params(axis='both', which='major', labelsize=25)
+            plt.ylabel("Template Amplitude (uV)", fontsize = 25)
+            plt.xlabel("Time (ms)", fontsize = 25)
+
+                
+
+
             plt.show()        
+
 
     #np.save( , peaks)
     #np.save( , troughs)
@@ -3766,55 +3785,61 @@ def drift_movies(self):
         plt.ylim(-1E2,1E2)
         plt.xlim(0.1,len(time_chunks)+0.1)
         plt.show()
-
-
+    
     #****************************************************************************************
     #************************************* MAKE DRIFTING MOVIES *****************************
     #****************************************************************************************
 
-    ##REMOVE THIS AFTER COMPLETING MOVIES
-    #for unit in range(len(control_array)):
-        #fire_rate = len(Sort_sua.units[unit])/float(rec_length)
-        #control_ave = np.average(distances[unit], axis=0)
-       
-        #if control_ave<1: color='blue'
-        #elif control_ave<2: color='green'
-        #else: color = 'black'; continue     #Skip cells with > 2ms control error values
-
-        #print "...unit: ", unit, "  ave MSL error: ", control_ave, "   fire rate: ", fire_rate
-
-        #pts = [];  ctr = 0
-        #for k in range(len(control_array[unit])):
-            #if (control_array[unit][k][0]==50) or (control_array[unit][k][1]==50):   #**********Exclude chunks/epochs with insufficient spikes
-                #pass
-            #else:
-                #pts.append([k, np.average(control_array[unit][k])])
-                #ctr+=1
-        
-        #for k in range(len(pts)-1):
-            #plt.scatter(pts[k][0],pts[k][1], s=500, color=color)
-            #plt.scatter(pts[k+1][0],pts[k+1][1], s=500, color=color)
-            #plt.plot([pts[k][0],pts[k+1][0]], [pts[k][1], pts[k+1][1]], linewidth=5, color=color, alpha=.35)
-
     plt.close()
 
-    vid_array = np.zeros((len(control_array), time_chunks[len(time_chunks)-1][1]*1E-6/60., 2), dtype=np.float32)
+    vid_array = np.zeros((len(control_array), time_chunks[len(time_chunks)-2][1]*1E-6/60., 2), dtype=np.float32)
     print vid_array.shape
     #pts_array contains [epoch, MSL time] pairs - or empty; len(control_array) = # epochs
-    for p in range(len(control_array)):
-        print "... control_array: ", p
-        for k in range(len(pts_array[p])-1):
+    for p in range(len(pts_array)):
+        print "... cell: ", p
+        
+        temp_x = [] 
+        temp_y = []
+        for k in range(len(pts_array[p])):
             t1 = time_chunks[pts_array[p][k][0]][0]*1E-6/60.
             t2 = time_chunks[pts_array[p][k][0]][1]*1E-6/60.
-            print p, k, pts_array[p][k], pts_array[p][k+1], t1, t2
+            print p, k, pts_array[p][k], t1, t2
             
-            #Interpolate positions over epoch beginnning and ends;
-            interp_drift = np.linspace (pts_array[p][k][1], pts_array[p][k+1][1], int(t2)-int(t1))
+            temp_y.append(pts_array[p][k][1])
+            temp_x.append(int(t1))
+        
+        
+        #Interpolate positions over epoch beginnning and ends; do it every minute
+        #Do linear interpolation if only 2 points
+        if len(temp_x)==2: 
+            #Interpolate positions over epoch beginnning and ends; do it every minute
+            interp_drift = np.linspace (temp_y[0], temp_y[1], temp_x[1]-temp_x[0])
             #print interp_drift
             ctr = 0
-            for q in range(int(t1), int(t2)):
-                vid_array[p, q] = [interp_drift[ctr], 1]; ctr+=1
-    
+            for q in range(int(temp_x[0]), int(temp_x[1]),1):
+                vid_array[p, q] = [interp_drift[ctr], -p]
+                ctr+=1
+
+        #Use spline interpolation for 3 or more points
+        if len(temp_x)>2: 
+            xi = np.hstack(temp_x)
+            yi = np.hstack(temp_y)
+
+            order = 4
+            s = InterpolatedUnivariateSpline(xi, yi, k=min(order,len(temp_x)-1))
+            x = np.arange(temp_x[0], temp_x[-1], 1)
+            yinterp = s(x)
+
+
+            ctr = 0
+            for q in list(x):
+                vid_array[p, q] = [yinterp[ctr], -p]
+                ctr+=1
+    print vid_array.shape
+    vid_array = np.swapaxes(vid_array,0,1)
+    print vid_array.shape
+    #print vid_array[:,0]
+
 
     #**********************************************************************************
     #********************************** RUN MOVIES ************************************
@@ -3828,29 +3853,38 @@ def drift_movies(self):
     out_color = []
     out_marker = []
     out_alpha = []
+    out_edgecolor = []
 
-    for k in range(len(vid_array[p])):
+    for k in range(len(vid_array)):
         temp_x = []
         temp_y = []
-        temp_colour = [] 
-        for p in range(len(vid_array)):
+        temp_colour = []
+        temp_alpha = []
+        temp_edgecolour = []
+        temp_marker = []
+        for p in range(len(vid_array[k])):
             #print vid_array[p]
-            if vid_array[p,k,1]==0: 
-                temp_colour.append([]); temp_x.append([]); temp_y.append([])
-                continue
-            if cell_type[p] == 'o': 
-                temp_colour.append('blue')
-            else: 
-                temp_colour.append('red')
-            temp_x.append(vid_array[p,k,0])
-            temp_y.append(k)
-            #out_marker.append(cell_type[p])
-            #out_marker.append('o')
-            #out_alpha.append(vid_array[p,k,1])
+            if (vid_array[k,p,0]==0) and (vid_array[k,p,1]==0):             #If cell not active we save this data; 
+                temp_colour.append([0,0,0,0])
+                temp_edgecolour.append([0,0,0,0])
+            else:
+                if cell_type[p] == 'o': 
+                    temp_colour.append([0,0,1,1])
+                    temp_edgecolour.append([0,0,1,1])
+                else: 
+                    temp_colour.append([1,0,0,1])
+                    temp_edgecolour.append([1,0,0,1])
+            temp_x.append(vid_array[k,p][0])
+            #temp_y.append(vid_array[k,p][1])
+            temp_y.append(-Sort_sua.ypos[p])
+            
+            temp_marker.append(cell_type[p])
         
-        out_x.append(np.hstack(temp_x))
-        out_y.append(np.hstack(temp_y))
-        out_color.append(np.hstack(temp_colour))
+        out_x.append(np.vstack(temp_x))
+        out_y.append(np.vstack(temp_y))
+        out_color.append(np.vstack(temp_colour))
+        out_edgecolor.append(np.vstack(temp_edgecolour))
+        #out_marker.append(np.vstack(temp_marker))
         #plot_array.append(plt.scatter(out_x, out_y, color=out_color, marker = 'o'))
         #plt.scatter(out_x, out_y, color=out_color, marker = 'o')
         #plt.show()
@@ -3862,73 +3896,70 @@ def drift_movies(self):
     #**** INITIALIZE ANIMATIONS
     plt.close()
 
-    from matplotlib.animation import FuncAnimation
+   
+    #out_x = np.array(out_x)
+    #out_y = np.array(out_y)
+
     from matplotlib import animation
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
-    # Create new Figure and an Axes which fills it.
-    fig = plt.figure(figsize=(7, 7))
-    ax = fig.add_axes([0, 0, 1, 1], frameon=False)
-    ax.set_xlim(0, 1), ax.set_xticks([])
-    ax.set_ylim(0, 1), ax.set_yticks([])
+    plt.close('all') # close all previous plots
 
-    # Create rain data
-    n_drops = 50
-    rain_drops = np.zeros(n_drops, dtype=[('position', float, 2),
-                                          ('size',     float, 1),
-                                          ('growth',   float, 1),
-                                          ('color',    float, 4)])
+    # create a random line to plot
+    #------------------------------------------------------------------------------
 
-    # Initialize the raindrops in random positions and with
-    # random growth rates.
-    rain_drops['position'] = np.random.uniform(0, 1, (n_drops, 2))
-    rain_drops['growth'] = np.random.uniform(50, 200, n_drops)
+    #out_x = np.random.rand(40)
+    #y = np.random.rand(40)
 
-    # Construct the scatter which we will update during animation
-    # as the raindrops develop.
-    scat = ax.scatter(rain_drops['position'][:, 0], rain_drops['position'][:, 1],
-                      s=rain_drops['size'], lw=0.5, edgecolors=rain_drops['color'],
-                      facecolors='none')
+    #plt.figure(1)
+    #plt.scatter(out_x, out_y, s=60)
+    #plt.axis([0, 1, 0, 1])
+    #plt.show()
 
+    # animation of a scatter plot using x, y from above
+    #------------------------------------------------------------------------------
 
-    def update(frame_number):
-        # Get an index which we can use to re-spawn the oldest raindrop.
-        current_index = frame_number % n_drops
-
-        # Make all colors more transparent as time progresses.
-        rain_drops['color'][:, 3] -= 1.0/len(rain_drops)
-        rain_drops['color'][:, 3] = np.clip(rain_drops['color'][:, 3], 0, 1)
-
-        # Make all circles bigger.
-        rain_drops['size'] += rain_drops['growth']
-
-        # Pick a new position for oldest rain drop, resetting its size,
-        # color and growth factor.
-        rain_drops['position'][current_index] = np.random.uniform(0, 1, 2)
-        rain_drops['size'][current_index] = 5
-        rain_drops['color'][current_index] = (0, 0, 0, 1)
-        rain_drops['growth'][current_index] = np.random.uniform(50, 200)
-
-        # Update the scatter collection, with the new colors, sizes and positions.
-        scat.set_edgecolors(rain_drops['color'])
-        scat.set_sizes(rain_drops['size'])
-        scat.set_offsets(rain_drops['position'])
-
-
-    # Construct the animation, using the update function as the animation
-    # director.
-    ani = FuncAnimation(fig, update, interval=10)
+    fig = plt.figure(1)
+    ax = plt.axes(xlim=(-50, 10), ylim=(-2000, 100))
+    #out_marker = 
     
+    plt.plot([-50,10,],[0,0], 'r--', linewidth=3, color='black', alpha=.8)
+
+    scat = ax.scatter([], [], s=60)
+    #print out_x[100]
+    #print out_y[100]
+    #print out_color[100]
+    plt.ylabel("Depth (um)", fontsize=20, labelpad=0)
+    old_ylabel = np.arange(-2000, 0, 500)
+    new_ylabel = np.arange(2000, 0, -500)
+    plt.yticks(old_ylabel, new_ylabel, fontsize=20) #,rotation='vertical')
+    ax.tick_params(axis='both', which='major', labelsize=15)
+
+    plt.xlabel("Time from LFP event(ms)", fontsize=20)
+    plt.plot([0,0],[-2000,1], 'r--', linewidth=3, color='black', alpha=.8)
+
+    def init():
+        scat.set_offsets([])
+        return scat,
+
+    def animate(i):
+        print i, " / ", len(out_x)
+        plt.suptitle("Time: "+str(i)+" min ", fontsize=20)
+
+        scat.set_facecolor(out_color[i])
+        scat.set_edgecolor(out_edgecolor[i])
+        scat.set_offsets(np.hstack((out_x[i], out_y[i])))
+        #scat.set_markers(temp_marker)
+        return scat,
+
+    anim = animation.FuncAnimation(fig, animate, init_func=init, frames=len(out_x), interval=200, blit=False, repeat=False)
+
     if True:
     #if save_animation:
-        ani.save(self.parent.sua_file.replace('tsf_files','movie_files')+'.mp4', writer=writer)
+        anim.save(self.parent.sua_file.replace('tsf_files','movie_files').replace('.ptcs','')+'_LPF_'+str(lfp_cluster), writer=writer)
         print " DONE! "
     plt.show()
-
-
-
-
 
 
 
