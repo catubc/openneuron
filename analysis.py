@@ -5269,6 +5269,65 @@ def compute_msl_pvals(self):
 
     #quit()
 
+def load_lfp_length(file_name):     #Nick/Martin data has different LFP structure to their data.
+    
+    data_in = np.load(file_name)
+    t1 = data_in['t1']  #Save length of lfp recording
+
+    return t1
+
+def compute_natscene_rasters(self):
+    print "...not implemented..."
+    pass
+
+def compute_csd_rasters(self):
+    
+    #Find offset for stimulus processing
+    recordings = sorted(glob.glob(self.rec_path+"/*"))
+    offset = 0
+    for recording in recordings:
+        temp= recording.replace(self.rec_path+'/','')
+        print temp
+        if temp in self.rec_name: 
+            print "*** match ***"    
+            break
+
+        t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
+        offset += t1
+
+    offset = offset*1E-6
+    print "...offset: ", offset
+
+
+    #Load ontimes of stimulus; use existing value in 'recording' variable
+    print recording+temp+"/*ontimes.txt"
+    stimuli = np.loadtxt(glob.glob(recording+"/*ontimes.txt")[0])
+    print stimuli
+    stimuli=stimuli*1E-6
+
+    ax = plt.subplot(1,1,1)
+    for stimulus in stimuli:
+        plt.axvspan(stimulus, stimulus+0.100, facecolor='black', alpha=0.2)
+
+    #Load spike rasters
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    spikes_array = []
+    for unit in range(len(Sort_sua.units)):
+        spikes = Sort_sua.units[unit]*1E-6
+        spikes = spikes[np.where(np.logical_and(spikes>=stimuli[0]+offset, spikes<=stimuli[-1]+offset+1.0))[0]]
+        spikes_array.append(spikes-offset)
+
+    for spikes in sorted(spikes_array, key=len):
+        ymin=np.zeros(len(spikes))
+        ymax=np.zeros(len(spikes))
+        ymin+=depth
+        ymax+=depth+.9
+        depth+=1
+
+        plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=1) #colors[mod(counter,7)])
+
+    plt.show()
 
 
 

@@ -1123,8 +1123,7 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.button_ca_stm_video, row_index, 1)        
         
         row_index+=1
-        
-        
+                
         
         #**************************************************************************************
         #********************************** STROKE TOOLS **************************************
@@ -1589,9 +1588,10 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
+
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
-        self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21/tsf_files/'
+        self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
         
         layout = QtGui.QGridLayout()
@@ -1601,6 +1601,13 @@ class MSL(QtGui.QWidget):
         #**************************************************************************************
         #*********************************** LOAD FILES  **************************************
         #**************************************************************************************
+        self.preprocess_lbl = QLabel('MSL ANALYSIS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+
+
         #Set root dir; button, then label
         self.button_set_sua_file = QPushButton('Single Unit File')
         self.button_set_sua_file.setMaximumWidth(200)
@@ -1620,16 +1627,7 @@ class MSL(QtGui.QWidget):
         self.parent.set_lfp_event_file = ''
         self.button_set_lfp_event_file_lbl = QLabel(self.parent.set_lfp_event_file, self)
         layout.addWidget(self.button_set_lfp_event_file_lbl, row_index,1); row_index+=1
-        
-        #Set recording name
-        self.button_set_recording = QPushButton('Recording On Times')
-        self.button_set_recording.setMaximumWidth(200)
-        self.button_set_recording.clicked.connect(self.set_recording)
-        layout.addWidget(self.button_set_recording, row_index, 0)
-        
-        self.parent.button_set_recording = ''
-        self.button_set_recording_lbl = QLabel(self.parent.button_set_recording, self)
-        layout.addWidget(self.button_set_recording_lbl, row_index,1); row_index+=1
+
 
 
         #**************************************************************************************
@@ -1637,7 +1635,7 @@ class MSL(QtGui.QWidget):
         #**************************************************************************************
         parent.lfp_cluster = QLineEdit('0');                   
         parent.lfp_cluster.setMaximumWidth(50)
-        lfp_cluster_lbl = QLabel('lfp_cluster:', self)
+        lfp_cluster_lbl = QLabel('LFP Cluster #:', self)
         layout.addWidget(lfp_cluster_lbl, row_index,0)
         layout.addWidget(parent.lfp_cluster, row_index,1)
                
@@ -1755,6 +1753,39 @@ class MSL(QtGui.QWidget):
         self.specgram_ch_lbl = QLabel('Specgram Ch', self)
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
+
+
+
+
+        #**************************************************************************************
+        #***************************** STIMULUS ANALYSIS **************************************
+        #**************************************************************************************
+        layout.addWidget(QLabel('', self), row_index,0); row_index+=1
+        self.preprocess_lbl = QLabel('STIMULUS ANALYSIS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        #Set recording name
+        self.button_set_recording = QPushButton('Recording')
+        self.button_set_recording.setMaximumWidth(200)
+        self.button_set_recording.clicked.connect(self.set_recording)
+        layout.addWidget(self.button_set_recording, row_index, 0)
+        
+        self.parent.button_set_recording = ''
+        self.button_set_recording_lbl = QLabel(self.parent.button_set_recording, self)
+        layout.addWidget(self.button_set_recording_lbl, row_index,1); row_index+=1
+
+        self.button_csd_rasters = QPushButton('CSD: Stimulus + Rasters')
+        self.button_csd_rasters.setMaximumWidth(200)
+        self.button_csd_rasters.clicked.connect(self.view_csd_rasters)
+        layout.addWidget(self.button_csd_rasters, row_index, 0)
+
+
+        self.button_natscene_rasters = QPushButton('Nat Scene: Stimulus + Rasters')
+        self.button_natscene_rasters.setMaximumWidth(200)
+        self.button_natscene_rasters.clicked.connect(self.view_natscene_rasters)
+        layout.addWidget(self.button_natscene_rasters, row_index, 1); row_index+=1
         
         self.setLayout(layout)
 
@@ -1771,8 +1802,13 @@ class MSL(QtGui.QWidget):
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
     
     def set_recording(self):
-        self.parent.recording_file = QtGui.QFileDialog.getOpenFileName(self, "Select recording ontimes (*.txt)", self.parent.root_dir,"TXT (*.txt)")
-        self.button_set_recording_lbl.setText(self.parent.recording_file.replace(os.path.dirname(self.parent.recording_file),''))
+        temp_dir = '/media/cat/2TB/in_vivo/nick/ptc21/'
+
+        self.parent.recording_dir = QtGui.QFileDialog.getExistingDirectory(self, "Select recording", temp_dir)
+        
+        self.rec_path = os.path.dirname(self.parent.recording_dir)
+        self.rec_name = self.parent.recording_dir.replace(self.rec_path,'')
+        self.button_set_recording_lbl.setText(self.rec_name)
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
 
     def view_peth(self):
@@ -1815,7 +1851,11 @@ class MSL(QtGui.QWidget):
         compute_msl_pvals(self)
 
 
+    def view_csd_rasters(self):
+        compute_csd_rasters(self)
 
+    def view_natscene_rasters(self):
+        compute_natscene_rasters(self)
 
 class CountMatrix(QtGui.QWidget):
     def __init__(self, parent):
