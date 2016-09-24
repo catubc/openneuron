@@ -3792,6 +3792,8 @@ def drift_movies(self):
 
     plt.close()
 
+    #Interpolate positions over epoch beginning and ends;
+
     vid_array = np.zeros((len(control_array), time_chunks[len(time_chunks)-2][1]*1E-6/60., 2), dtype=np.float32)
     print vid_array.shape
     #pts_array contains [epoch, MSL time] pairs - or empty; len(control_array) = # epochs
@@ -3820,7 +3822,7 @@ def drift_movies(self):
                 vid_array[p, q] = [interp_drift[ctr], -p]
                 ctr+=1
 
-        #Use spline interpolation for 3 or more points
+        #Use spline interpolation of higher order 3 or more points
         if len(temp_x)>2: 
             xi = np.hstack(temp_x)
             yi = np.hstack(temp_y)
@@ -3884,21 +3886,11 @@ def drift_movies(self):
         out_y.append(np.vstack(temp_y))
         out_color.append(np.vstack(temp_colour))
         out_edgecolor.append(np.vstack(temp_edgecolour))
-        #out_marker.append(np.vstack(temp_marker))
-        #plot_array.append(plt.scatter(out_x, out_y, color=out_color, marker = 'o'))
-        #plt.scatter(out_x, out_y, color=out_color, marker = 'o')
-        #plt.show()
 
-    #plt.scatter(out_x[10], out_y[10])
-    #plt.show()
-    #return
 
     #**** INITIALIZE ANIMATIONS
     plt.close()
 
-   
-    #out_x = np.array(out_x)
-    #out_y = np.array(out_y)
 
     from matplotlib import animation
     Writer = animation.writers['ffmpeg']
@@ -3906,30 +3898,12 @@ def drift_movies(self):
 
     plt.close('all') # close all previous plots
 
-    # create a random line to plot
-    #------------------------------------------------------------------------------
-
-    #out_x = np.random.rand(40)
-    #y = np.random.rand(40)
-
-    #plt.figure(1)
-    #plt.scatter(out_x, out_y, s=60)
-    #plt.axis([0, 1, 0, 1])
-    #plt.show()
-
-    # animation of a scatter plot using x, y from above
-    #------------------------------------------------------------------------------
-
     fig = plt.figure(1)
     ax = plt.axes(xlim=(-50, 10), ylim=(-2000, 100))
-    #out_marker = 
     
     plt.plot([-50,10,],[0,0], 'r--', linewidth=3, color='black', alpha=.8)
 
     scat = ax.scatter([], [], s=60)
-    #print out_x[100]
-    #print out_y[100]
-    #print out_color[100]
     plt.ylabel("Depth (um)", fontsize=20, labelpad=0)
     old_ylabel = np.arange(-2000, 0, 500)
     new_ylabel = np.arange(2000, 0, -500)
@@ -3955,30 +3929,19 @@ def drift_movies(self):
 
     anim = animation.FuncAnimation(fig, animate, init_func=init, frames=len(out_x), interval=200, blit=False, repeat=False)
 
-    if True:
-    #if save_animation:
-        anim.save(self.parent.sua_file.replace('tsf_files','movie_files').replace('.ptcs','')+'_LPF_'+str(lfp_cluster), writer=writer)
-        print " DONE! "
+    print self.parent.sua_file.replace('tsf_files','movie_files').replace('.ptcs','')+'_LPF_'+str(lfp_cluster)
+    anim.save(self.parent.sua_file.replace('tsf_files','movie_files').replace('.ptcs','')+'_LPF_'+str(lfp_cluster)+'.mp4', writer=writer)
+    print " DONE! "
     plt.show()
 
 
+    #Save lfp event times and order to a .npz file
+    #out_x = the location of all cells at each interpolated time point (usually minute)
+    #out_colour = the colour indicates whether cell passed control measures
+    #
 
-
- 
-    #for k in range(len(pts)-1):
-            
-
-
-    ##
-    #xtick_lbls = []
-    #for k in range(len(time_chunks)):
-        #xtick_lbls.append(int(time_chunks[k][1]*1E-6/60.))
-    
-    #old_xlabel = np.arange(0, len(time_chunks), 1)
-    #plt.xticks(old_xlabel, xtick_lbls, fontsize=20) #,rotation='vertical')
-    
-
-
+    out_file = self.parent.sua_file.replace('.ptcs','')+'_sequences_LPF_'+str(lfp_cluster)
+    np.savez(out_file, sequences=out_x, controls=out_color, lfp_events = pop_spikes)
 
 
 def drift_trends(self):
@@ -5270,15 +5233,104 @@ def compute_msl_pvals(self):
     #quit()
 
 def load_lfp_length(file_name):     #Nick/Martin data has different LFP structure to their data.
-    
     data_in = np.load(file_name)
     t1 = data_in['t1']  #Save length of lfp recording
 
     return t1
 
+
 def compute_natscene_rasters(self):
     print "...not implemented..."
     pass
+
+
+def compute_triplet_sequences(self):
+    #np.savez(out_file, sequences=out_x, controls=out_color, lfp_events = pop_spikes)    
+
+    #Load SUA
+    Sort_sua = Ptcs(self.parent.sua_file)
+    for k in range(len(Sort_sua.units)): print k, len(Sort_sua.units[k])
+
+    #Load LFP
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) 
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    lfp_events = Sort_lfp.units[lfp_cluster]*1E-6
+    print lfp_events[:10]
+
+    #Load saved sequences
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    filename = self.parent.sua_file.replace('.ptcs','')+'_sequences_LPF_'+str(lfp_cluster)
+    data = np.load(filename+'.npz')
+    
+    sequences = data['sequences']
+    controls = data['controls']
+    print len(sequences)
+    print len(sequences[0])
+
+    #Compute relative locations of units
+    units = [11, 49, 65]
+    #units = [72, 99, 100]
+
+    #Plot LFP drift data
+    ax=plt.subplot(3,1,1)
+    for k in range(len(sequences)):
+        for p in units:
+            plt.scatter(k, sequences[k][p], color=controls[k][p]*float(p)/len(sequences[0]))
+    
+    #Plot LFP drift data - relative first 
+    ax=plt.subplot(3,1,2)
+    for k in range(len(sequences)):
+        print k, 
+        for p in units[1:]:
+            #print sequences[k][0]-sequences[k][p],
+            print sequences[k][p],
+            plt.scatter(k, sequences[k][units[0]]-sequences[k][p], color=controls[k][p]*float(p)/len(sequences[0]))
+        print ''
+    plt.show()
+    return
+
+    spikes = []
+    for p in units:
+        spikes.append(Sort_sua.units[p]*1E-6)
+
+
+    locations = np.zeros ((len(sequences)+100,2), dtype=np.float32)
+    alphas = np.zeros((len(sequences)+100,2), dtype=np.float32)
+    min_dist = 0.050
+    for s in range(len(spikes[0])):
+        t0 = spikes[0][s]
+
+        #Check nearest LFP event
+        temp_lfp = lfp_events[find_nearest(lfp_events,t0)]
+        #print "...lfp distance: ", temp_lfp-t0
+        if abs(temp_lfp-t0)<min_dist: continue
+
+        #Find nearest spikes from other two units
+        temp_nearest1 = spikes[1][find_nearest(spikes[1],t0)]
+        temp_nearest2 = spikes[2][find_nearest(spikes[2],t0)]
+        
+        #print spikes[0][s], temp_nearest1, temp_nearest2
+        dist1 = t0 - temp_nearest1
+        dist2 = t0 - temp_nearest2
+
+        #Check for spikes within 50ms of each other
+        if (abs(dist1))<min_dist: 
+            locations[int(t0/60.),0] = dist1
+            alphas[int(t0/60.),0] = 1.0
+
+        if (abs(dist2))<min_dist: 
+            locations[int(t0/60.),1] = dist2
+            alphas[int(t0/60.),1] = 1.0
+
+        #if s > 10000: break
+
+    print len(locations)
+    for k in range(len(locations)):
+        plt.scatter(k, locations[k,0], color='green', alpha=alphas[k,0])
+        plt.scatter(k, locations[k,1], color='red', alpha=alphas[k,1])
+
+    plt.show()
+
 
 def compute_csd_rasters(self):
     
@@ -5287,11 +5339,7 @@ def compute_csd_rasters(self):
     offset = 0
     for recording in recordings:
         temp= recording.replace(self.rec_path+'/','')
-        print temp
-        if temp in self.rec_name: 
-            print "*** match ***"    
-            break
-
+        if temp in self.rec_name: break
         t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
         offset += t1
 
@@ -5300,9 +5348,9 @@ def compute_csd_rasters(self):
 
 
     #Load ontimes of stimulus; use existing value in 'recording' variable
-    print recording+temp+"/*ontimes.txt"
+    #print recording+temp+"/*ontimes.txt"
     stimuli = np.loadtxt(glob.glob(recording+"/*ontimes.txt")[0])
-    print stimuli
+    #print stimuli
     stimuli=stimuli*1E-6
 
     ax = plt.subplot(1,1,1)
@@ -5313,11 +5361,14 @@ def compute_csd_rasters(self):
     Sort_sua = Ptcs(self.parent.sua_file)
     depth = 0
     spikes_array = []
+    all_spikes=[]
     for unit in range(len(Sort_sua.units)):
         spikes = Sort_sua.units[unit]*1E-6
         spikes = spikes[np.where(np.logical_and(spikes>=stimuli[0]+offset, spikes<=stimuli[-1]+offset+1.0))[0]]
         spikes_array.append(spikes-offset)
+        all_spikes.extend(spikes-offset)
 
+    #plot spike rasters
     for spikes in sorted(spikes_array, key=len):
         ymin=np.zeros(len(spikes))
         ymax=np.zeros(len(spikes))
@@ -5327,9 +5378,108 @@ def compute_csd_rasters(self):
 
         plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=1) #colors[mod(counter,7)])
 
+    #plot MUA histogram
+    bin_width = 0.100   #100ms bins
+    y = np.histogram(all_spikes, bins = np.arange(0,np.max(all_spikes),bin_width))
+    #plt.bar(y[1][:-1], y[0], bin_width, color='blue')
+    plt.plot(y[1][:-1], y[0]-40, linewidth=3, color='blue')
+
+    #plot lfp data
+    tsf = load_lfp_all(recording+'/'+temp+'.lfp.zip')
+    
+    t = np.linspace(0, tsf.n_vd_samples/float(tsf.SampleFrequency), tsf.n_vd_samples)
+    traces = tsf.ec_traces[9]/1000.
+    plt.plot(t, traces-15, color='red', linewidth=3)
+    
+    #Labels
+    plt.plot([0,tsf.n_vd_samples/float(tsf.SampleFrequency)], [0, 0], 'r--', linewidth = 3, alpha=0.5)
+    
+    plt.ylabel(" MUA  LFP   Units", fontsize=25)
+    plt.xlabel("Time (sec)", fontsize= 25)
+    plt.tick_params(axis='both', which='both', labelsize=20)
+
     plt.show()
 
+def compute_csd_histogram(self):
 
+    #Find offset for stimulus processing
+    recordings = sorted(glob.glob(self.rec_path+"/*"))
+    offset = 0
+    for recording in recordings:
+        temp= recording.replace(self.rec_path+'/','')
+        if temp in self.rec_name: break
+        t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
+        offset += t1
+
+    offset = offset*1E-6
+    print "...offset: ", offset
+
+
+    #Load ontimes of stimulus; use existing value in 'recording' variable
+    #print recording+temp+"/*ontimes.txt"
+    stimuli = np.loadtxt(glob.glob(recording+"/*ontimes.txt")[0])
+    stimuli=stimuli*1E-6
+
+    #Load spike rasters
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    spikes_array = []
+    all_spikes=[]
+    for unit in range(len(Sort_sua.units)):
+        spikes_array.append([])
+        spikes = Sort_sua.units[unit]*1E-6
+        for stimulus in stimuli: 
+            temp_spikes = spikes[np.where(np.logical_and(spikes>=stimulus+offset, spikes<=stimulus+offset+1.0))[0]]
+            spikes_array[unit].extend(temp_spikes-stimulus-offset)
+            #print temp_spikes
+    
+    
+    #Plot histograms
+    #plot MUA histogram
+    bin_width = 0.025   #100ms bins
+
+    for unit in range(len(spikes_array)):
+        y = np.histogram(spikes_array[unit], bins = np.arange(0,1,bin_width))
+        plt.plot(y[1][:-1], y[0]+10*unit, linewidth=1, color='blue')
+
+    #Labels
+    
+    plt.ylabel("Unit Fire Rate (au)", fontsize=25)
+    plt.xlabel("Time from CSD (sec)", fontsize= 25)
+    plt.tick_params(axis='both', which='both', labelsize=20)
+    plt.title(temp)
+
+    plt.show()
+
+def load_lfp_all(file_name):     #Nick/Martin data has different LFP structure to their data.
+    
+    class Object_empty(object):
+        def __init__(self):
+            pass
+    
+    tsf = Object_empty()
+    tsf.file_name = file_name
+    
+    data_in = np.load(file_name)
+    tsf.SampleFrequency = data_in['tres']
+    tsf.chans = data_in['chans']
+    tsf.n_electrodes = len(tsf.chans)
+    tsf.Siteloc = data_in['chanpos']
+    tsf.vscale_HP = data_in['uVperAD']
+    tsf.ec_traces = data_in['data']
+    tsf.ec_traces = tsf.ec_traces
+
+    #Home made notch filter; filter.notch doesn't seem to work...
+    offset = np.zeros(int(data_in['t0']*1E-3), dtype=np.int16)      #Convert microsecond offset to miliseconds;
+    temp_traces = []
+    for k in range(tsf.n_electrodes):
+        tsf.ec_traces[k] = Notch_Filter(tsf.ec_traces[k])
+        temp_traces.append(np.append(offset, tsf.ec_traces[k]))
+    
+    tsf.ec_traces = np.int16(temp_traces)
+    tsf.n_vd_samples = len(tsf.ec_traces[0])
+    
+    return tsf
 
 def sua_lock_percentage(self):
 

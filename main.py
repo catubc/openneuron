@@ -1781,12 +1781,22 @@ class MSL(QtGui.QWidget):
         self.button_csd_rasters.clicked.connect(self.view_csd_rasters)
         layout.addWidget(self.button_csd_rasters, row_index, 0)
 
+        self.button_csd_histogram = QPushButton('CSD: SUA Histograms')
+        self.button_csd_histogram.setMaximumWidth(200)
+        self.button_csd_histogram.clicked.connect(self.view_csd_histogram)
+        layout.addWidget(self.button_csd_histogram, row_index, 1); row_index+=1
+
 
         self.button_natscene_rasters = QPushButton('Nat Scene: Stimulus + Rasters')
         self.button_natscene_rasters.setMaximumWidth(200)
         self.button_natscene_rasters.clicked.connect(self.view_natscene_rasters)
-        layout.addWidget(self.button_natscene_rasters, row_index, 1); row_index+=1
+        layout.addWidget(self.button_natscene_rasters, row_index, 0); row_index+=1
         
+        self.button_triplet_sequences = QPushButton('Triplet Sequences')
+        self.button_triplet_sequences.setMaximumWidth(200)
+        self.button_triplet_sequences.clicked.connect(self.view_triplet_sequences)
+        layout.addWidget(self.button_triplet_sequences, row_index, 0); row_index+=1
+        #****************************************************************************
         self.setLayout(layout)
 
 
@@ -1832,14 +1842,11 @@ class MSL(QtGui.QWidget):
         
         
     def view_drift_trends(self):
-        
         drift_trends(self)
     
     
     def view_drift_movie(self):
-        
         drift_movies(self)
-
 
     
     def sua_lockpercentage(self):
@@ -1854,8 +1861,15 @@ class MSL(QtGui.QWidget):
     def view_csd_rasters(self):
         compute_csd_rasters(self)
 
+    def view_csd_histogram(self):
+        compute_csd_histogram(self)
+
+
     def view_natscene_rasters(self):
         compute_natscene_rasters(self)
+
+    def view_triplet_sequences(self):
+        compute_triplet_sequences(self)
 
 class CountMatrix(QtGui.QWidget):
     def __init__(self, parent):
