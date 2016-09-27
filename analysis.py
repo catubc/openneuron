@@ -5270,6 +5270,7 @@ def compute_triplet_sequences(self):
     #Compute relative locations of units
     units = [11, 49, 65]
     #units = [72, 99, 100]
+    #units = [49, 60, 108]
 
     #Plot LFP drift data
     ax=plt.subplot(3,1,1)
@@ -5277,18 +5278,23 @@ def compute_triplet_sequences(self):
         for p in units:
             plt.scatter(k, sequences[k][p], color=controls[k][p]*float(p)/len(sequences[0]))
     
+    plt.xlim(0, len(sequences)+100)
+    plt.tick_params(axis='both', which='both', labelsize=18)
+
     #Plot LFP drift data - relative first 
     ax=plt.subplot(3,1,2)
     for k in range(len(sequences)):
-        print k, 
+        #print k, 
         for p in units[1:]:
             #print sequences[k][0]-sequences[k][p],
-            print sequences[k][p],
+            #print sequences[k][p],
             plt.scatter(k, sequences[k][units[0]]-sequences[k][p], color=controls[k][p]*float(p)/len(sequences[0]))
-        print ''
-    plt.show()
-    return
+        #print ''
+    plt.xlim(0, len(sequences)+100)
 
+
+    #***************************************************************************
+    #Compute pairwise distances
     spikes = []
     for p in units:
         spikes.append(Sort_sua.units[p]*1E-6)
@@ -5296,7 +5302,7 @@ def compute_triplet_sequences(self):
 
     locations = np.zeros ((len(sequences)+100,2), dtype=np.float32)
     alphas = np.zeros((len(sequences)+100,2), dtype=np.float32)
-    min_dist = 0.050
+    min_dist = 0.020
     for s in range(len(spikes[0])):
         t0 = spikes[0][s]
 
@@ -5315,20 +5321,53 @@ def compute_triplet_sequences(self):
 
         #Check for spikes within 50ms of each other
         if (abs(dist1))<min_dist: 
-            locations[int(t0/60.),0] = dist1
+            locations[int(t0/60.),0] = dist1*1E3
             alphas[int(t0/60.),0] = 1.0
 
         if (abs(dist2))<min_dist: 
-            locations[int(t0/60.),1] = dist2
+            locations[int(t0/60.),1] = dist2*1E3
             alphas[int(t0/60.),1] = 1.0
 
         #if s > 10000: break
+    plt.ylabel("LFP Time Lock (ms)", fontsize = 20)
+    plt.tick_params(axis='both', which='both', labelsize=18)
+
+
+    #Compute least squares fit
+    ax = plt.subplot(3,1,3)
+
+    # Fit a polynomial 
+    x = np.arange(0,len(locations),1)
+    y = locations[:, 0]
+
+    trialX = np.linspace(x[0],x[-1],1000)
+    fitted = np.polyfit(x, y, 12)[::-1]
+    y = np.zeros(len(trialX))
+    for i in range(len(fitted)):
+       y += fitted[i]*trialX**i
+    plt.plot(trialX,   y, 'r--', color='blue', linewidth=3)
+
+    y = locations[:, 1]
+
+    trialX = np.linspace(x[0],x[-1],1000)
+    fitted = np.polyfit(x, y, 12)[::-1]
+    y = np.zeros(len(trialX))
+    for i in range(len(fitted)):
+       y += fitted[i]*trialX**i
+    plt.plot(trialX,   y, 'r--', color='magenta', linewidth=3)
+
+
 
     print len(locations)
     for k in range(len(locations)):
         plt.scatter(k, locations[k,0], color='green', alpha=alphas[k,0])
         plt.scatter(k, locations[k,1], color='red', alpha=alphas[k,1])
 
+    plt.xlim(0, len(sequences)+100)
+    plt.ylim(-5, +5)
+    plt.tick_params(axis='both', which='both', labelsize=18)
+    plt.ylabel("Pairwise ISI\n(ms)", fontsize = 20)
+    plt.xlabel("Recording Time\n(mins)", fontsize = 20)
     plt.show()
 
 
