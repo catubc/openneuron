@@ -1796,6 +1796,20 @@ class MSL(QtGui.QWidget):
         self.button_triplet_sequences.setMaximumWidth(200)
         self.button_triplet_sequences.clicked.connect(self.view_triplet_sequences)
         layout.addWidget(self.button_triplet_sequences, row_index, 0); row_index+=1
+
+        self.button_nspikes_perlfp = QPushButton('Nspikes per LFP event')
+        self.button_nspikes_perlfp.setMaximumWidth(200)
+        self.button_nspikes_perlfp.clicked.connect(self.view_nspikes_histograms)
+        layout.addWidget(self.button_nspikes_perlfp, row_index, 0); row_index+=1
+
+        self.button_isi_perlfp = QPushButton('ISI from LFP events')
+        self.button_isi_perlfp.setMaximumWidth(200)
+        self.button_isi_perlfp.clicked.connect(self.view_isi_histograms)
+        layout.addWidget(self.button_isi_perlfp, row_index, 0); row_index+=1
+
+
+
+
         #****************************************************************************
         self.setLayout(layout)
 
@@ -1850,7 +1864,6 @@ class MSL(QtGui.QWidget):
 
     
     def sua_lockpercentage(self):
-        
         sua_lock_percentage(self)
 
             
@@ -1861,15 +1874,24 @@ class MSL(QtGui.QWidget):
     def view_csd_rasters(self):
         compute_csd_rasters(self)
 
+
     def view_csd_histogram(self):
         compute_csd_histogram(self)
 
 
-    def view_natscene_rasters(self):
-        compute_natscene_rasters(self)
-
     def view_triplet_sequences(self):
         compute_triplet_sequences(self)
+
+
+    def view_nspikes_histograms(self):
+        compute_nspikes_histograms(self)
+
+    def view_isi_histograms(self):
+        compute_isi_histograms(self)
+
+    #Not implemented
+    def view_natscene_rasters(self):
+        compute_natscene_rasters(self)
 
 class CountMatrix(QtGui.QWidget):
     def __init__(self, parent):

@@ -4843,6 +4843,83 @@ def peth_scatter_plots(self):
                 ",  sigma: " + str(sig) +"(ms)" + '\n'+self.parent.sua_file.replace(self.parent.root_dir,''), fontsize=20)
     plt.show()
 
+def compute_nspikes_histograms(self):
+    '''  Compute number of spikes from each cell locked to each lfp event
+    '''
+
+    Sort_sua = Ptcs(self.parent.sua_file)
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    print cell_rasters_filename
+
+    data = np.load(cell_rasters_filename+".npy")
+    print len(data)
+    print len(data[0])
+
+    for u in range(len(Sort_sua.units)):
+        ax = plt.subplot(11,11,u+1)
+        ax.tick_params(axis='both', which='both', labelsize=8)
+        length_array = []
+        for k in range(len(data[u])):
+            length_array.append(len(data[u][k]))
+        length_array = np.array(length_array)
+
+        bin_width = 1   #100ms bins
+        y = np.histogram(length_array, bins = np.arange(0,np.max(length_array),bin_width))
+        if len(y[0])>1:
+            #print y[0]
+            plt.bar(y[1][:-1], y[0], bin_width, color='blue')
+            plt.xlim(1,20)
+            plt.ylim(0,np.max(y[0][1:]))
+        if u!= 110: ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        plt.ylabel(len(Sort_sua.units[u]), fontsize=10, labelpad=-2)
+    plt.show()
+
+
+def compute_isi_histograms(self):
+
+    Sort_sua = Ptcs(self.parent.sua_file)
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    print cell_rasters_filename
+
+    data = np.load(cell_rasters_filename+".npy")
+    print len(data)
+    print len(data[0])
+
+    for u in range(len(Sort_sua.units)):
+    #for u in range(10):
+        print "... unit: ", u
+        ax = plt.subplot(11,11,u+1)
+        ax.tick_params(axis='both', which='both', labelsize=8)
+
+        isi_array = []
+        for k in range(len(data[u])):
+            #print "...lfp event: ", k
+            for j in range(len(data[u][k])-1):
+                #print data[u][k][j]
+                isi_array.append((data[u][k][j+1]-data[u][k][j])*1E-3)
+        isi_array = np.array(isi_array)
+        #return
+        #print isi_array
+        #print len(isi_array)
+
+        bin_width = 1   #100ms bins
+        y = np.histogram(isi_array, bins = np.arange(0,50,bin_width))
+        if len(y[0])>1:
+            #print y[0]
+            plt.bar(y[1][:-1], y[0], bin_width, color='blue')
+            #plt.xlim(1,20)
+            #plt.ylim(0,np.max(y[0][1:]))
+        if u!= 110: ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        plt.ylabel(len(Sort_sua.units[u]), fontsize=10, labelpad=-2)
+    plt.show()
 
 
 def msl_plots(self):
