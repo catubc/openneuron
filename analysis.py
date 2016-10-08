@@ -4921,7 +4921,285 @@ def compute_isi_histograms(self):
         plt.ylabel(len(Sort_sua.units[u]), fontsize=10, labelpad=-2)
     plt.show()
 
+def compute_msl_continuous_single(self):
 
+    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
+   
+    lock_time = np.load(file_out+'.npy')
+
+    compress_factor = 50
+
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+
+
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+
+
+    for unit in [int(self.starting_cell.text())]:
+        ax = plt.subplot(1, 1, 1)
+
+        even_locks=[]; odd_locks=[]
+        for k in range(len(lock_time[unit])): 
+            even_locks.append(lock_time[unit][k][0])
+            odd_locks.append(lock_time[unit][k][1])
+
+        even_times = []
+        for k in range(len(even_locks)):
+            if even_locks[k]!=0.0:
+                even_times.append([k, even_locks[k]])
+        
+        even_times = np.array(even_times).T
+        if len(even_times)>0: 
+            plt.scatter(even_times[0], even_times[1], s = 10, color='blue', alpha=.6)
+        
+        odd_times = []
+        for k in range(len(odd_locks)):
+            if odd_locks[k]!=0.0:
+                odd_times.append([k, odd_locks[k]])
+        odd_times = np.array(odd_times).T
+        if len(odd_times)>0: 
+            plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
+        
+        ave_times = []
+        for k in range(len(even_locks)):
+            temp = 0
+            if even_locks[k]!=0: 
+                temp+=even_locks[k]
+                if odd_locks[k]!=0: 
+                    temp+=odd_locks[k]
+                    ave_times.append([k, temp/2.])
+                else:
+                    ave_times.append([k, temp])
+            else:
+                if odd_locks[k]!=0:
+                    ave_times.append([k, odd_locks[k]])
+        ave_times = np.array(ave_times).T
+        if len(ave_times)>0: 
+            plt.plot(ave_times[0], ave_times[1], color='magenta', linewidth = 5, alpha=.3)
+        
+        old_label = np.arange(50, 120, 10)
+        new_label = np.arange(-50, 20, 10)
+        plt.yticks(old_label,new_label, fontsize=25)
+        
+        plt.plot([0, tsf.n_vd_samples/tsf.SampleFrequency/60.], [100,100], 'r--', color='black', linewidth=4, alpha=.5)
+        
+        diffs = []
+        for k in range(len(even_locks)):
+            if (even_locks[k]!=0) and (odd_locks[k]!=0):
+                diff = abs(even_locks[k]-odd_locks[k])
+                if diff < 50: diffs.append(diff)
+        
+        plt.title("Unit: "+str(unit) + "   #spks: "+str(len(Sort_sua.units[unit]))+"   ave(diff): " + str(round(np.mean(diffs),2))+ "   std(diff): " + str(round(np.std(diffs),2)), 
+        fontsize=25)
+        ax.tick_params(axis='both', which='both', labelsize=20)
+        plt.ylim(40,110)
+        plt.xlim(0, tsf.n_vd_samples/tsf.SampleFrequency/60.)
+        plt.ylabel("Locking latency (ms)", fontsize = 25)
+        plt.xlabel("Recording time (mins)", fontsize = 25)
+        
+        
+        #Plot fire rate
+        #spikes = Sort_sua.units[unit]*1E-6/60.
+        #fire_rate = []; width = 1000
+        #times = np.arange(0, tsf.n_vd_samples/tsf.SampleFrequency/60., width*1E-3/60.)
+        #for time in times:
+            #print times
+            #n_spikes = len(np.where(np.logical_and(spikes>=time, spikes<=time+width*1E-3/60.))[0])
+            #fire_rate.append(n_spikes/(width*1E-3))
+        #plt.plot(times, np.array(fire_rate)+50., linewidth = 1, color='blue', alpha=.8)
+        
+        
+        
+        spikes = pop_spikes*1E-6/60.
+        ymin=np.zeros(len(spikes))
+        ymax=np.zeros(len(spikes))
+        ymin+=40
+        ymax+=45
+        plt.vlines(spikes, ymin, ymax, linewidth=1, color='magenta',alpha=.5) #colors[mod(counter,7)])
+
+        spikes = Sort_sua.units[unit]*1E-6/60.
+        ymin=np.zeros(len(spikes))
+        ymax=np.zeros(len(spikes))
+        ymin+=45    
+        ymax+=50
+        plt.vlines(spikes, ymin, ymax, linewidth=1, color='green',alpha=.5) #colors[mod(counter,7)])
+
+        
+       #ax.set_xticklabels([])
+        #ax.set_yticklabels([])
+        
+        
+    plt.show()
+        
+        
+        
+def compute_msl_continuous(self):
+    
+    min_spikes = float(self.min_spikes.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1000000  # window width in usec
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+
+    sig = float(self.sigma_width.text())
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+
+    #Load SUA Sort
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardcoded to: ", compress_factor
+
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+      
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+    pop_spikes=np.sort(np.unique(pop_spikes))*1E-3   #Exclude duplicates; convert to milisecond time
+    print " ... # LFP events: ", len(pop_spikes)
+    
+    #Load saved cell rasters
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+
+    
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    
+    #OPTION 1: Divide into chunks of recording length
+    self.parent.tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    win_len = float(self.sliding_window_length.text())*60000.0                          #Work in ms
+    step_len = float(self.sliding_window_step.text())*60000.0                           #Work in ms
+    rec_len = self.parent.tsf.n_vd_samples/float(self.parent.tsf.SampleFrequency)*1E3   #Work in ms
+    
+    temp_chunks = np.arange(0, rec_len-win_len, step_len)   #set begginings of each chunk up to end of recording (less the window length)
+    time_chunks = []
+    for k in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[k], temp_chunks[k]+win_len])
+    time_chunks.append([temp_chunks[-1], rec_len])
+
+    #**************************************************************************
+    #*************************** LOOP OVER TIME CHUNKS ************************
+    #**************************************************************************
+
+    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
+   
+    if os.path.exists(file_out+'.npy'): 
+        lock_time = np.load(file_out+'.npy')
+    else:
+        img=[]; lock_time=[]
+        for k in range(len(Sort_sua.units)): lock_time.append([])
+        chunk_index = np.arange(0,len(time_chunks),1)
+    
+        for ctr, chunk_ctr in enumerate(chunk_index):
+            time_chunk = time_chunks[chunk_ctr]
+            temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+            print time_chunk
+            
+            for unit in range(len(Sort_sua.units)):
+                if len(temp3)==0:                               #Exclude periods with no LFP events
+                    lock_time[unit].append([0,0])
+                    continue
+                
+                locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+                locked_spikes = np.unique(np.sort(locked_spikes))   #Remove duplicates....not sure this is needed/correct; these are MSL times, not raw times
+                   
+                if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
+                    lock_time[unit].append([0,0])
+                    continue
+
+
+                fit_even = np.zeros(2000, dtype=np.float32)
+                fit_odd = np.zeros(2000, dtype=np.float32)
+                x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+                sig_gaussian = np.float32(gaussian(x, 0, sig))
+                for g in range(len(locked_spikes)):
+                    mu = int(locked_spikes[g]*1E-3)
+                    if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                    else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+
+                #Search for peaks in PETH within the locking window
+                if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+                    even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+                else:
+                    even_lock = 0
+
+                if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+                    odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+                else:
+                    odd_lock = 0
+
+                lock_time[unit].append([even_lock, odd_lock])
+        
+        np.save(file_out, lock_time)
+        
+    for unit in range(len(Sort_sua.units)):
+        ax = plt.subplot(11, 11, unit+1)
+    #for unit in range(20):
+    #    ax = plt.subplot(4, 5, unit+1)
+
+        even_locks=[]; odd_locks=[]
+        for k in range(len(lock_time[unit])): 
+            even_locks.append(lock_time[unit][k][0])
+            odd_locks.append(lock_time[unit][k][1])
+
+        times = []
+        for k in range(len(even_locks)):
+            if even_locks[k]!=0.0:
+                times.append([k, even_locks[k]])
+        
+        times = np.array(times).T
+        if len(times)>0: 
+            plt.scatter(times[0], times[1], s = 10, color='blue', alpha=.6)
+        
+        times = []
+        for k in range(len(odd_locks)):
+            if odd_locks[k]!=0.0:
+                times.append([k, odd_locks[k]])
+        times = np.array(times).T
+        if len(times)>0: 
+            plt.scatter(times[0], times[1], s = 10, color='red', alpha=.6)
+        
+
+        diffs = []
+        for k in range(len(even_locks)):
+            if (even_locks[k]!=0) and (odd_locks[k]!=0):
+                diff = abs(even_locks[k]-odd_locks[k])
+                if diff < 50: diffs.append(diff)
+        #print diffs
+        
+        plt.title(str(unit) + " "+str(len(Sort_sua.units[unit]))+" " + str(round(np.mean(diffs),2))+ " " + str(round(np.std(diffs),2)), 
+        fontsize=8, y=.95)
+        ax.tick_params(axis='both', which='both', labelsize=8)
+        plt.ylim(50,110)
+        plt.xlim(0, len(time_chunks))
+        
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        
+    plt.show()
+        
+        
+        
 def msl_plots(self):
     '''Align msl latencies by lfp cluster 
     '''

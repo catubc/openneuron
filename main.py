@@ -1590,8 +1590,8 @@ class MSL(QtGui.QWidget):
         
 
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
-        self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
         
         layout = QtGui.QGridLayout()
@@ -1670,7 +1670,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(lock_window_end_lbl,row_index+1,6)
         layout.addWidget(parent.lock_window_end,row_index+1,7)
 
-        self.min_spikes = QLineEdit('0');               
+        self.min_spikes = QLineEdit('1');               
         self.min_spikes.setMaximumWidth(50)
         self.min_spikes_lbl = QLabel('min_spikes:', self)
         layout.addWidget(self.min_spikes_lbl,row_index,8)
@@ -1709,7 +1709,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.ending_cell,row_index,11); row_index+=1
         
 
-        self.button_msl = QPushButton('Compute MSL')
+        self.button_msl = QPushButton('Compute MSL Chunks')
         self.button_msl.setMaximumWidth(200)
         self.button_msl.clicked.connect(self.view_msl)
         layout.addWidget(self.button_msl, row_index, 0)
@@ -1735,6 +1735,30 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_drift_movie, row_index, 6); row_index+=1
 
 
+        self.button_msl_continuous = QPushButton('MSL Sliding Time Window')
+        self.button_msl_continuous.setMaximumWidth(200)
+        self.button_msl_continuous.clicked.connect(self.view_msl_continuous)
+        layout.addWidget(self.button_msl_continuous, row_index, 0)
+        
+        self.sliding_window_length = QLineEdit('10');               
+        self.sliding_window_length.setMaximumWidth(50)
+        self.sliding_window_length_lbl = QLabel('Window (mins)', self)
+        layout.addWidget(self.sliding_window_length_lbl,row_index,1)
+        layout.addWidget(self.sliding_window_length,row_index,2)
+        
+        self.sliding_window_step = QLineEdit('1');               
+        self.sliding_window_step.setMaximumWidth(50)
+        self.sliding_window_step_lbl = QLabel('Step size (mins)', self)
+        layout.addWidget(self.sliding_window_step_lbl,row_index,3)
+        layout.addWidget(self.sliding_window_step,row_index,4)
+        
+        
+        self.button_msl_continuous_single = QPushButton('MSL Sliding Win - Single Unit')
+        self.button_msl_continuous_single.setMaximumWidth(200)
+        self.button_msl_continuous_single.clicked.connect(self.view_msl_continuous_single)
+        layout.addWidget(self.button_msl_continuous_single, row_index, 5); row_index+=1
+
+
         self.button1 = QPushButton('View P-vals')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.view_msl_Pvals)
@@ -1753,7 +1777,6 @@ class MSL(QtGui.QWidget):
         self.specgram_ch_lbl = QLabel('Specgram Ch', self)
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
-
 
 
 
@@ -1791,7 +1814,18 @@ class MSL(QtGui.QWidget):
         self.button_natscene_rasters.setMaximumWidth(200)
         self.button_natscene_rasters.clicked.connect(self.view_natscene_rasters)
         layout.addWidget(self.button_natscene_rasters, row_index, 0); row_index+=1
-        
+
+
+
+        #**************************************************************************************
+        #***************************** Pairise spiking analysis **************************************
+        #**************************************************************************************
+        layout.addWidget(QLabel('', self), row_index,0); row_index+=1
+        self.preprocess_lbl = QLabel('DISTRIBUTION ANALYSIS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
         self.button_triplet_sequences = QPushButton('Triplet Sequences')
         self.button_triplet_sequences.setMaximumWidth(200)
         self.button_triplet_sequences.clicked.connect(self.view_triplet_sequences)
@@ -1806,8 +1840,6 @@ class MSL(QtGui.QWidget):
         self.button_isi_perlfp.setMaximumWidth(200)
         self.button_isi_perlfp.clicked.connect(self.view_isi_histograms)
         layout.addWidget(self.button_isi_perlfp, row_index, 0); row_index+=1
-
-
 
 
         #****************************************************************************
@@ -1825,6 +1857,7 @@ class MSL(QtGui.QWidget):
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
     
+    
     def set_recording(self):
         temp_dir = '/media/cat/2TB/in_vivo/nick/ptc21/'
 
@@ -1835,23 +1868,27 @@ class MSL(QtGui.QWidget):
         self.button_set_recording_lbl.setText(self.rec_name)
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
 
+
     def view_peth(self):
-        
         peth_scatter_plots(self)
         
         
     def view_msl(self, main_widget):
-        
         msl_plots(self)
+    
+    
+    def view_msl_continuous(self):
+        compute_msl_continuous(self)
         
-        
+    
+    def view_msl_continuous_single(self):
+        compute_msl_continuous_single(self)
+    
     def view_msl_drift(self):
-        
         cell_msl_drift(self)
         
         
     def view_allcell_drift(self):
-        
         all_cell_msl_stats(self)       
         
         
