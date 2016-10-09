@@ -1740,11 +1740,13 @@ class MSL(QtGui.QWidget):
         self.button_msl_continuous.clicked.connect(self.view_msl_continuous)
         layout.addWidget(self.button_msl_continuous, row_index, 0)
         
+        
         self.sliding_window_length = QLineEdit('10');               
         self.sliding_window_length.setMaximumWidth(50)
         self.sliding_window_length_lbl = QLabel('Window (mins)', self)
         layout.addWidget(self.sliding_window_length_lbl,row_index,1)
         layout.addWidget(self.sliding_window_length,row_index,2)
+
         
         self.sliding_window_step = QLineEdit('1');               
         self.sliding_window_step.setMaximumWidth(50)
@@ -1763,7 +1765,6 @@ class MSL(QtGui.QWidget):
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.view_msl_Pvals)
         layout.addWidget(self.button1, row_index, 0); row_index+=1
-
 
 
         self.button_percentages = QPushButton('% Lock Plots')
