@@ -5132,14 +5132,14 @@ def compute_msl_continuous_single(self):
     ymax=np.zeros(len(spikes))
     ymin+=40
     ymax+=44
-    plt.vlines(spikes, ymin, ymax, linewidth=1, color='magenta',alpha=.5) #colors[mod(counter,7)])
+    plt.vlines(spikes, ymin, ymax, linewidth=1, color='brown',alpha=.5) #colors[mod(counter,7)])
 
     spikes = Sort_sua.units[unit]*1E-6/60.
     ymin=np.zeros(len(spikes))
     ymax=np.zeros(len(spikes))
     ymin+=45    
     ymax+=49
-    plt.vlines(spikes, ymin, ymax, linewidth=1, color='green',alpha=.5) #colors[mod(counter,7)])
+    plt.vlines(spikes, ymin, ymax, linewidth=1, color='black',alpha=.5) #colors[mod(counter,7)])
 
     
     #ax.set_xticklabels([])
@@ -5238,7 +5238,7 @@ def compute_msl_continuous(self):
     #**************************************************************************
 
     file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
-    jitter_time = 50 #Time to jitter spiketrian
+    jitter_time = 1000 #Time to jitter spiketrian
     #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
     #shift_time = jitter_time
     #file_out_shifted = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(shift_time)+"ms_shift"
@@ -5260,7 +5260,8 @@ def compute_msl_continuous(self):
                 #print ""
         #return
     
-    if os.path.exists(file_out+'.npy'): 
+    #if os.path.exists(file_out+'.npy'): 
+    if False: 
         lock_time = np.load(file_out+'.npy')
     else:
         img=[]; lock_time=[]; lock_time_jittered=[]; lock_time_shifted=[]; lock_time_poisson=[]; lock_time_poisson_singles=[]
@@ -5835,8 +5836,73 @@ def load_lfp_length(file_name):     #Nick/Martin data has different LFP structur
 
 
 def compute_natscene_rasters(self):
-    print "...not implemented..."
-    pass
+
+
+
+    #Find offset for stimulus processing
+    recordings = sorted(glob.glob(self.rec_path+"/*"))
+    offset = 0
+    for recording in recordings:
+        print recording
+        temp= recording.replace(self.rec_path+'/','')
+        if temp in self.rec_name: break
+        t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
+        offset += t1
+
+    offset = offset*1E-6
+    print "...offset: ", offset
+
+
+
+
+    #**** Load .din stimulus timestamps
+    din_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/60-tr5c-MVI_1419_5s/60-tr5c-MVI_1419_5s.din'
+    f = open(din_file, 'rb')
+    din = np.fromfile(f, dtype=np.int64).reshape(-1, 2) # reshape to 2 cols containing [time_stamp in usec : frame number]
+    f.close()
+    print "No of frames in din file: ", len(din)
+    print "Length of recording: ", float(din[-1][0])*1E-6/60., " mins." 
+
+    start_indexes = np.where(din[:,1]==0)[0][::3]   #each frame is on screen for 3 refreshes (NOT ALWAYS TRUE*********)
+    stimuli = din[:,0][start_indexes]*1E-6
+    print stimuli
+       
+    
+
+    #Load spike rasters
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    spikes_array = []
+    all_spikes=[]
+    for unit in range(len(Sort_sua.units)):
+        spikes = Sort_sua.units[unit]*1E-6
+        spikes = spikes[np.where(np.logical_and(spikes>=stimuli[0]+offset, spikes<=stimuli[-1]+offset+1.0))[0]]
+        spikes_array.append(spikes-offset)
+        all_spikes.extend(spikes-offset)
+           
+           
+    #plot spike rasters
+    #for unit in range(len(Sort_sua.units)):
+    for unit in [30]:# range(40):
+        print "...unit: ", unit
+        #ax = plt.subplot(6,7,unit+1)
+        plt.ylim(0,400)
+        plt.xlim(0,5.5)
+        depth=0
+        for stimulus in stimuli:
+            ymin=np.zeros(len(spikes_array[unit]))
+            ymax=np.zeros(len(spikes_array[unit]))
+            ymin+=depth
+            ymax+=depth+.9
+            depth+=1
+            
+            spikes = spikes_array[unit][np.where(np.logical_and(spikes_array[unit]>=stimulus, spikes_array[unit]<=stimulus+5.5))[0]]-stimulus
+
+            
+            plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=1) #colors[mod(counter,7)])
+        
+        
+    plt.show()
 
 
 def compute_triplet_sequences(self):

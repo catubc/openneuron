@@ -1782,16 +1782,16 @@ class MSL(QtGui.QWidget):
 
 
         #**************************************************************************************
-        #***************************** STIMULUS ANALYSIS **************************************
+        #***************************** CSD ANALYSIS **************************************
         #**************************************************************************************
         layout.addWidget(QLabel('', self), row_index,0); row_index+=1
-        self.preprocess_lbl = QLabel('STIMULUS ANALYSIS', self)
+        self.preprocess_lbl = QLabel('CSD ANALYSIS', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
         #Set recording name
-        self.button_set_recording = QPushButton('Recording')
+        self.button_set_recording = QPushButton('CSD Recording')
         self.button_set_recording.setMaximumWidth(200)
         self.button_set_recording.clicked.connect(self.set_recording)
         layout.addWidget(self.button_set_recording, row_index, 0)
@@ -1811,6 +1811,26 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_csd_histogram, row_index, 1); row_index+=1
 
 
+        #**************************************************************************************
+        #***************************** CSD ANALYSIS **************************************
+        #**************************************************************************************
+        layout.addWidget(QLabel('', self), row_index,0); row_index+=1
+        self.preprocess_lbl = QLabel('NAT SCENE ANALYSIS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        self.button_set_natscene_rec = QPushButton('Nat Scene Recording')
+        self.button_set_natscene_rec.setMaximumWidth(200)
+        self.button_set_natscene_rec.clicked.connect(self.set_nat_scene_rec)
+        layout.addWidget(self.button_set_natscene_rec, row_index, 0)
+
+        self.parent.button_set_natscene_rec = ''
+        self.button_set_natscene_rec_lbl = QLabel(self.parent.button_set_natscene_rec, self)
+        layout.addWidget(self.button_set_natscene_rec_lbl, row_index,1); row_index+=1
+        
+        
+        
         self.button_natscene_rasters = QPushButton('Nat Scene: Stimulus + Rasters')
         self.button_natscene_rasters.setMaximumWidth(200)
         self.button_natscene_rasters.clicked.connect(self.view_natscene_rasters)
@@ -1869,6 +1889,17 @@ class MSL(QtGui.QWidget):
         self.button_set_recording_lbl.setText(self.rec_name)
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
 
+
+    def set_nat_scene_rec(self):
+        temp_dir = self.parent.root_dir
+
+        self.parent.recording_dir = QtGui.QFileDialog.getExistingDirectory(self, "Select recording", temp_dir)
+        
+        self.rec_path = os.path.dirname(self.parent.recording_dir)
+        self.rec_name = self.parent.recording_dir.replace(self.rec_path,'')
+        self.button_set_natscene_rec_lbl.setText(self.rec_name)
+        #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
+        
 
     def view_peth(self):
         peth_scatter_plots(self)
