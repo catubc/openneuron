@@ -5835,9 +5835,17 @@ def load_lfp_length(file_name):     #Nick/Martin data has different LFP structur
     return t1
 
 
-def compute_natscene_rasters(self):
+def compute_natscene_pairisi(self):
+    
 
 
+    #Load time interval
+    seq_isi_start = float(self.seqisi_start.text())
+    seq_isi_end = float(self.seqisi_end.text())
+    print seq_isi_start, seq_isi_end
+    
+    unit1 = int(self.starting_cell.text())
+    unit2 = int(self.ending_cell.text())
 
     #Find offset for stimulus processing
     recordings = sorted(glob.glob(self.rec_path+"/*"))
@@ -5845,7 +5853,9 @@ def compute_natscene_rasters(self):
     for recording in recordings:
         print recording
         temp= recording.replace(self.rec_path+'/','')
-        if temp in self.rec_name: break
+        if temp in self.rec_name: 
+            din_file = self.rec_path+'/'+temp+'/'+temp+'.din'       #Save .din filename before exiting
+            break
         t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
         offset += t1
 
@@ -5854,9 +5864,10 @@ def compute_natscene_rasters(self):
 
 
 
-
-    #**** Load .din stimulus timestamps
-    din_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/60-tr5c-MVI_1419_5s/60-tr5c-MVI_1419_5s.din'
+    #******************************************************
+    #*************** LOAD DIN STIMULUS INFO ***************
+    #******************************************************
+    print din_file
     f = open(din_file, 'rb')
     din = np.fromfile(f, dtype=np.int64).reshape(-1, 2) # reshape to 2 cols containing [time_stamp in usec : frame number]
     f.close()
@@ -5865,7 +5876,287 @@ def compute_natscene_rasters(self):
 
     start_indexes = np.where(din[:,1]==0)[0][::3]   #each frame is on screen for 3 refreshes (NOT ALWAYS TRUE*********)
     stimuli = din[:,0][start_indexes]*1E-6
-    print stimuli
+      
+
+
+    #Load LFP
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) 
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    lfp_events = Sort_lfp.units[lfp_cluster]*1E-6
+    compress_factor = 50.   #Needed to uncompress the LFP compressed sorts
+
+    print lfp_events[-10:]
+    print lfp_events[-10:]*compress_factor
+    print len(lfp_events)
+
+    #Load saved cell rasters
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+    print len(cell_rasters)
+    print len(cell_rasters[0])
+        
+
+    #Load LFP rasters falling within
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    lfp_spikes_array = []
+    all_spikes=[]
+    lfp_events = lfp_events*compress_factor
+    lfp_indexes = np.where(np.logical_and(lfp_events>=stimuli[0]+offset, lfp_events<=stimuli[-1]+offset+1.0))[0]
+    
+    print stimuli[0]+offset, stimuli[-1]+offset
+    print lfp_indexes
+    print len(lfp_indexes)
+    print lfp_events[lfp_indexes]
+    
+    print cell_rasters[unit1][lfp_indexes]
+    print cell_rasters[unit2][lfp_indexes]
+    
+    return
+
+    
+
+    #Load spike rasters
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    spikes_array = []
+    all_spikes=[]
+    for unit in range(len(Sort_sua.units)):
+        spikes = Sort_sua.units[unit]*1E-6
+        spikes = spikes[np.where(np.logical_and(spikes>=stimuli[0]+offset, spikes<=stimuli[-1]+offset+1.0))[0]]     #Save all spikes that fall within experiment time
+        spikes_array.append(spikes-offset)
+        all_spikes.extend(spikes-offset)
+           
+           
+    #*********** Plot unit 1 rasters rasters
+
+    ax = plt.subplot(3,2,1)
+    all_spikes1 = []
+    print "...unit: ", unit1
+    plt.ylim(0,400)
+    plt.xlim(0,5.5)
+    depth=0
+    for stimulus in stimuli:
+        ymin=np.zeros(len(spikes_array[unit1]))
+        ymax=np.zeros(len(spikes_array[unit1]))
+        ymin+=depth
+        ymax+=depth+.9
+        depth+=1
+        
+        spikes = spikes_array[unit1][np.where(np.logical_and(spikes_array[unit1]>=stimulus+seq_isi_start, spikes_array[unit1]<=stimulus+seq_isi_end))[0]]-stimulus
+        all_spikes1.append(spikes)
+        
+        plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=.8) #colors[mod(counter,7)])
+
+    #Plot distribution of spikes
+
+    ax = plt.subplot(3,2,2)
+    all_spikes2 = []
+    print "...unit: ", unit2
+    plt.ylim(0,400)
+    plt.xlim(0,5.5)
+    depth=0
+    for stimulus in stimuli:
+        ymin=np.zeros(len(spikes_array[unit2]))
+        ymax=np.zeros(len(spikes_array[unit2]))
+        ymin+=depth
+        ymax+=depth+.9
+        depth+=1
+        
+        spikes = spikes_array[unit2][np.where(np.logical_and(spikes_array[unit2]>=stimulus+seq_isi_start, spikes_array[unit2]<=stimulus+seq_isi_end))[0]]-stimulus
+        all_spikes2.append(spikes)
+        
+        plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=.8) #colors[mod(counter,7)])
+
+
+    #Plot averge ISI during each stimulus 
+    ax = plt.subplot(3,2,3)
+    sequential_isi = []
+    for k in range(len(all_spikes1)):   #Loop over each stimulus presentation
+        temp_array=[]
+        for p in range(len(all_spikes2[k])):
+            if (len(all_spikes1[k])>0) and (len(all_spikes2[k])>0):
+                temp_array.extend(all_spikes1[k]-all_spikes2[k][p])
+        print k, temp_array
+        sequential_isi.append(np.mean(temp_array))
+
+    print len(sequential_isi), len(np.hstack(sequential_isi))
+    plt.plot(np.arange(len(sequential_isi)), sequential_isi, linewidth=3)
+    plt.scatter(np.arange(len(sequential_isi)), sequential_isi, s=10)
+
+
+
+
+    plt.show()
+
+
+
+def compute_natscene_seqisi(self):
+    
+    #Load time interval
+    seq_isi_start = float(self.seqisi_start.text())
+    seq_isi_end = float(self.seqisi_end.text())
+    print seq_isi_start, seq_isi_end
+    
+    
+    #Find offset for stimulus processing
+    recordings = sorted(glob.glob(self.rec_path+"/*"))
+    offset = 0
+    for recording in recordings:
+        print recording
+        temp= recording.replace(self.rec_path+'/','')
+        if temp in self.rec_name: 
+            din_file = self.rec_path+'/'+temp+'/'+temp+'.din'       #Save .din filename before exiting
+            break
+        t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
+        offset += t1
+
+    offset = offset*1E-6
+    print "...offset: ", offset
+
+
+
+    #**** Load .din stimulus timestamps
+    print din_file
+    f = open(din_file, 'rb')
+    din = np.fromfile(f, dtype=np.int64).reshape(-1, 2) # reshape to 2 cols containing [time_stamp in usec : frame number]
+    f.close()
+    print "No of frames in din file: ", len(din)
+    print "Length of recording: ", float(din[-1][0])*1E-6/60., " mins." 
+
+    start_indexes = np.where(din[:,1]==0)[0][::3]   #each frame is on screen for 3 refreshes (NOT ALWAYS TRUE*********)
+    stimuli = din[:,0][start_indexes]*1E-6
+      
+    
+
+    #Load spike rasters
+    Sort_sua = Ptcs(self.parent.sua_file)
+    depth = 0
+    spikes_array = []
+    all_spikes=[]
+    for unit in range(len(Sort_sua.units)):
+        spikes = Sort_sua.units[unit]*1E-6
+        spikes = spikes[np.where(np.logical_and(spikes>=stimuli[0]+offset, spikes<=stimuli[-1]+offset+1.0))[0]]     #Save all spikes that fall within experiment time
+        spikes_array.append(spikes-offset)
+        all_spikes.extend(spikes-offset)
+           
+           
+    #plot spike rasters
+    #for unit in range(len(Sort_sua.units)):
+    unit = int(self.starting_cell.text())
+
+    ax = plt.subplot(2,2,1)
+    all_spikes = []
+    print "...unit: ", unit
+    plt.ylim(0,400)
+    plt.xlim(0,5.5)
+    depth=0
+    for stimulus in stimuli:
+        ymin=np.zeros(len(spikes_array[unit]))
+        ymax=np.zeros(len(spikes_array[unit]))
+        ymin+=depth
+        ymax+=depth+.9
+        depth+=1
+        
+        spikes = spikes_array[unit][np.where(np.logical_and(spikes_array[unit]>=stimulus+seq_isi_start, spikes_array[unit]<=stimulus+seq_isi_end))[0]]-stimulus
+        all_spikes.append(spikes)
+        
+        plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=.8) #colors[mod(counter,7)])
+
+    #Plot distribution of spikes
+    ax = plt.subplot(2,2,3)
+    plt.xlim(0,5.5)
+
+    bin_width = 0.001   #1ms bins
+    y = np.histogram(np.hstack(all_spikes), bins = np.arange(0, 5.5, bin_width))
+    plt.plot(y[1][:-1], y[0], linewidth=3, color='blue')    
+    
+    #Plot distribution of sequential pairwise distances
+    ax = plt.subplot(2,2,2)
+    plt.xlim(0,0.01)
+    sequential_isi = []
+    for k in range(len(all_spikes)-1):
+        for p in range(len(all_spikes[k+1])):
+            if (len(all_spikes[k])>0) and (len(all_spikes[k+1])>0):
+                sequential_isi.extend(np.abs(all_spikes[k]-all_spikes[k+1][p]))
+    
+    print np.sort(sequential_isi)[:100]
+    if len(sequential_isi)>0:
+        bin_width = float(self.bin_width.text())
+        y = np.histogram(np.hstack(sequential_isi), bins = np.arange(0,0.150,bin_width))
+        plt.plot(y[1][:-1], y[0], linewidth=3, color='blue')    
+
+    #Plot scrambled order pairwise distances
+    shuffled_indexes = np.random.choice(len(all_spikes)-1,len(all_spikes)) 
+    
+    sequential_isi = []
+    for k in range(len(shuffled_indexes)-1):
+        print shuffled_indexes[k], shuffled_indexes[k+1]
+        for p in range(len(all_spikes[shuffled_indexes[k+1]])):
+            if (len(all_spikes[shuffled_indexes[k]])>0) and (len(all_spikes[shuffled_indexes[k+1]])>0):
+                sequential_isi.extend(np.abs(all_spikes[shuffled_indexes[k]]-all_spikes[shuffled_indexes[k+1]][p]))
+    
+    print np.sort(sequential_isi)[:100]
+    if len(sequential_isi)>0:
+        y = np.histogram(np.hstack(sequential_isi), bins = np.arange(0,0.150,bin_width))
+        plt.plot(y[1][:-1], y[0], linewidth=3, color='red')    
+
+    #PLOT SCRAMBLED RASTERS
+    ax = plt.subplot(2,2,1)
+    print "...unit: ", unit
+    plt.ylim(0,400)
+    plt.xlim(0,5.5)
+    depth=0
+    for k in range(len(all_spikes)):
+        ymin=np.zeros(len(all_spikes[shuffled_indexes[k]]))
+        ymax=np.zeros(len(all_spikes[shuffled_indexes[k]]))
+        ymin+=depth
+        ymax+=depth+.9
+        depth+=1
+        
+        spikes = all_spikes[shuffled_indexes[k]]
+        
+        plt.vlines(spikes, ymin, ymax, linewidth=3, color='red',alpha=.8) #colors[mod(counter,7)])
+
+    print all_spikes
+    
+
+
+
+    plt.show()
+
+
+
+def compute_natscene_rasters(self):
+
+    #Find offset for stimulus processing
+    recordings = sorted(glob.glob(self.rec_path+"/*"))
+    offset = 0
+    for recording in recordings:
+        print recording
+        temp= recording.replace(self.rec_path+'/','')
+        if temp in self.rec_name: 
+            din_file = self.rec_path+'/'+temp+'/'+temp+'.din'       #Save .din filename before exiting
+            break
+        t1 = load_lfp_length(glob.glob(recording+"/*.lfp.zip")[0])
+        offset += t1
+
+    offset = offset*1E-6
+    print "...offset: ", offset
+
+
+
+    #**** Load .din stimulus timestamps
+    print din_file
+    f = open(din_file, 'rb')
+    din = np.fromfile(f, dtype=np.int64).reshape(-1, 2) # reshape to 2 cols containing [time_stamp in usec : frame number]
+    f.close()
+    print "No of frames in din file: ", len(din)
+    print "Length of recording: ", float(din[-1][0])*1E-6/60., " mins." 
+
+    start_indexes = np.where(din[:,1]==0)[0][::3]   #each frame is on screen for 3 refreshes (NOT ALWAYS TRUE*********)
+    stimuli = din[:,0][start_indexes]*1E-6
+    #print stimuli
        
     
 
@@ -5883,7 +6174,9 @@ def compute_natscene_rasters(self):
            
     #plot spike rasters
     #for unit in range(len(Sort_sua.units)):
-    for unit in [30]:# range(40):
+    unit = int(self.starting_cell.text())
+
+    for unit in [unit]:
         print "...unit: ", unit
         #ax = plt.subplot(6,7,unit+1)
         plt.ylim(0,400)

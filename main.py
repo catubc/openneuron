@@ -1812,7 +1812,7 @@ class MSL(QtGui.QWidget):
 
 
         #**************************************************************************************
-        #***************************** CSD ANALYSIS **************************************
+        #***************************** NAT SCENE ANALYSIS **************************************
         #**************************************************************************************
         layout.addWidget(QLabel('', self), row_index,0); row_index+=1
         self.preprocess_lbl = QLabel('NAT SCENE ANALYSIS', self)
@@ -1829,13 +1829,41 @@ class MSL(QtGui.QWidget):
         self.button_set_natscene_rec_lbl = QLabel(self.parent.button_set_natscene_rec, self)
         layout.addWidget(self.button_set_natscene_rec_lbl, row_index,1); row_index+=1
         
-        
-        
         self.button_natscene_rasters = QPushButton('Nat Scene: Stimulus + Rasters')
         self.button_natscene_rasters.setMaximumWidth(200)
         self.button_natscene_rasters.clicked.connect(self.view_natscene_rasters)
-        layout.addWidget(self.button_natscene_rasters, row_index, 0); row_index+=1
+        layout.addWidget(self.button_natscene_rasters, row_index, 0)
 
+        self.button_natscene_seqisi = QPushButton('Sequential ISI Distributions')
+        self.button_natscene_seqisi.setMaximumWidth(200)
+        self.button_natscene_seqisi.clicked.connect(self.view_natscene_seqisi)
+        layout.addWidget(self.button_natscene_seqisi, row_index, 1)
+        
+        self.button_natscene_pairisi = QPushButton('Pairwise ISI Distributions')
+        self.button_natscene_pairisi.setMaximumWidth(200)
+        self.button_natscene_pairisi.clicked.connect(self.view_natscene_pairisi)
+        layout.addWidget(self.button_natscene_pairisi, row_index, 2)
+
+
+        
+        
+        self.bin_width = QLineEdit('0.001');               
+        self.bin_width.setMaximumWidth(50)
+        self.bin_width_lbl = QLabel('Bin Width (sec)', self)
+        layout.addWidget(self.bin_width_lbl,row_index,4)
+        layout.addWidget(self.bin_width,row_index,5)
+        
+        self.seqisi_start = QLineEdit('0');               
+        self.seqisi_start.setMaximumWidth(50)
+        self.seqisi_start_lbl = QLabel('Time Start (sec)', self)
+        layout.addWidget(self.seqisi_start_lbl,row_index,6)
+        layout.addWidget(self.seqisi_start,row_index,7)
+        
+        self.seqisi_end = QLineEdit('5.5');               
+        self.seqisi_end.setMaximumWidth(50)
+        self.seqisi_end_lbl = QLabel('Time End (sec)', self)
+        layout.addWidget(self.seqisi_end_lbl,row_index,8)
+        layout.addWidget(self.seqisi_end,row_index,9); row_index+=1
 
 
         #**************************************************************************************
@@ -1958,9 +1986,18 @@ class MSL(QtGui.QWidget):
     def view_isi_histograms(self):
         compute_isi_histograms(self)
 
-    #Not implemented
     def view_natscene_rasters(self):
         compute_natscene_rasters(self)
+
+    def view_natscene_rasters(self):
+        compute_natscene_rasters(self)
+
+    def view_natscene_seqisi(self):
+        compute_natscene_seqisi(self)
+
+    def view_natscene_pairisi(self):
+        compute_natscene_pairisi(self)
+
 
 class CountMatrix(QtGui.QWidget):
     def __init__(self, parent):
@@ -2974,6 +3011,7 @@ class Window(QtGui.QMainWindow):
     def close_application(self):
         print("whooaaaa so custom!!!")
         
+       
         sys.exit()
 
 
