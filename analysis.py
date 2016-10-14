@@ -217,6 +217,7 @@ class Ptcs(object):
             self.spikes = np.fromfile(f, dtype=np.int64) # spike timestamps (us)
         self.nspikes = len(self.spikes)
 
+
 class Tsf_file(object):
 
     def __init__(self, file_name):
@@ -648,6 +649,7 @@ def event_triggered_movies_single_Ca(self):
     """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
 
     self.parent.n_sec = float(self.n_sec_window.text())
+
     #**************************************
     #Read [Ca] data
     #**************************************
@@ -669,7 +671,7 @@ def event_triggered_movies_single_Ca(self):
     print "...selected trial for stm: ", self.selected_trial
     self.ca_stack = quick_mask(self, data[int(self.selected_trial)])
     self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
-    
+
     
     #**************************************
     #Load behaviour camera data
@@ -690,6 +692,9 @@ def event_triggered_movies_single_Ca(self):
     print indexes
     self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
     self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
+    print self.selected_locs_44threshold
+    print self.selected_code_44threshold
+    
 
     #Load original movie data and index only during blue_light_frames
     movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
@@ -702,20 +707,77 @@ def event_triggered_movies_single_Ca(self):
     print "... frame event triggers: ", self.movie_04frame_locations
 
     #Make movie stack
-    self.movie_stack = self.movie_data[self.movie_04frame_locations-self.parent.n_sec*self.vid_rate: self.movie_04frame_locations+self.parent.n_sec*self.vid_rate]
+    #self.movie_stack = self.movie_data[self.movie_04frame_locations-int(self.parent.n_sec*self.vid_rate): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate)]
+    self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
 
-    #Interpolate movie stack to match [Ca] imaging rate
+    #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
     new_stack = []
-    for frame in range(len(self.movie_stack)-1):
+    #for frame in range(len(self.movie_stack)-1):
+    for frame in range(len(self.movie_stack)):
         new_stack.append(self.movie_stack[frame])
-        new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)
+        #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
+        new_stack.append(self.movie_stack[frame])
         
-    new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
+    #new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
     self.movie_stack = np.uint8(new_stack)
     
     print self.ca_stack.shape
     print self.movie_stack.shape
 
+    #**************************************
+    #Read Lever position data
+    #**************************************
+    
+    lever_file = temp_file+'_abspositions.npy'
+    times_file = temp_file+'_abstimes.npy'
+    
+    lever_data = np.load(lever_file)
+    times_data = np.load(times_file)
+    
+    start_index = find_nearest(times_data, self.selected_locs_44threshold)
+    print times_data[start_index]
+    
+    #Initialize lever_stack and find indexes in lever_data @~120Hz that match 30Hz sampling rate; both img_rates should be saved to disk so can use exact vals
+    #self.lever_stack = np.zeros((self.movie_stack.shape[0], 120, self.movie_stack.shape[0]), dtype=np.float32)+255
+    self.lever_stack = []
+    #Make plots and convert to img stack
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    from matplotlib.figure import Figure
+
+    x_val = []
+    y_val = []
+    for k in range(len(self.movie_stack)):
+        x_val.append(k)
+        y_val.append(lever_data[int(start_index+k*4-self.movie_stack.shape[0]/2*4)])
+
+
+    for k in range(len(self.movie_stack)):
+        fig = Figure()
+        canvas = FigureCanvas(fig)
+        ax = fig.gca()
+        
+        ax.tick_params(axis='both', which='both', labelsize=30)
+        old_xlabel = np.linspace(0,len(self.movie_stack), 2*int(self.n_sec_window.text()))
+        new_xlabel = np.around(np.linspace(-int(self.n_sec_window.text()), int(self.n_sec_window.text()), 2*int(self.n_sec_window.text())), decimals=2)
+
+        ax.set_xticks(old_xlabel)
+        ax.set_xticklabels(new_xlabel)
+
+        ax.plot([0,len(self.movie_stack)], [10, 10], color = 'black', linewidth=2, alpha = 0.8)
+        ax.plot([0,len(self.movie_stack)], [35, 35], 'r--', color = 'blue', linewidth=3, alpha = 0.8)
+        ax.plot([0,len(self.movie_stack)], [60, 60], color = 'blue', linewidth=2, alpha = 0.8)
+        
+        ax.plot(x_val[:k],y_val[:k], linewidth=3)
+        ax.set_ylim(0,120)
+        ax.set_xlim(0,len(self.movie_stack))
+        canvas.draw()       # draw the canvas, cache the renderer
+        
+        data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        self.lever_stack.append(data)
+       
+    plt.close()
+    
     make_movies_ca(self)
 
 
@@ -727,15 +789,27 @@ def make_movies_ca(self):
   
     fig = plt.figure()
     im = []
-
+    
+    gs = gridspec.GridSpec(2,2)
+        
     #[Ca] stack
-    ax = plt.subplot(2,1,1)
+    ax = plt.subplot(gs[0,0])
+    #ax = plt.subplot(2,1,1)
     v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.ca_stack[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
 
+    #Lever position trace
+    ax = plt.subplot(gs[0,1])
+    #ax = plt.subplot(2,1,1)
+    #v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.lever_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+
+
     #Camera stack
-    ax = plt.subplot(2,1,2)
+    #ax = plt.subplot(2,1,2)
+    ax = plt.subplot(gs[1,:])
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
@@ -745,7 +819,8 @@ def make_movies_ca(self):
 
         # set the data in the axesimage object
         im[0].set_array(self.ca_stack[j])
-        im[1].set_array(self.movie_stack[j])
+        im[1].set_array(self.lever_stack[j])
+        im[2].set_array(self.movie_stack[j])
 
         # return the artists set
         return im
@@ -5149,7 +5224,6 @@ def compute_msl_continuous_single(self):
     plt.show()
         
         
-        
 def compute_msl_continuous(self):
     
     min_spikes = float(self.min_spikes.text())
@@ -5190,7 +5264,17 @@ def compute_msl_continuous(self):
     #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
     pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
     pop_spikes=np.sort(np.unique(pop_spikes))*1E-3   #Exclude duplicates; convert to milisecond time
+    #pop_spikes=(pop_spikes)*1E-3   #Exclude duplicates; convert to milisecond time
+    
     print " ... # LFP events: ", len(pop_spikes)
+
+    
+    #Load saved cell rasters
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+    
+    
+        
     
     ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
     lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
@@ -5213,11 +5297,6 @@ def compute_msl_continuous(self):
     print "... # LFP events during sync states: ", len(pop_spikes)
     
     
-    #Load saved cell rasters
-    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
-    cell_rasters = np.load(cell_rasters_filename+".npy")
-
-    
     #**************************************************************************
     #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
     #**************************************************************************
@@ -5238,7 +5317,7 @@ def compute_msl_continuous(self):
     #**************************************************************************
 
     file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
-    jitter_time = 1000 #Time to jitter spiketrian
+    jitter_time = 50 #Time to jitter spiketrian
     #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
     #shift_time = jitter_time
     #file_out_shifted = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(shift_time)+"ms_shift"
@@ -5284,7 +5363,7 @@ def compute_msl_continuous(self):
                     continue
                 
                 locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
-                locked_spikes = np.unique(np.sort(locked_spikes))   #Remove duplicates;; not sure this is needed/correct; these are MSL times, not raw times
+                #locked_spikes = np.unique(np.sort(locked_spikes))   #Remove duplicates;; not sure this is needed/correct; these are MSL times, not raw times
                    
                 if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
                     lock_time[unit].append([0,0])
@@ -5328,7 +5407,7 @@ def compute_msl_continuous(self):
                 #locked_spikes_poisson = np.random.poisson(np.random.randint(200), len(locked_spikes))-100       #NB: THIS IS ALREADY IN MS
                 #locked_spikes_poisson = np.sort(np.random.poisson(10, len(locked_spikes))+(np.random.randint(jitter_time)-jitter_time/2.))  #Make sure spikes are time sorted
                 locked_spikes_poisson = np.hstack(np.array(cell_rasters_poisson[unit])[temp3])
-                locked_spikes_poisson = np.unique(np.sort(locked_spikes_poisson))
+                #locked_spikes_poisson = np.unique(np.sort(locked_spikes_poisson))
                 
                 fit_even = np.zeros(2000, dtype=np.float32)
                 fit_odd = np.zeros(2000, dtype=np.float32)
@@ -5438,6 +5517,188 @@ def compute_msl_continuous(self):
         ax.set_yticklabels([])
         
     plt.show()
+        
+
+def compute_msl_single_lfpevent(self):
+    
+    min_spikes = float(self.min_spikes.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1000000  # window width in usec
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+
+    tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+
+
+    sig = float(self.sigma_width.text())
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+
+    #Load SUA Sort
+    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardcoded to: ", compress_factor
+
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+      
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+    pop_spikes=np.sort(np.unique(pop_spikes))*1E-3   #Exclude duplicates; convert to milisecond time
+    #pop_spikes=(pop_spikes)*1E-3   #Exclude duplicates; convert to milisecond time
+    
+    print " ... # LFP events: ", len(pop_spikes)
+
+
+    
+    #REDO THE DISTANCE DIFF
+    min_diff = 0.050    #50ms
+    pop_spikes=pop_spikes*1E-3
+    t = [0,31000]
+
+    if False:
+        for unit in range(20):
+            ax = plt.subplot(4,5,unit+1)
+
+            spikes = Sort_sua.units[unit]*1E-6
+
+            recomputed_array1 = []
+            diff_array1 = []
+            spikes_perlfp_array = []
+            for k in range(len(pop_spikes)): spikes_perlfp_array.append([])
+            for k in range(len(spikes)):
+                nearest_lfp_index = find_nearest(pop_spikes, spikes[k])
+                temp_diff = spikes[k]- pop_spikes[nearest_lfp_index]
+                if np.abs(temp_diff)<min_diff:
+                    recomputed_array1.append(spikes[k])
+                    diff_array1.append(temp_diff)
+                    spikes_perlfp_array[nearest_lfp_index].append(temp_diff)
+            
+            plt.scatter(recomputed_array1, np.array(diff_array1)*1E3, color='blue')
+
+            #Compute average lfp lock time for each LFP event:
+            ave_lfp_lock = []
+            x = []
+            for k in range(len(spikes_perlfp_array)):
+                if len(spikes_perlfp_array[k])>0:
+                    ave_lfp_lock.append(np.mean(spikes_perlfp_array[k]))
+                    x.append(pop_spikes[k])
+            
+            plt.scatter(x, np.array(ave_lfp_lock)*1E3-50, color='magenta')
+                
+            ax.ticklabel_format(useOffset=False)
+            plt.ylim(-100,50)
+            plt.xlim(0,t[-1])
+            plt.title("Unit: " + str(unit), fontsize=20)
+                
+            ymin=np.zeros(len(spikes)); ymax=ymin+2.0
+            plt.vlines(spikes, ymin, ymax, linewidth=3, color='black',alpha=.8) #colors[mod(counter,7)])
+
+            ymin=np.zeros(len(pop_spikes))+2; ymax=ymin+2.0
+            plt.vlines(pop_spikes, ymin, ymax, linewidth=3, color='green',alpha=.8) #colors[mod(counter,7)])
+
+            ymin=np.zeros(len(recomputed_array1))+4; ymax=ymin+2.0
+            plt.vlines(recomputed_array1, ymin, ymax, linewidth=3, color='red',alpha=.8) #colors[mod(counter,7)])
+            
+            ax.tick_params(axis='both', which='both', labelsize=8)
+        
+    def runningMeanFast(x, N):
+        return np.convolve(x, np.ones((N,))/N)[(N-1):]
+    
+    
+    unit = starting_cell
+    ax = plt.subplot(1,1,1)
+
+    spikes = Sort_sua.units[unit]*1E-6
+
+    recomputed_array1 = []
+    diff_array1 = []
+    spikes_perlfp_array = []
+    for k in range(len(pop_spikes)): spikes_perlfp_array.append([])
+    for k in range(len(spikes)):
+        nearest_lfp_index = find_nearest(pop_spikes, spikes[k])
+        temp_diff = spikes[k]- pop_spikes[nearest_lfp_index]
+        if np.abs(temp_diff)<min_diff:
+            recomputed_array1.append(spikes[k])
+            diff_array1.append(temp_diff)
+            spikes_perlfp_array[nearest_lfp_index].append(temp_diff)
+    
+    plt.scatter(recomputed_array1, np.array(diff_array1)*1E3, color='blue', alpha=0.6)
+
+    running_mean = runningMeanFast(np.array(diff_array1)*1E3, 10)
+    plt.plot(recomputed_array1, running_mean, color='blue', linewidth=5, alpha=0.5)
+    
+
+    #Compute average lfp lock time for each LFP event:
+    ave_lfp_lock = []
+    x = []
+    for k in range(len(spikes_perlfp_array)):
+        if len(spikes_perlfp_array[k])>0:
+            ave_lfp_lock.append(np.mean(spikes_perlfp_array[k]))
+            x.append(pop_spikes[k])
+    
+    plt.scatter(x, np.array(ave_lfp_lock)*1E3-50, color='magenta', alpha=0.6)
+    running_mean = runningMeanFast(np.array(ave_lfp_lock)*1E3-50, 10)
+    plt.plot(x, running_mean, color='magenta', linewidth=5, alpha=0.5)
+
+
+    first_spike = []
+    x = []
+    for k in range(len(spikes_perlfp_array)):
+        if len(spikes_perlfp_array[k])>0:
+            first_spike.append(spikes_perlfp_array[k][0])
+            x.append(pop_spikes[k])
+    
+    plt.scatter(x, np.array(first_spike)*1E3-100, color='brown', alpha=0.6)
+    running_mean = runningMeanFast(np.array(first_spike)*1E3-100, 10)
+    plt.plot(x, running_mean, color='brown', linewidth=5, alpha=0.5)
+    
+    ax.ticklabel_format(useOffset=False)
+    plt.ylim(-150,50)
+    plt.xlim(0,t[-1])
+    plt.title("Unit: " + str(unit), fontsize=20)
+        
+    #Plot rasters
+    ymin=np.zeros(len(spikes))+20; ymax=ymin+10.0
+    plt.vlines(spikes, ymin, ymax, linewidth=2, color='black',alpha=.8) #colors[mod(counter,7)])
+
+    ymin=np.zeros(len(pop_spikes))+30; ymax=ymin+10.0
+    plt.vlines(pop_spikes, ymin, ymax, linewidth=2, color='green',alpha=.8) #colors[mod(counter,7)])
+
+    ymin=np.zeros(len(recomputed_array1))+40; ymax=ymin+10.0
+    plt.vlines(recomputed_array1, ymin, ymax, linewidth=2, color='red',alpha=.8) #colors[mod(counter,7)])
+    
+    ax.tick_params(axis='both', which='both', labelsize=15)
+
+
+    old_ylabel = [-150,-125,-100,-75, -50,-25,  0, 50]
+    new_ylabel = [-50,  -25,   0,-25,   0,-25,  0, 50]
+    plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+    plt.xlabel("Time (sec)", fontsize=25)
+    plt.plot([0,t[-1]], [0,0], 'r--', color='black', alpha=0.7)
+    plt.plot([0,t[-1]], [-50,-50], 'r--', color='black', alpha=0.7)
+    plt.plot([0,t[-1]], [-100,-100], 'r--', color='black', alpha=0.7)
+            
+    plt.show()
+    
+    return        
+        
+        
+        
         
         
         
@@ -7840,7 +8101,7 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 
 
-def find_nearest(array,value):
+def find_nearest(array, value):
     return (np.abs(array-value)).argmin()
 
 def find_previous(array,value):

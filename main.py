@@ -1450,13 +1450,6 @@ class MouseLeverTools(QtGui.QWidget):
         view_video_stm(self)
 
 
-    def static_stm_ca_mouse_lever(self):
-        pass
-
-    def video_stm_ca_mouse_lever(self):
-        pass
-        
-
     def algn_images(self):
         
         #load specific session .npy images and align to 1000 frame of 1st session
@@ -1478,6 +1471,15 @@ class MouseLeverTools(QtGui.QWidget):
     def evt_movies_ca(self):
         event_triggered_movies_single_Ca(self)
 
+
+    def static_stm_ca_mouse_lever(self):
+        pass
+
+    def video_stm_ca_mouse_lever(self):
+        pass
+        
+        
+        
     def kmeans_mouse_lever(self):
         print "...kmeans..."
         
@@ -1593,7 +1595,10 @@ class MSL(QtGui.QWidget):
         self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
-        
+        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_hp.ptcs'
+        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_lp_50compression.ptcs'
+
+
         layout = QtGui.QGridLayout()
 
         row_index=0
@@ -1760,6 +1765,10 @@ class MSL(QtGui.QWidget):
         self.button_msl_continuous_single.clicked.connect(self.view_msl_continuous_single)
         layout.addWidget(self.button_msl_continuous_single, row_index, 5); row_index+=1
 
+        self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')
+        self.button_msl_single_lfpevent.setMaximumWidth(200)
+        self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
+        layout.addWidget(self.button_msl_single_lfpevent, row_index, 0); row_index+=1
 
         self.button1 = QPushButton('View P-vals')
         self.button1.setMaximumWidth(200)
@@ -1936,6 +1945,10 @@ class MSL(QtGui.QWidget):
     def view_msl(self, main_widget):
         msl_plots(self)
     
+
+    def view_msl_single_lfpevent(self):
+        compute_msl_single_lfpevent(self)
+
     
     def view_msl_continuous(self):
         compute_msl_continuous(self)
@@ -1946,7 +1959,7 @@ class MSL(QtGui.QWidget):
     
     def view_msl_drift(self):
         cell_msl_drift(self)
-        
+
         
     def view_allcell_drift(self):
         all_cell_msl_stats(self)       
@@ -1983,17 +1996,22 @@ class MSL(QtGui.QWidget):
     def view_nspikes_histograms(self):
         compute_nspikes_histograms(self)
 
+
     def view_isi_histograms(self):
         compute_isi_histograms(self)
 
-    def view_natscene_rasters(self):
-        compute_natscene_rasters(self)
 
     def view_natscene_rasters(self):
         compute_natscene_rasters(self)
+
+
+    def view_natscene_rasters(self):
+        compute_natscene_rasters(self)
+
 
     def view_natscene_seqisi(self):
         compute_natscene_seqisi(self)
+
 
     def view_natscene_pairisi(self):
         compute_natscene_pairisi(self)
