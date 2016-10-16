@@ -885,10 +885,35 @@ class MouseLeverTools(QtGui.QWidget):
     
 
         #**************************************************************************************
-        #********************************** PRE-PROCESSING  ************************************
+        #************************* PRE-PROCESSING BATCH / ALL SESSIONS ************************
         #**************************************************************************************
 
-        self.preprocess_lbl = QLabel('PRE-PROCESSING', self)
+        self.preprocess_lbl = QLabel('PREPROCESS ALL SESSIONS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+
+        self.button_preprocess_mlever = QPushButton('Preprocess All Sessions')
+        self.button_preprocess_mlever.setMaximumWidth(200)
+        self.button_preprocess_mlever.clicked.connect(self.preprocess_mlever)
+        layout.addWidget(self.button_preprocess_mlever, row_index, 0)
+        
+        
+        self.button_filter_mlever = QPushButton('Filter All Sessions')
+        self.button_filter_mlever.setMaximumWidth(200)
+        self.button_filter_mlever.clicked.connect(self.filter_mlever)
+        layout.addWidget(self.button_filter_mlever, row_index, 1); row_index+=1
+        
+        #**************************************************************************************
+        #************************* PREPROCESSING SINGLE SESSION  ******************************
+        #**************************************************************************************
+
+        
+        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
+        row_index+=1
+        
+        self.preprocess_lbl = QLabel('PREPROCESS SINGLE SESSION', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
@@ -912,9 +937,7 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.button1, row_index, 2); row_index +=1
         
         
-        #**************************************************************************************
         #************************************ FILTERING ***************************************
-        #**************************************************************************************
         
         self.button2 = QPushButton('Pre-Filter Images')
         self.button2.setMaximumWidth(200)
@@ -938,7 +961,7 @@ class MouseLeverTools(QtGui.QWidget):
         filter_high_lbl = QLabel('High Cutoff (HZ):', self)
         layout.addWidget(filter_high_lbl, row_index,4)
         layout.addWidget(parent.filter_high, row_index,5); row_index+=1
-        
+
         
         #**************************************************************************************
         #************************************ COMPUTE DFF *************************************
@@ -947,7 +970,7 @@ class MouseLeverTools(QtGui.QWidget):
         for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
         row_index+=1
                 
-        self.preprocess_lbl = QLabel('[Ca] DFF-COMPUTATION', self)
+        self.preprocess_lbl = QLabel('[Ca] EVENT TRIGGERED', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
@@ -1023,7 +1046,7 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.comboBox_select_trial, row_index,3)
         self.comboBox_select_trial.activated[str].connect(self.select_trial)
         
-        self.block_save = QLineEdit('10')
+        self.block_save = QLineEdit('1')
         self.block_save.setMaximumWidth(50)
         self.block_save_lbl = QLabel('Block Ave:', self)
         layout.addWidget(self.block_save_lbl, row_index,4)
@@ -1035,9 +1058,58 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.midline_mask_lbl, row_index,6)
         layout.addWidget(self.midline_mask, row_index,7)
 
-               
-        row_index+=1
+        self.stm_start_time = QLineEdit('-.3')
+        self.stm_start_time.setMaximumWidth(50)
+        self.stm_start_time_lbl = QLabel('Start time:', self)
+        layout.addWidget(self.stm_start_time_lbl, row_index,8)
+        layout.addWidget(self.stm_start_time, row_index,9)
         
+        self.stm_end_time = QLineEdit('+.3')
+        self.stm_end_time.setMaximumWidth(50)
+        self.stm_end_time_lbl = QLabel('End time:', self)
+        layout.addWidget(self.stm_end_time_lbl, row_index,10)
+        layout.addWidget(self.stm_end_time, row_index,11); row_index+=1
+
+
+        #************************************ FILTERING ***************************************
+
+        self.stm_activity = QPushButton('Activity Triggered STM')
+        self.stm_activity.setMaximumWidth(200)
+        self.stm_activity.clicked.connect(self.view_stm_activity)
+        layout.addWidget(self.stm_activity, row_index, 0)
+        
+        
+        self.mask_start_frame = QLineEdit('0')
+        self.mask_start_frame.setMaximumWidth(50)
+        self.mask_start_frame_lbl = QLabel('Mask start frame:', self)
+        layout.addWidget(self.mask_start_frame_lbl, row_index,1)
+        layout.addWidget(self.mask_start_frame, row_index,2)
+        
+        self.mask_end_frame = QLineEdit('6')
+        self.mask_end_frame.setMaximumWidth(50)
+        self.mask_end_frame_lbl = QLabel('End time:', self)
+        layout.addWidget(self.mask_end_frame_lbl, row_index,3)
+        layout.addWidget(self.mask_end_frame, row_index,4)        
+        
+        self.mask_width = QLineEdit('40')
+        self.mask_width.setMaximumWidth(50)
+        self.mask_width_lbl = QLabel('Mask width (pixels):', self)
+        layout.addWidget(self.mask_width_lbl, row_index,5)
+        layout.addWidget(self.mask_width, row_index,6)
+        
+        self.mask_power = QLineEdit('4.')
+        self.mask_power.setMaximumWidth(50)
+        self.mask_power_lbl = QLabel('Mask power:', self)
+        layout.addWidget(self.mask_power_lbl, row_index,7)
+        layout.addWidget(self.mask_power, row_index,8); row_index+=1
+        
+    
+        
+        
+        
+        row_index+=1
+
+
         
         #**************************************************************************************
         #*********************************** VIDEO TOOLS **************************************
@@ -1144,10 +1216,12 @@ class MouseLeverTools(QtGui.QWidget):
 
 
         #Separate sessions into epoch periods
-        self.button6 = QPushButton('Set Epochs (days)')
-        self.button6.setMaximumWidth(200)
-        self.button6.clicked.connect(self.load_m_lever)
-        layout.addWidget(self.button6, row_index, 0)
+        epoch_days_lbl = QLabel('Epoch days: ', self)
+        layout.addWidget(epoch_days_lbl, row_index, 0)
+        #self.button6 = QPushButton('Set Epochs (days)')
+        #self.button6.setMaximumWidth(200)
+        #self.button6.clicked.connect(self.load_m_lever)
+        #layout.addWidget(self.button6, row_index, 0)
 
         pre_stroke_days = 21;  post_stroke_days = 14;  post_post_stroke_days = 42
         
@@ -1247,32 +1321,9 @@ class MouseLeverTools(QtGui.QWidget):
         self.setLayout(layout)
 
 
-    def cvrt_tif_npy(self):
-        print "...convert .tif to .npy..."
-
-        #Check to see if .npy or _aligned.npy file exists
-        if (os.path.exists(self.tif_file[:-4] +'.npy')==False) and (os.path.exists(self.tif_file[:-4] +'_aligned.npy')==False):
-            print "...read: ", self.tif_file
-            images_raw = tiff.imread(self.tif_file)
-
-            print "... saving .npy"
-            np.save(self.tif_file[:-4], images_raw)
-        else:
-            print "... .npy file exists ..."
-
-    def fltr_mouse_lever(self):
-        filter_data(self)
-    
-    def movie_available(self, text):
-        
-        self.comboBox_movie_available = QtGui.QComboBox(self)
-        if os.path.exists(self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v')==True: 
-            self.comboBox_movie_available.addItem("Movie exists")
-        else: 
-            self.comboBox_movie_available.addItem("No movie")
-        layout.addWidget(self.comboBox_movie_available, row_index,5)
-        self.comboBox_select_session.activated[str].connect(self.movie_available)
-        
+    #*****************************************************************************************************
+    #************************************* SELECT SESSIONS FUNCTIONS *************************************
+    #*****************************************************************************************************
 
 
     #SELECT ANIMAL
@@ -1336,12 +1387,12 @@ class MouseLeverTools(QtGui.QWidget):
             self.locs_44threshold = np.load(self.tif_file[:-4]+'_locs44threshold.npy')
             self.code_44threshold = np.load(self.tif_file[:-4]+'_code44threshold.npy')
 
-        print self.code_44threshold
+        print "... code_44threshold: ", self.code_44threshold
         
         self.comboBox_select_code.setCurrentIndex(0)
         self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
         self.n_codes_lbl.setText(str(self.n_codes))
-        print "\n\n"
+        #print "\n\n"
 
         #Reset trial value
         n_trials_in = self.load_stm_name()
@@ -1350,7 +1401,7 @@ class MouseLeverTools(QtGui.QWidget):
             self.comboBox_select_trial.addItem(str(k))
             self.selected_trial = '0' #crappy method; redundant
             
-        #Find movie availabliltiy
+        #Find movie availability
         if os.path.exists(self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v')==True: 
             self.movie_available_lbl.setText("Movie exists")
         else: 
@@ -1385,12 +1436,108 @@ class MouseLeverTools(QtGui.QWidget):
             self.comboBox_select_trial.addItem(str(k))
             self.selected_trial = '0' #crappy method; redundant
         
-
+    #SELECT TRIAL
     def select_trial(self, text):
         print "...selecting trial: ", text
         self.selected_trial = text
         
 
+    #*****************************************************************************************************
+    #************************************* PREPROCESS ALL DATA ******************************************
+    #*****************************************************************************************************
+
+
+    def preprocess_mlever(self):
+        #PREPROCESS ALL DATA: Load filenames, sessions, etc.
+        self.parent.animal.preprocess_mouse_lever()
+        
+
+    def filter_mlever(self):
+        #FILTER ALL DATA
+        
+        file_names = sorted(glob.glob(self.parent.root_dir+self.parent.animal.name+"/tif_files/*"))
+        for file_name in sorted(file_names):
+            #print file_name.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+       
+            self.selected_session = file_name.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+            self.select_session(self.selected_session)        
+            
+            filter_data(self)
+
+   
+    def algn_images(self):
+        #ALIGN ALL IMAGES
+
+        file_names = sorted(glob.glob(self.parent.root_dir+self.parent.animal.name+"/tif_files/*"))
+        for file_name in sorted(file_names):
+            print file_name.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+       
+            self.selected_session = file_name.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
+            self.select_session(self.selected_session)        
+            
+            self.animal.sessfilter_data(self)
+
+        self.align_images()                 #Align raw_images to first session frame 1000
+
+
+        #load specific session .npy images and align to 1000 frame of 1st session
+        print "... alligning session ... NOT CURRENTLY IMPLEMENTED..."
+        
+
+    def load_m_lever(self):
+        self.parent.animal.load()
+
+
+    #*****************************************************************************************************
+    #************************************* PROCESS INDIVIDUAL SESSION ************************************
+    #*****************************************************************************************************
+
+
+    def dff_mouse_lever(self):
+        compute_dff_mouse_lever(self)
+        
+        #self.parent.animal.process_sessions(self)
+        
+
+        #Reset trial value
+        n_trials_in = self.load_stm_name()
+        self.comboBox_select_trial.clear()
+        for k in range(n_trials_in):
+            self.comboBox_select_trial.addItem(str(k))
+            self.selected_trial = '0' #crappy method; redundant
+
+
+    def cvrt_tif_npy(self):
+        print "...convert .tif to .npy..."
+
+        #Check to see if .npy or _aligned.npy file exists
+        if (os.path.exists(self.tif_file[:-4] +'.npy')==False) and (os.path.exists(self.tif_file[:-4] +'_aligned.npy')==False):
+            print "...read: ", self.tif_file
+            images_raw = tiff.imread(self.tif_file)
+
+            print "... saving .npy"
+            np.save(self.tif_file[:-4], images_raw)
+        else:
+            print "... .npy file exists ..."
+
+
+    def fltr_mouse_lever(self):
+        filter_data(self)
+    
+    
+    
+    def movie_available(self, text):
+        
+        self.comboBox_movie_available = QtGui.QComboBox(self)
+        if os.path.exists(self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v')==True: 
+            self.comboBox_movie_available.addItem("Movie exists")
+        else: 
+            self.comboBox_movie_available.addItem("No movie")
+        layout.addWidget(self.comboBox_movie_available, row_index,5)
+        self.comboBox_select_session.activated[str].connect(self.movie_available)
+        
+        
+        
     def load_stm_name(self):        
 
         if self.selected_dff_filter == 'nofilter':
@@ -1426,6 +1573,7 @@ class MouseLeverTools(QtGui.QWidget):
     def select_filter(self, text):
         self.selected_filter = text
 
+
     def select_dff_method(self, text):
         self.dff_method = text
         
@@ -1437,43 +1585,61 @@ class MouseLeverTools(QtGui.QWidget):
             self.selected_trial = '0' #crappy method; redundant
             
 
-    def style_choice2(self, text):
-        self.choice2 = text
-        
-    def style_choice3(self, text):
-        self.choice3 = text
-
     def static_stm_mouse_lever(self):
         view_static_stm(self)
+
+
+    def view_stm_activity(self):
+        make_stm_motion_mask(self)
+
+
 
     def video_stm_mouse_lever(self):
         view_video_stm(self)
 
 
-    def algn_images(self):
-        
-        #load specific session .npy images and align to 1000 frame of 1st session
-        print "... alligning session ... NOT CURRENTLY IMPLEMENTED..."
+    def style_choice2(self, text):
+        self.choice2 = text
         
         
+    def style_choice3(self, text):
+        self.choice3 = text
+
+
+
+    #*************************************************************************************************
+    #*********************************** VIDEO PROCESSING TOOLS **************************************
+    #*************************************************************************************************
+
+
     def conv_video(self):
         convert_video(self)
+
 
     def fnd_start_end(self):
         find_start_end(self)
 
+
     def bl_light_roi(self):
         plot_blue_light_roi(self)
 
+
     def evt_movies(self):
         event_triggered_movies_multitrial(self)
+
 
     def evt_movies_ca(self):
         event_triggered_movies_single_Ca(self)
 
 
+    #*************************************************************************************************
+    #****************************************** STROKE TOOLS *****************************************
+    #*************************************************************************************************
+
+
     def static_stm_ca_mouse_lever(self):
         pass
+        
 
     def video_stm_ca_mouse_lever(self):
         pass
@@ -1483,31 +1649,37 @@ class MouseLeverTools(QtGui.QWidget):
     def kmeans_mouse_lever(self):
         print "...kmeans..."
         
+        
     def clusters_plot_mouse_lever(self):
         print "... visualizing clustered distributions in 3D post dim-reduction..."
         
         plot_pyqt(app, dim_red_data, mouse.cluster_labels)
+
 
     def select_cluster_mouse_lever(self):
         print "... selecting cluster post dim-reduction..."
  
         plot_traces_pyqt(app, mouse)
 
+
     def plot_motiff_mouse_lever(self):
         print "... plotting mouse lever motiff ..."
         
         plot_selected_cluster_DFF(mouse)
+
 
     def plot_1D_mouse_lever(self):
         print "... plotting 1D ..."
         
         plot_1D(mouse, generic_mask_indexes)   
 
+
     def plot_pixel_mouse_lever(self):
         
         print "... plotting 1D ..."
         
         pixel_plot(mouse, generic_mask_indexes)
+
 
     def make_movies_mouse_lever(self):
         print "... make movies ..."
@@ -1524,22 +1696,7 @@ class MouseLeverTools(QtGui.QWidget):
         dim_reduction (self.parent.animal, text) 
 
 
-    def dff_mouse_lever(self):
-        compute_dff_mouse_lever(self)
 
-        #Reset trial value
-        n_trials_in = self.load_stm_name()
-        self.comboBox_select_trial.clear()
-        for k in range(n_trials_in):
-            self.comboBox_select_trial.addItem(str(k))
-            self.selected_trial = '0' #crappy method; redundant
-
-    def convert_files(self):
-        self.parent.animal.preprocess_mouse_lever()
-
-
-    def load_m_lever(self):
-        self.parent.animal.load()
 
         
     def chunk_mouse_lever(self):

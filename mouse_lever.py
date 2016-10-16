@@ -54,6 +54,7 @@ class Mouse_lever(object):
         #self.save_mouse()       #Save mouse file names and trace data to pickle object (NB: no DFF data saved)
         
 
+
     def load_traces(self):
         
         counter=0
@@ -255,11 +256,15 @@ class Mouse_lever(object):
             #if len(self.sessions)>35: break
             
             #Check to see if traces data was generated; NB: the incorrect img_rate files aren't saved anyways, so img_rate check below is redundant
-            if (os.path.exists(tif_file[:-4]+"_"+str(int(self.window/self.img_rate))+"sec_traces.npy")==False): continue
+            if (os.path.exists(tif_file[:-4]+"_"+str(int(self.window/self.img_rate))+"sec_traces.npy")==False): 
+                print "********** SESSION NOT PROCESSED....SKIPPING********"
+                continue
             
             #Check to see if img_rate was ~30.00Hz; otherwise skip
             img_rate = np.load(tif_file[:-4]+'_img_rate.npy') #LOAD IMG_RATE
-            if abs(img_rate-float(self.img_rate))>0.01: continue
+            if abs(img_rate-float(self.img_rate))>0.01: 
+                print "******* img_rate mismatch *************"
+                continue
             
             session = Session(tif_file, event_file, lever_file, self.window, len(self.sessions),self.home_dir, self.name, self.img_rate)
 
@@ -282,6 +287,7 @@ class Mouse_lever(object):
 
             self.sessions.append(session)
 
+        print len(self.sessions)
         print ''
         self.stroke = Stroke(self.sessions, self.home_dir, self.name)      #Load stroke information; need to have processed session info first to place location of stroke
 
@@ -435,7 +441,7 @@ class Session(object):
         self.align_images()                 #Align raw_images to first session frame 1000
 
         #REMOVED OUT OF PRE-PROCESSING
-        #self.compute_DFF()                  #Compute DFF on aligned images
+        #self.compute_DFF()                  #Compute DFF on aligned images; ################THIS IS OLD VERSION OF DFF PROCESSING, SAVED INDIVIDUALLY; DO NOT USE
 
         #self.empty_session()                #Remove data already saved to disk; otherwise object too large
         
@@ -881,8 +887,15 @@ class Session(object):
             self.trials.append(trial)
 
         return temp
-        
+            
+    def find_nearest(self, array, value):
+        return (np.abs(array-value)).argmin()
 
+    def find_previous(self, array,value):
+        temp = (np.abs(array-value)).argmin()
+        if array[temp]>value: return temp-1
+        else: return temp
+        
 class Trial(object):
     ''' Make individual trial swithin each session representing individual DF/F stacks and lever position traces'''
     def __init__(self, traces):
@@ -905,6 +918,7 @@ class Stroke(object):
             #NO stroke-day single img files
             contour_save = [0,0]
             whole_save = [0,0]
+
             np.save(sessions[0].home_dir+sessions[0].name+'/stroke_contour', contour_save)
             np.save(sessions[0].home_dir+sessions[0].name+'/stroke_mask', whole_save)
 

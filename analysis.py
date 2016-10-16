@@ -764,7 +764,7 @@ def event_triggered_movies_single_Ca(self):
         ax.set_xticklabels(new_xlabel)
 
         ax.plot([0,len(self.movie_stack)], [10, 10], color = 'black', linewidth=2, alpha = 0.8)
-        ax.plot([0,len(self.movie_stack)], [35, 35], 'r--', color = 'blue', linewidth=3, alpha = 0.8)
+        ax.plot([0,len(self.movie_stack)], [34, 34], 'r--', color = 'blue', linewidth=3, alpha = 0.8)
         ax.plot([0,len(self.movie_stack)], [60, 60], color = 'blue', linewidth=2, alpha = 0.8)
         
         ax.plot(x_val[:k],y_val[:k], linewidth=3)
@@ -839,7 +839,7 @@ def filter_data(self):
         NB: mean value of stack is added back into filtered data - so it isn't a purely filtered 
     """
     
-    plotting = True
+    plotting = False
     #self.filter_list = ['No Filter', 'Butterworth', 'Chebyshev']
 
     rec_name = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
@@ -853,12 +853,16 @@ def filter_data(self):
 
     #Check to see if data already exists
     if os.path.exists(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'):
-        print "...data already filtered..."
+        print "...data already filtered...\n\n\n"
         return
 
     #Load aligned images
     print "... loading aligned imgs..."
-    images_aligned = np.load(images_file)
+    if os.path.exists(images_file):
+        images_aligned = np.load(images_file)
+    else:
+        print "...images file does not exist (likely session is incomplete)...\n\n\n"
+        return
     
     #Save mean of images_aligned if not already done
     if os.path.exists(images_file[:-4]+'_mean.npy')==False: 
@@ -1409,6 +1413,8 @@ def compute_dff_events(self):
     print ''
     self.images_filtered = 0;     #Set aligned_images to empty 
     
+
+    
     
 
 def compute_dff_mouse_lever(self):
@@ -1441,6 +1447,7 @@ def compute_dff_mouse_lever(self):
 def compute_DFF_function(self):
 
     self.parent.n_sec = float(self.n_sec_window.text())
+    
     #Check if already done
     print "... selected filter: ", self.selected_dff_filter
     if self.selected_dff_filter == 'nofilter':
@@ -1543,7 +1550,8 @@ def compute_DFF_function(self):
     print "...computing DF/F..."
     data_stm = []; traces = []; locs = []; codes = []
     counter=-1
-    self.window = self.parent.n_sec * session_img_rate
+    self.window = self.parent.n_sec * session_img_rate      #THIS MAY NOT BE GOOD ENOUGH; SHOULD ALWAYS GO BACK AT LEAST X SECONDS EVEN IF WINDOW IS ONLY 1SEC or 0.5sec...
+                                                            #Alternatively: always compute using at least 3sec window, and then just zoom in
     print "Trigger frame: ", 
     for trigger in img_frame_triggers:
         counter+=1
@@ -1662,6 +1670,33 @@ def view_static_stm_events(self):
     plt.show()
 
 
+def inverted_gaussian(width, y, pix_val, maxval, power):
+    mu = 0 #Select approximate midline as centre of gaussian
+    sig = width
+    x = y
+       
+    return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * (abs(pix_val/maxval)**(1./power))
+    #return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * (1./(pix_val/maxval))
+
+
+def regularization(maxval, val999, input_val):
+    
+    return -input_val*((input_val-val999)/(maxval-val999))      #Return a negative value up to -1.0
+
+
+
+
+def motion_mask_parallel(img_temp, maxval, width, power):
+    '''Parallel computation of mask
+    '''
+    motion_mask = img_temp*0.0
+    for x in range(len(img_temp)):
+        for y in range(len(img_temp[x])):
+            ##if img_temp[x][y]> 0: 
+                motion_mask[x][y] = img_temp[x][y]*inverted_gaussian(width, abs(64-y), img_temp[x][y], maxval, power)
+                #img_temp[x][y] = img_temp[x][y] + img_temp[x][y]*inverted_gaussian(width, abs(64-y), img_temp[x][y], maxval)
+                    
+    return motion_mask
 
 
 def view_static_stm(self):
@@ -1687,20 +1722,91 @@ def view_static_stm(self):
     print "...selected trial for stm: ", self.selected_trial
     temp_array = quick_mask(self, data[int(self.selected_trial)])
 
+
+    #Load motion mask
+    #motion_mask_array = np.load('/media/cat/12TB/in_vivo/tim/yuki/IA1/IA1_motion_mask.npy')
+    #motion_mask = (motion_mask_array[10]-np.min(motion_mask_array[10]))/(np.max(motion_mask_array[10]) - np.min(motion_mask_array[10]))
     plt.close()
-    ax = plt.subplot(1,1,1)
-    img_rate = self.parent.animal.img_rate
-    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+
+
+    #Make single trial motion mask:
+    img_temp = temp_array
+    maxval = np.max(img_temp)
     
+    width = int(self.mask_width.text()) #40
+    power = float(self.mask_power.text()) #4.
+    #Loop over every frame and scale data down
+    motion_mask = np.zeros((len(img_temp), len(img_temp[0]), len(img_temp[0])), dtype=np.float32)
+
+    motion_mask_array = []
+    for k in range(int(len(img_temp)/2.)+int(self.mask_start_frame.text()), int(len(img_temp)/2.)+int(self.mask_end_frame.text()), 1):
+        motion_mask_array.append(img_temp[k])
+        
+    #Use parmap
+    import parmap
+    #motion_mask_array = parmap.map(do_filter, pixels, b, a, processes=30)
+    motion_mask_array = parmap.map(motion_mask_parallel, motion_mask_array, maxval, width, power, processes=10)
+    
+
+    #motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
+    #np.save(motion_file, motion_mask)
+
+    #motion_file_single = motion_file+"_single"
+    motion_mask = np.ma.average(motion_mask_array, axis=0)
+    motion_mask = (motion_mask-np.min(motion_mask))/(np.max(motion_mask) - np.min(motion_mask))
+    
+    ax = plt.subplot(3,1,1)
+    vabs = np.max(np.abs(motion_mask))
+    plt.imshow(-motion_mask, vmin = -vabs, vmax=vabs)
+    plt.show()
+    
+
+    img_rate = self.parent.animal.img_rate
+    #start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
+
     img_out = []
-    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-    for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+    img_out_original = []
+    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
         print i
-        img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+        img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0)*motion_mask)
+        #img_out.append(np.clip(np.ma.average(temp_array[i:i+block_save], axis=0), -1, +0.1))
+        img_out_original.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+
     img_out = np.ma.hstack((img_out))
     
-    v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
-    plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+    #v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    #plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+    v_abs = np.max(img_out)
+
+
+    ax = plt.subplot(3,1,2)
+    plt.imshow(img_out)
+
+    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    ax.yaxis.set_ticks([])
+    ax.xaxis.set_ticks([])
+
+    #if ctr==(len(select_units)-1): 
+    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    old_xlabel = np.linspace(0,img_out.shape[1], 11)
+    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+
+    plt.title(self.traces_filename)
+
+
+    #SEE ORIGINAL DATA ALSO 
+    img_out = np.ma.hstack((img_out_original))
+    
+    #v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    #plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+    v_abs = np.max(img_out)
+    
+    ax = plt.subplot(3,1,3)
+
+    plt.imshow(img_out)
 
     plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
     ax.yaxis.set_ticks([])
@@ -1714,9 +1820,148 @@ def view_static_stm(self):
 
     plt.title(self.traces_filename)
     #plt.suptitle(animal.ptcsName)
+
+
     plt.show()
 
     
+    
+def make_stm_motion_mask(self):
+    ''' Average all/some STMs together to see if midline and other artifacts are substantial
+    '''
+    
+    self.parent.n_sec = float(self.n_sec_window.text())
+
+    block_save = int(self.block_save.text())
+
+    if self.selected_dff_filter == 'nofilter':
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
+    else:
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_traces.npy"
+
+    filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
+    print "...stm_name: ", filename                                         #Filename containing STMs for all trials for that particular code 
+
+    #print "...resetting stm_name to: ", filename
+
+    if os.path.exists(filename)==True: 
+        data = np.load(filename,  mmap_mode='r+')
+    else:
+        print "...data not yet processed ******************"
+        return
+    
+    data_array = np.zeros(data.shape[1:], dtype=np.float32)
+    for trial in range(len(data)): 
+        data_array+= data[trial]
+   
+    data = data_array/len(data)
+    
+    #Mask data
+    temp_array = quick_mask(self, data)
+    
+    block_save = 1
+
+    plt.close()
+    ax = plt.subplot(2,1,1)
+    img_rate = self.parent.animal.img_rate
+    #start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
+
+    img_temp = []
+    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+        print i
+        #img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+        img_temp.append(np.ma.average(temp_array[i:i+block_save], axis=0))
+
+    img_out = np.ma.hstack((img_temp))
+    
+    #v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
+    #plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
+    v_abs = np.max(img_out)
+    plt.imshow(img_out)
+
+    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    ax.yaxis.set_ticks([])
+    ax.xaxis.set_ticks([])
+
+    #if ctr==(len(select_units)-1): 
+    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    old_xlabel = np.linspace(0,img_out.shape[1], 11)
+    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+
+    plt.title(self.traces_filename)
+    #plt.suptitle(animal.ptcsName)
+
+    #***************************************************************************************
+    #PLOT PIXELS OVER 95 PERCENTILE
+    ax = plt.subplot(2,1,2)
+    
+    x_shape = img_out.shape[0]
+    y_shape = img_out.shape[1]
+    
+    data_1d = img_out.reshape(x_shape*y_shape)
+    val999 = np.percentile(data_1d, 98)               #Mark stroke as the 97.5 percentile and higher values; 
+    print val999
+    maxval = np.max(data_1d)
+    
+    print maxval
+    
+    data_1d[data_1d > val999] = val999
+    
+    width = 60
+    
+    #Loop over every frame and scale data down
+    motion_mask = np.zeros((len(img_temp), len(img_temp[0]), len(img_temp[0])), dtype=np.float32)
+    for k in range(len(img_temp)/2.-3,len(img_temp)/2.+3, 1):
+        print "... frame: ", k
+        for x in range(len(img_temp[k])):
+            for y in range(len(img_temp[k][x])):
+                #if img_temp[k][x][y]>val999:     #OR JUST ALL PIXELS UNDER THE GAUSSIAN
+                #if abs(64-y)<15:
+                #if val999>img_temp[k][x][y]:
+                if img_temp[k][x][y]> 0: 
+                    motion_mask[k][x][y] = img_temp[k][x][y]*inverted_gaussian(width, abs(64-y), img_temp[k][x][y], maxval)
+                    img_temp[k][x][y] = img_temp[k][x][y] + img_temp[k][x][y]*inverted_gaussian(width, abs(64-y), img_temp[k][x][y], maxval)
+                
+                    #img_temp[k][x][y] += regularization(maxval, val999, img_temp[k][x][y])
+
+    motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
+    np.save(motion_file, motion_mask)
+
+    motion_file_single = motion_file+"_single"
+    motion_mask_single = np.average(motion_mask, axis=0)
+    np.save(motion_file_single, motion_mask_single)
+    
+    img_out = np.ma.hstack((img_temp))
+
+    #data_1d = img_out.reshape(img_out.shape[0]*img_out.shape[1])
+    #data_1d[data_1d > val999] = 0
+    
+    #img_out = data_1d.reshape(x_shape, y_shape)
+
+    v_abs = np.max(img_out)
+    plt.imshow(img_out)
+
+    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
+    ax.yaxis.set_ticks([])
+    ax.xaxis.set_ticks([])
+
+    #if ctr==(len(select_units)-1): 
+    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
+    old_xlabel = np.linspace(0,img_out.shape[1], 11)
+    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
+
+    plt.title(self.traces_filename)
+    #plt.suptitle(animal.ptcsName)
+
+    plt.show()
+
+
       
 
 def view_video_stm(self):
