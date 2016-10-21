@@ -1052,7 +1052,7 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.block_save_lbl, row_index,4)
         layout.addWidget(self.block_save, row_index,5)
         
-        self.midline_mask = QLineEdit('5')
+        self.midline_mask = QLineEdit('1')
         self.midline_mask.setMaximumWidth(50)
         self.midline_mask_lbl = QLabel('MidlineMask:', self)
         layout.addWidget(self.midline_mask_lbl, row_index,6)
@@ -1073,10 +1073,10 @@ class MouseLeverTools(QtGui.QWidget):
 
         #************************************ FILTERING ***************************************
 
-        self.stm_activity = QPushButton('Activity Triggered STM')
-        self.stm_activity.setMaximumWidth(200)
-        self.stm_activity.clicked.connect(self.view_stm_activity)
-        layout.addWidget(self.stm_activity, row_index, 0)
+        #self.stm_activity = QPushButton('Activity Triggered STM')
+        #self.stm_activity.setMaximumWidth(200)
+        #self.stm_activity.clicked.connect(self.view_stm_activity)
+        #layout.addWidget(self.stm_activity, row_index, 0)
         
         
         self.mask_start_frame = QLineEdit('0')
@@ -1091,21 +1091,23 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.mask_end_frame_lbl, row_index,3)
         layout.addWidget(self.mask_end_frame, row_index,4)        
         
-        self.mask_width = QLineEdit('40')
+        self.mask_width = QLineEdit('12')
         self.mask_width.setMaximumWidth(50)
         self.mask_width_lbl = QLabel('Mask width (pixels):', self)
         layout.addWidget(self.mask_width_lbl, row_index,5)
         layout.addWidget(self.mask_width, row_index,6)
         
-        self.mask_power = QLineEdit('4.')
+        self.mask_percentile = QLineEdit('99.99')
+        self.mask_percentile.setMaximumWidth(50)
+        self.mask_percentile_lbl = QLabel('Mask Percentile:', self)
+        layout.addWidget(self.mask_percentile_lbl, row_index,7)
+        layout.addWidget(self.mask_percentile, row_index,8)
+        
+        self.mask_power = QLineEdit('1.2')
         self.mask_power.setMaximumWidth(50)
-        self.mask_power_lbl = QLabel('Mask power:', self)
-        layout.addWidget(self.mask_power_lbl, row_index,7)
-        layout.addWidget(self.mask_power, row_index,8); row_index+=1
-        
-    
-        
-        
+        self.mask_power_lbl = QLabel('Mask Power:', self)
+        layout.addWidget(self.mask_power_lbl, row_index,9)
+        layout.addWidget(self.mask_power, row_index,10); row_index+=1
         
         row_index+=1
 
@@ -1173,28 +1175,29 @@ class MouseLeverTools(QtGui.QWidget):
             layout.addWidget(QLabel(' '*40, self), row_index,0)
             row_index+=1
 
-        #**************************************************************************************
-        #***************************** COMBINED [Ca] & VIDEO **********************************
-        #**************************************************************************************
+
+        ##**************************************************************************************
+        ##***************************** COMBINED [Ca] & VIDEO **********************************
+        ##**************************************************************************************
         
                 
-        self.preprocess_lbl = QLabel('COMBINED [Ca] & VIDEO', self)
-        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
-        self.preprocess_lbl.setStyleSheet('color: blue')
-        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+        #self.preprocess_lbl = QLabel('COMBINED [Ca] & VIDEO', self)
+        #self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        #self.preprocess_lbl.setStyleSheet('color: blue')
+        #layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
         
-        self.button_ca_stm = QPushButton('Static [Ca] + STM')
-        self.button_ca_stm.setMaximumWidth(200)
-        self.button_ca_stm.clicked.connect(self.static_stm_ca_mouse_lever)
-        layout.addWidget(self.button_ca_stm, row_index, 0)
+        #self.button_ca_stm = QPushButton('Static [Ca] + STM')
+        #self.button_ca_stm.setMaximumWidth(200)
+        #self.button_ca_stm.clicked.connect(self.static_stm_ca_mouse_lever)
+        #layout.addWidget(self.button_ca_stm, row_index, 0)
         
-        self.button_ca_stm_video = QPushButton('Video [Ca] + STM')
-        self.button_ca_stm_video.setMaximumWidth(200)
-        self.button_ca_stm_video.clicked.connect(self.video_stm_ca_mouse_lever)
-        layout.addWidget(self.button_ca_stm_video, row_index, 1)        
+        #self.button_ca_stm_video = QPushButton('Video [Ca] + STM')
+        #self.button_ca_stm_video.setMaximumWidth(200)
+        #self.button_ca_stm_video.clicked.connect(self.video_stm_ca_mouse_lever)
+        #layout.addWidget(self.button_ca_stm_video, row_index, 1)        
         
-        row_index+=1
+        #row_index+=1
                 
         
         #**************************************************************************************
@@ -1589,8 +1592,8 @@ class MouseLeverTools(QtGui.QWidget):
         view_static_stm(self)
 
 
-    def view_stm_activity(self):
-        make_stm_motion_mask(self)
+    #def view_stm_activity(self):
+    #    make_stm_motion_mask(self)  #NOT USED ANYMORE; WAS DEVELOPED TO TEST OUT MASKING
 
 
 
@@ -1637,12 +1640,12 @@ class MouseLeverTools(QtGui.QWidget):
     #*************************************************************************************************
 
 
-    def static_stm_ca_mouse_lever(self):
-        pass
+    #def static_stm_ca_mouse_lever(self):
+        #pass
         
 
-    def video_stm_ca_mouse_lever(self):
-        pass
+    #def video_stm_ca_mouse_lever(self):
+        #pass
         
         
         

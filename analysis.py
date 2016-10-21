@@ -417,10 +417,10 @@ def convert_video(self):
     print self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v'
     
     vid = cv2.VideoCapture(self.parent.animal.home_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.m4v')
-    length = vid.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-    width  = vid.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
-    height = vid.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
-    fps    = vid.get(cv2.cv.CV_CAP_PROP_FPS)
+    #length = vid.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+    #width  = vid.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
+    #height = vid.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
+    #fps    = vid.get(cv2.cv.CV_CAP_PROP_FPS)
 
     #NB: CAN ALSO INDEX DIRECTLY INTO .WMV FILES:
     #time_length = 30.0
@@ -433,8 +433,8 @@ def convert_video(self):
     ##The second argument defines the frame number in range 0.0-1.0
     #cap.set(2,frame_no);
 
-    print length, width, height, fps
-    if length==0: print "... no movie file... returning..."; return
+   #print length, width, height, fps
+    #if length==0: print "... no movie file... returning..."; return
         
     time.sleep(.5)
     #Show video
@@ -664,14 +664,96 @@ def event_triggered_movies_single_Ca(self):
             str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_stm.npy"
     print "...stm_name: ", self.traces_filename
     
-    data = np.load(self.traces_filename, mmap_mode='r+')
+    data = np.load(self.traces_filename, mmap_mode='r+')[int(self.selected_trial)]  #Load only selected trial
     print data.shape
-    
-    #Mask [Ca] stack
-    print "...selected trial for stm: ", self.selected_trial
-    self.ca_stack = quick_mask(self, data[int(self.selected_trial)])
-    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
 
+    #Smooth and convolve original data to look for flow:
+    import cv2
+    
+    self.data_norm = []
+    self.ca_stack_smooth = []
+    self.ca_stack_smooth2 = []
+    for k in range(len(data)):
+        mx = np.array([[-1, 0, 1]])
+        data_norm = ((data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*255).astype(np.uint8)      #Normalize data to gray scale
+        self.data_norm.append(data_norm)
+        
+        kernel_5pix = np.ones((5,5),np.float32)/25.
+        data_smooth = cv2.filter2D(data_norm,-1,kernel_5pix)
+        self.ca_stack_smooth.append(data_smooth)
+
+        kernel_10pix = np.ones((10,10),np.float32)/20.
+        data_smooth = cv2.filter2D(data_norm,-1,kernel_10pix)
+        self.ca_stack_smooth2.append(data_smooth)
+
+
+    #Compute optical flow on original data
+    self.ca_stack_flow1 = []
+
+  
+    #old_gray = cv2.cvtColor(self.ca_stack_smooth[0], cv2.COLOR_BGR2GRAY)
+    old_gray = cv2.adaptiveThreshold(self.ca_stack_smooth2[0], 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0) #cv2.cvtColor(self.data_norm[0], cv2.COLOR_BGR2GRAY)
+
+    hsv = np.zeros_like(self.ca_stack_smooth2[0])
+    hsv[...,1] = 255
+
+    for k in range(1, len(self.ca_stack_smooth2), 1):
+        frame = self.ca_stack_smooth2[k]
+
+        frame_gray = cv2.adaptiveThreshold(frame, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0)
+
+        # calculate optical flow
+        flow = cv2.calcOpticalFlowFarneback(old_gray, frame_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+
+        mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+
+        hsv = ang*180/np.pi/2
+        #hsv = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        #rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
+
+        # Now update the previous frame and previous points
+        old_gray = frame_gray.copy()
+
+        self.ca_stack_flow1.append(hsv)
+
+    self.ca_stack_flow1 = np.array(self.ca_stack_flow1)
+
+
+    #Convert to numpy
+    
+    self.ca_stack_smooth = np.array(self.ca_stack_smooth) - np.average(self.ca_stack_smooth, axis=0)
+    self.ca_stack_smooth2 = np.array(self.ca_stack_smooth2) - np.average(self.ca_stack_smooth2, axis=0)
+    #self.ca_stack_diff1 = np.array(self.ca_stack_diff1) - np.average(self.ca_stack_diff1, axis=0)
+    #self.ca_stack_diff2 = np.array(self.ca_stack_diff2) - np.average(self.ca_stack_diff2, axis=0)
+   
+            
+
+    #Apply Generic Mask
+    print "...selected trial for stm: ", self.selected_trial
+    self.ca_stack = quick_mask(self, data)
+    self.ca_stack_smooth = quick_mask(self, self.ca_stack_smooth)
+    self.ca_stack_smooth2 = quick_mask(self, self.ca_stack_smooth2)
+    self.ca_stack_flow1 = quick_mask(self, self.ca_stack_flow1)
+    #self.ca_stack_diff2 = quick_mask(self, self.ca_stack_diff2)
+    
+
+    #Last and apply Motion Mask
+    filename_motion_mask = self.traces_filename.replace('_traces.npy','')[:-4]+'_motion_mask.npy'
+    print filename_motion_mask
+    if os.path.exists(filename_motion_mask)==False:
+        print "...motion mask missing..."
+        return
+    else: 
+        motion_mask = np.load(filename_motion_mask)
+        self.ca_stack = self.ca_stack * motion_mask
+        self.ca_stack_smooth = self.ca_stack_smooth * motion_mask
+        self.ca_stack_smooth2 = self.ca_stack_smooth2 * motion_mask
+        self.ca_stack_flow1 = self.ca_stack_flow1 * motion_mask
+        #self.ca_stack_diff2 = self.ca_stack_diff2 * motion_mask
+
+
+
+    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
     
     #**************************************
     #Load behaviour camera data
@@ -682,8 +764,8 @@ def event_triggered_movies_single_Ca(self):
     self.abstimes = np.load(temp_file+'_abstimes.npy')
     self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
     self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
-    print self.locs_44threshold
-    print self.code_44threshold
+    #print self.locs_44threshold
+    #print self.code_44threshold
 
     print "...self.selected_code: ", self.selected_code
     print "...self.selected_trial: ", self.selected_trial
@@ -692,8 +774,8 @@ def event_triggered_movies_single_Ca(self):
     print indexes
     self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
     self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
-    print self.selected_locs_44threshold
-    print self.selected_code_44threshold
+    #print self.selected_locs_44threshold
+    #print self.selected_code_44threshold
     
 
     #Load original movie data and index only during blue_light_frames
@@ -707,12 +789,10 @@ def event_triggered_movies_single_Ca(self):
     print "... frame event triggers: ", self.movie_04frame_locations
 
     #Make movie stack
-    #self.movie_stack = self.movie_data[self.movie_04frame_locations-int(self.parent.n_sec*self.vid_rate): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate)]
     self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
 
     #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
     new_stack = []
-    #for frame in range(len(self.movie_stack)-1):
     for frame in range(len(self.movie_stack)):
         new_stack.append(self.movie_stack[frame])
         #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
@@ -750,7 +830,7 @@ def event_triggered_movies_single_Ca(self):
         x_val.append(k)
         y_val.append(lever_data[int(start_index+k*4-self.movie_stack.shape[0]/2*4)])
 
-
+    print "... making stacks of lever pull panels...",
     for k in range(len(self.movie_stack)):
         fig = Figure()
         canvas = FigureCanvas(fig)
@@ -775,7 +855,9 @@ def event_triggered_movies_single_Ca(self):
         data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.lever_stack.append(data)
-       
+    
+    print "...done..."
+    
     plt.close()
     
     make_movies_ca(self)
@@ -790,26 +872,48 @@ def make_movies_ca(self):
     fig = plt.figure()
     im = []
     
-    gs = gridspec.GridSpec(2,2)
+    gs = gridspec.GridSpec(2,8)
         
     #[Ca] stack
-    ax = plt.subplot(gs[0,0])
-    #ax = plt.subplot(2,1,1)
+    ax = plt.subplot(gs[0,:2])
     v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.ca_stack[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
 
+    #[Ca] stack
+    ax = plt.subplot(gs[0,2:4])
+    v_max = np.nanmax(np.ma.abs(self.ca_stack_smooth)); v_min = -v_max
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.ca_stack_smooth[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+    #[Ca] stack
+    ax = plt.subplot(gs[0,4:6])
+    v_max = np.nanmax(np.ma.abs(self.ca_stack_smooth2)); v_min = -v_max
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.ca_stack_smooth2[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+
+    ax = plt.subplot(gs[0,6:8])
+    v_max = np.nanmax(np.ma.abs(self.ca_stack_flow1)); v_min = -v_max
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.ca_stack_flow1[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+
+    ##[Ca] stack
+    #ax = plt.subplot(gs[0,8:10])
+    #v_max = np.nanmax(np.ma.abs(self.ca_stack_diff2)); v_min = -v_max
+    #ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    #im.append(plt.imshow(self.ca_stack_diff2[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+
     #Lever position trace
-    ax = plt.subplot(gs[0,1])
-    #ax = plt.subplot(2,1,1)
-    #v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
+    ax = plt.subplot(gs[1,:2])
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.lever_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
 
     #Camera stack
-    #ax = plt.subplot(2,1,2)
-    ax = plt.subplot(gs[1,:])
+    ax = plt.subplot(gs[1,2:])
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
@@ -819,8 +923,13 @@ def make_movies_ca(self):
 
         # set the data in the axesimage object
         im[0].set_array(self.ca_stack[j])
-        im[1].set_array(self.lever_stack[j])
-        im[2].set_array(self.movie_stack[j])
+        im[1].set_array(self.ca_stack_smooth[j])
+        im[2].set_array(self.ca_stack_smooth2[j])
+        im[3].set_array(self.ca_stack_flow1[j])
+        #im[4].set_array(self.ca_stack_diff2[j])
+        
+        im[4].set_array(self.lever_stack[j])
+        im[5].set_array(self.movie_stack[j])
 
         # return the artists set
         return im
@@ -1670,13 +1779,29 @@ def view_static_stm_events(self):
     plt.show()
 
 
-def inverted_gaussian(width, y, pix_val, maxval, power):
+def sigmoid_function(x, a, b):
+
+    return np.clip(a*(np.ma.log(x) - np.ma.log(1 - x))+b, 0, 1)       #Compute sigmoid and cut off values below 0 and above 1
+    
+    
+def mangle(width, x, img_temp, maxval, power, val999):
+    
     mu = 0 #Select approximate midline as centre of gaussian
     sig = width
-    x = y
-       
-    return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * (abs(pix_val/maxval)**(1./power))
-    #return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * (1./(pix_val/maxval))
+    
+    a = .005       #The steepness of the sigmoid function
+    b = val999        #% of maxval to cutoff
+
+
+    #Normalize img_temp for sigmoid to work properly
+    #img_temp_norm = (img_temp-np.min(img_temp))/(np.max(img_temp) - np.min(img_temp))
+    img_temp_norm = (img_temp-np.min(img_temp))/(np.max(img_temp) - np.min(img_temp))
+
+
+    #Original root function
+    #return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * (abs(pix_val/maxval)**(1./power))
+    return -np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * sigmoid_function(img_temp_norm, a, b)
+
 
 
 def regularization(maxval, val999, input_val):
@@ -1685,24 +1810,29 @@ def regularization(maxval, val999, input_val):
 
 
 
-
-def motion_mask_parallel(img_temp, maxval, width, power):
+def motion_mask_parallel(img_temp, maxval, val999, width, power):
     '''Parallel computation of mask
     '''
-    motion_mask = img_temp*0.0
+   
+    y_array = []
     for x in range(len(img_temp)):
-        for y in range(len(img_temp[x])):
-            ##if img_temp[x][y]> 0: 
-                motion_mask[x][y] = img_temp[x][y]*inverted_gaussian(width, abs(64-y), img_temp[x][y], maxval, power)
-                #img_temp[x][y] = img_temp[x][y] + img_temp[x][y]*inverted_gaussian(width, abs(64-y), img_temp[x][y], maxval)
-                    
+        y_array.append(np.arange(0,len(img_temp), 1))
+        
+    y_array = np.vstack(y_array)
+    motion_mask = img_temp*mangle(width, np.abs(64-y_array), img_temp, maxval, power, val999)
+    
+
     return motion_mask
 
 
 def view_static_stm(self):
     
     self.parent.n_sec = float(self.n_sec_window.text())
-
+    width = int(self.mask_width.text()) #40
+    power = float(self.mask_power.text()) #4.
+    mask_percentile = float(self.mask_percentile.text()) #4.
+    mask_power = float(self.mask_power.text()) #4.
+    
     block_save = int(self.block_save.text())
 
     if self.selected_dff_filter == 'nofilter':
@@ -1714,6 +1844,7 @@ def view_static_stm(self):
 
     filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
     print "...stm_name: ", filename
+    filename_motion_mask = filename[:-4]+"_motion_mask.npy"
 
     data = np.load(filename)
     print data.shape
@@ -1732,33 +1863,39 @@ def view_static_stm(self):
     #Make single trial motion mask:
     img_temp = temp_array
     maxval = np.max(img_temp)
-    
-    width = int(self.mask_width.text()) #40
-    power = float(self.mask_power.text()) #4.
+    data_1d = img_temp.ravel()
+    val999 = np.percentile(data_1d, mask_percentile)               #Mark stroke as the 97.5 percentile and higher values; 
+    print "...masked percentile value: ", val999
+
     #Loop over every frame and scale data down
     motion_mask = np.zeros((len(img_temp), len(img_temp[0]), len(img_temp[0])), dtype=np.float32)
 
     motion_mask_array = []
     for k in range(int(len(img_temp)/2.)+int(self.mask_start_frame.text()), int(len(img_temp)/2.)+int(self.mask_end_frame.text()), 1):
         motion_mask_array.append(img_temp[k])
+    #for k in range(0, len(img_temp), 1):
+    #    motion_mask_array.append(img_temp[k])
         
-    #Use parmap
+    #Use parmap;  DO MASKING BEFORE BLOCK AVERAGING
     import parmap
     #motion_mask_array = parmap.map(do_filter, pixels, b, a, processes=30)
-    motion_mask_array = parmap.map(motion_mask_parallel, motion_mask_array, maxval, width, power, processes=10)
+    motion_mask_array = parmap.map(motion_mask_parallel, motion_mask_array, maxval, val999, width, power, processes=10)
     
 
     #motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
     #np.save(motion_file, motion_mask)
 
-    #motion_file_single = motion_file+"_single"
-    motion_mask = np.ma.average(motion_mask_array, axis=0)
-    motion_mask = (motion_mask-np.min(motion_mask))/(np.max(motion_mask) - np.min(motion_mask))
-    
+    #EITHER AVERAGE THE MASK, OR GRAB LARGEST VALUES IN MASK
+    motion_mask_ave = np.ma.average(motion_mask_array, axis=0)
+    motion_mask = np.power((motion_mask_ave-np.min(motion_mask_ave))/(np.max(motion_mask_ave) - np.min(motion_mask_ave)), np.zeros(motion_mask_ave.shape, dtype=np.float32)+mask_power)
+
+    np.save(filename_motion_mask, np.ma.filled(motion_mask, 0))
+
+
     ax = plt.subplot(3,1,1)
     vabs = np.max(np.abs(motion_mask))
     plt.imshow(-motion_mask, vmin = -vabs, vmax=vabs)
-    plt.show()
+    #plt.show()
     
 
     img_rate = self.parent.animal.img_rate
@@ -1771,10 +1908,10 @@ def view_static_stm(self):
     #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
         print i
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0)*motion_mask)
-        #img_out.append(np.clip(np.ma.average(temp_array[i:i+block_save], axis=0), -1, +0.1))
         img_out_original.append(np.ma.average(temp_array[i:i+block_save], axis=0))
 
     img_out = np.ma.hstack((img_out))
+
     
     #v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
     #plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
@@ -1967,6 +2104,7 @@ def make_stm_motion_mask(self):
 def view_video_stm(self):
 
     self.parent.n_sec = float(self.n_sec_window.text())
+    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
 
     block_save = int(self.block_save.text())
 
@@ -1977,17 +2115,29 @@ def view_video_stm(self):
         self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
             str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_traces.npy"
 
+    #Load single trial data
     filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
     print "...stm_name: ", filename
 
     data = np.load(filename)
     print data.shape
     
-    #Mask data
+    #Apply Generic Mask 
     print "...selected trial for stm: ", self.selected_trial
     vid_array = quick_mask(self, data[int(self.selected_trial)])
+
+   
+    #Apply motion Mask
+    filename_motion_mask = filename[:-4]+ self.selected_session+"_motion_mask.npy"
+    if os.path.exists(filename_motion_mask)==False:
+        print "...motion mask missing..."
+        return
     
-    start_time = -self.parent.n_sec; end_time = self.parent.n_sec
+    motion_mask = np.load(filename_motion_mask)
+    
+    print motion_mask
+    vid_array = vid_array * motion_mask
+    
 
     #***********GENERATE ANIMATIONS
     Writer = animation.writers['ffmpeg']
@@ -2014,6 +2164,7 @@ def view_video_stm(self):
         plt.suptitle("  Frame: "+str(j)+"  " +str(format(float(j)/self.parent.animal.img_rate+start_time,'.2f'))+"sec", fontsize = 15)
 
         # set the data in the axesimage object
+        #im.set_array(vid_array[j])
         im.set_array(vid_array[j])
 
         # return the artists set
