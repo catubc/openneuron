@@ -649,6 +649,7 @@ def event_triggered_movies_single_Ca(self):
     """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
 
     self.parent.n_sec = float(self.n_sec_window.text())
+    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
 
     #**************************************
     #Read [Ca] data
@@ -669,73 +670,78 @@ def event_triggered_movies_single_Ca(self):
 
     #Smooth and convolve original data to look for flow:
     import cv2
+    import scipy
+    import scipy.ndimage
     
     self.data_norm = []
-    self.ca_stack_smooth = []
-    self.ca_stack_smooth2 = []
-    for k in range(len(data)):
-        mx = np.array([[-1, 0, 1]])
-        data_norm = ((data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*255).astype(np.uint8)      #Normalize data to gray scale
-        self.data_norm.append(data_norm)
-        
-        kernel_5pix = np.ones((5,5),np.float32)/25.
-        data_smooth = cv2.filter2D(data_norm,-1,kernel_5pix)
-        self.ca_stack_smooth.append(data_smooth)
-
-        kernel_10pix = np.ones((10,10),np.float32)/20.
-        data_smooth = cv2.filter2D(data_norm,-1,kernel_10pix)
-        self.ca_stack_smooth2.append(data_smooth)
-
-
-    #Compute optical flow on original data
-    self.ca_stack_flow1 = []
-
-  
-    #old_gray = cv2.cvtColor(self.ca_stack_smooth[0], cv2.COLOR_BGR2GRAY)
-    old_gray = cv2.adaptiveThreshold(self.ca_stack_smooth2[0], 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0) #cv2.cvtColor(self.data_norm[0], cv2.COLOR_BGR2GRAY)
-
-    hsv = np.zeros_like(self.ca_stack_smooth2[0])
-    hsv[...,1] = 255
-
-    for k in range(1, len(self.ca_stack_smooth2), 1):
-        frame = self.ca_stack_smooth2[k]
-
-        frame_gray = cv2.adaptiveThreshold(frame, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0)
-
-        # calculate optical flow
-        flow = cv2.calcOpticalFlowFarneback(old_gray, frame_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-
-        mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-
-        hsv = ang*180/np.pi/2
-        #hsv = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
-        #rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
-
-        # Now update the previous frame and previous points
-        old_gray = frame_gray.copy()
-
-        self.ca_stack_flow1.append(hsv)
-
-    self.ca_stack_flow1 = np.array(self.ca_stack_flow1)
-
-
-    #Convert to numpy
+    self.ca_stack = []
+    n_stacks = 2
+    for k in range(n_stacks): 
+        self.ca_stack.append([])
     
-    self.ca_stack_smooth = np.array(self.ca_stack_smooth) - np.average(self.ca_stack_smooth, axis=0)
-    self.ca_stack_smooth2 = np.array(self.ca_stack_smooth2) - np.average(self.ca_stack_smooth2, axis=0)
-    #self.ca_stack_diff1 = np.array(self.ca_stack_diff1) - np.average(self.ca_stack_diff1, axis=0)
-    #self.ca_stack_diff2 = np.array(self.ca_stack_diff2) - np.average(self.ca_stack_diff2, axis=0)
-   
-            
+    self.ca_stack[0] = data
+    
+    #Normalize data; opencv functions largely work on unit8 data types
+    
+    #img_rate = 30.0
+    #start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
+    #for k in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), 1):
+    for k in range(len(data)):
+        data_norm = ((data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*255).astype(np.uint8)      #Normalize data to gray scale 0..255
+        #data_norm = (data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*2. - 1.   #Normalize to: -1.. 0 .. +1 scale
+        self.data_norm.append(data_norm)
+    
+    self.data_norm = np.array(self.data_norm)
+    self.data_norm_ave = np.average(self.data_norm, axis = 0)
+    
+    
+    filter_power = float(self.mask_power.text())
+    
+    for k in range(len(self.data_norm)): 
+        stack_ctr = 1
+        
+        sigma=2
+        img_arctan = np.ma.arctanh((self.data_norm[k]-128.)/128.)
+        
+        data_neg = -1. * np.ma.clip(img_arctan, -100., 0)
+        data_neg = -np.ma.power(data_neg, filter_power)
+        data_pos = np.ma.clip(img_arctan, 0, 100.)
+        data_pos = np.ma.power(data_pos, filter_power)
+        data_total = np.float32(data_neg + data_pos)
+        
+        #img_uint8 = ((data_total-np.min(data_total))/(np.max(data_total)-np.min(data_total))*255.).astype(np.uint8)
+        img_gaussian = ndimage.gaussian_filter(data_total, sigma=sigma)    #Recentre image around zero
+        #negatives = np.clip(img_gaussian, -1E-6, 1E-6)/1E-6
+        #data_out = np.power(np.ma.abs(img_gaussian), filter_power)*negatives
 
+        self.ca_stack[stack_ctr].append(img_gaussian);  stack_ctr+=1
+
+
+        #kernel_5pix = np.ones((5,5),np.float32)/5.
+        #data_out = cv2.filter2D(self.data_norm[k],-1,kernel_5pix)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+
+        #sigma = 10
+        #data_out = ndimage.gaussian_filter(self.data_norm[k], sigma=sigma)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+        
+        
+        #sx = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=0, mode='nearest')
+        #sy = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=1, mode='nearest')
+        #data_out = np.hypot(sx, sy)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+    
+    
+    #REmove averages from the smoothed stacks;
+    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
+    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
+    
+   
     #Apply Generic Mask
     print "...selected trial for stm: ", self.selected_trial
-    self.ca_stack = quick_mask(self, data)
-    self.ca_stack_smooth = quick_mask(self, self.ca_stack_smooth)
-    self.ca_stack_smooth2 = quick_mask(self, self.ca_stack_smooth2)
-    self.ca_stack_flow1 = quick_mask(self, self.ca_stack_flow1)
-    #self.ca_stack_diff2 = quick_mask(self, self.ca_stack_diff2)
-    
+    for k in range(len(self.ca_stack)):
+        self.ca_stack[k] = quick_mask(self, self.ca_stack[k])
+   
 
     #Last and apply Motion Mask
     filename_motion_mask = self.traces_filename.replace('_traces.npy','')[:-4]+'_motion_mask.npy'
@@ -745,22 +751,17 @@ def event_triggered_movies_single_Ca(self):
         return
     else: 
         motion_mask = np.load(filename_motion_mask)
-        self.ca_stack = self.ca_stack * motion_mask
-        self.ca_stack_smooth = self.ca_stack_smooth * motion_mask
-        self.ca_stack_smooth2 = self.ca_stack_smooth2 * motion_mask
-        self.ca_stack_flow1 = self.ca_stack_flow1 * motion_mask
-        #self.ca_stack_diff2 = self.ca_stack_diff2 * motion_mask
-
-
-
-    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
+        for k in range(len(self.ca_stack)):
+            self.ca_stack[k] = self.ca_stack[k] * motion_mask
     
-    #**************************************
-    #Load behaviour camera data
-    #**************************************
-    vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
-    self.vid_rate = np.loadtxt(vid_rate_filename)
+    self.ca_stack = np.ma.array(self.ca_stack)
+    print self.ca_stack.shape
 
+
+    #**************************************
+    #Load trigger times
+    #**************************************
+  
     self.abstimes = np.load(temp_file+'_abstimes.npy')
     self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
     self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
@@ -777,32 +778,45 @@ def event_triggered_movies_single_Ca(self):
     #print self.selected_locs_44threshold
     #print self.selected_code_44threshold
     
-
-    #Load original movie data and index only during blue_light_frames
-    movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
-    self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
-    self.movie_data = movie_data[np.load(self.blue_light_filename)]
-    
-    #Find movie frame corresponding to lever pull trigger
-    movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
-    self.movie_04frame_locations = find_nearest(movie_times, self.selected_locs_44threshold)
-    print "... frame event triggers: ", self.movie_04frame_locations
-
-    #Make movie stack
-    self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
-
-    #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
-    new_stack = []
-    for frame in range(len(self.movie_stack)):
-        new_stack.append(self.movie_stack[frame])
-        #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
-        new_stack.append(self.movie_stack[frame])
         
-    #new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
-    self.movie_stack = np.uint8(new_stack)
-    
-    print self.ca_stack.shape
-    print self.movie_stack.shape
+
+    #**************************************
+    #Load behaviour camera data IF AVAILABLE
+    #**************************************
+    vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
+    if os.path.exists(vid_rate_filename):
+        self.vid_rate = np.loadtxt(vid_rate_filename)
+
+        #Load original movie data and index only during blue_light_frames
+        movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
+        self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
+        self.movie_data = movie_data[np.load(self.blue_light_filename)]
+        
+        #Find movie frame corresponding to lever pull trigger
+        movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
+        self.movie_04frame_locations = find_nearest(movie_times, self.selected_locs_44threshold)
+        print "... frame event triggers: ", self.movie_04frame_locations
+
+        #Make movie stack
+        self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
+
+        #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
+        new_stack = []
+        for frame in range(len(self.movie_stack)):
+            new_stack.append(self.movie_stack[frame])
+            #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
+            new_stack.append(self.movie_stack[frame])
+            
+        #new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
+        self.movie_stack = np.uint8(new_stack)
+        
+        print self.movie_stack.shape
+
+    else:
+        print "... video data doesn't exist ... "
+        
+        self.movie_stack = np.zeros((len(self.ca_stack[0]), 30, 40), dtype=np.int8)
+        
 
     #**************************************
     #Read Lever position data
@@ -815,11 +829,12 @@ def event_triggered_movies_single_Ca(self):
     times_data = np.load(times_file)
     
     start_index = find_nearest(times_data, self.selected_locs_44threshold)
-    print times_data[start_index]
+    print start_index, times_data[start_index]
     
     #Initialize lever_stack and find indexes in lever_data @~120Hz that match 30Hz sampling rate; both img_rates should be saved to disk so can use exact vals
     #self.lever_stack = np.zeros((self.movie_stack.shape[0], 120, self.movie_stack.shape[0]), dtype=np.float32)+255
     self.lever_stack = []
+    
     #Make plots and convert to img stack
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
@@ -828,7 +843,10 @@ def event_triggered_movies_single_Ca(self):
     y_val = []
     for k in range(len(self.movie_stack)):
         x_val.append(k)
-        y_val.append(lever_data[int(start_index+k*4-self.movie_stack.shape[0]/2*4)])
+        #y_val.append(lever_data[int(start_index+k*4-self.movie_stack.shape[0]/2*4)])
+        y_val.append(abs(lever_data[int(start_index+k*(120./self.img_rate)-self.movie_stack.shape[0]/2*(120./self.img_rate))]))
+
+    print y_val
 
     print "... making stacks of lever pull panels...",
     for k in range(len(self.movie_stack)):
@@ -872,39 +890,14 @@ def make_movies_ca(self):
     fig = plt.figure()
     im = []
     
-    gs = gridspec.GridSpec(2,8)
-        
+    gs = gridspec.GridSpec(2,len(self.ca_stack)*2)
+    
     #[Ca] stack
-    ax = plt.subplot(gs[0,:2])
-    v_max = np.nanmax(np.ma.abs(self.ca_stack)); v_min = -v_max
-    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    im.append(plt.imshow(self.ca_stack[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
-
-    #[Ca] stack
-    ax = plt.subplot(gs[0,2:4])
-    v_max = np.nanmax(np.ma.abs(self.ca_stack_smooth)); v_min = -v_max
-    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    im.append(plt.imshow(self.ca_stack_smooth[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
-
-    #[Ca] stack
-    ax = plt.subplot(gs[0,4:6])
-    v_max = np.nanmax(np.ma.abs(self.ca_stack_smooth2)); v_min = -v_max
-    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    im.append(plt.imshow(self.ca_stack_smooth2[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
-
-
-    ax = plt.subplot(gs[0,6:8])
-    v_max = np.nanmax(np.ma.abs(self.ca_stack_flow1)); v_min = -v_max
-    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    im.append(plt.imshow(self.ca_stack_flow1[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
-
-
-    ##[Ca] stack
-    #ax = plt.subplot(gs[0,8:10])
-    #v_max = np.nanmax(np.ma.abs(self.ca_stack_diff2)); v_min = -v_max
-    #ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    #im.append(plt.imshow(self.ca_stack_diff2[0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
-
+    for k in range(len(self.ca_stack)):    
+        ax = plt.subplot(gs[0,k*2:k*2+2])
+        v_max = np.nanmax(np.ma.abs(self.ca_stack[k])); v_min = -v_max
+        ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+        im.append(plt.imshow(self.ca_stack[k][0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
 
     #Lever position trace
     ax = plt.subplot(gs[1,:2])
@@ -922,20 +915,18 @@ def make_movies_ca(self):
         plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec", fontsize = 15)
 
         # set the data in the axesimage object
-        im[0].set_array(self.ca_stack[j])
-        im[1].set_array(self.ca_stack_smooth[j])
-        im[2].set_array(self.ca_stack_smooth2[j])
-        im[3].set_array(self.ca_stack_flow1[j])
-        #im[4].set_array(self.ca_stack_diff2[j])
+        for k in range(len(self.ca_stack)): 
+            im[k].set_array(self.ca_stack[k][j])
         
-        im[4].set_array(self.lever_stack[j])
-        im[5].set_array(self.movie_stack[j])
+        im[k+1].set_array(self.lever_stack[j])
+        im[k+2].set_array(self.movie_stack[j])
 
         # return the artists set
         return im
         
     # kick off the animation
     ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.movie_stack)), interval=100, blit=False, repeat=True)
+    #ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.ca_stack[1])), interval=100, blit=False, repeat=True)
 
     if True:
         ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer)
@@ -1871,23 +1862,29 @@ def view_static_stm(self):
     motion_mask = np.zeros((len(img_temp), len(img_temp[0]), len(img_temp[0])), dtype=np.float32)
 
     motion_mask_array = []
-    for k in range(int(len(img_temp)/2.)+int(self.mask_start_frame.text()), int(len(img_temp)/2.)+int(self.mask_end_frame.text()), 1):
-        motion_mask_array.append(img_temp[k])
-    #for k in range(0, len(img_temp), 1):
-    #    motion_mask_array.append(img_temp[k])
+    mask_start_frame = int(self.mask_start_frame.text());  mask_end_frame = int(self.mask_end_frame.text())
+    if mask_start_frame != mask_end_frame:
+        for k in range(int(len(img_temp)/2.)+mask_start_frame, int(len(img_temp)/2.) + mask_end_frame, 1):
+            motion_mask_array.append(img_temp[k])
+        #for k in range(0, len(img_temp), 1):
+        #    motion_mask_array.append(img_temp[k])
+            
+        #Use parmap;  DO MASKING BEFORE BLOCK AVERAGING
+        import parmap
+        #motion_mask_array = parmap.map(do_filter, pixels, b, a, processes=30)
+        motion_mask_array = parmap.map(motion_mask_parallel, motion_mask_array, maxval, val999, width, power, processes=10)
         
-    #Use parmap;  DO MASKING BEFORE BLOCK AVERAGING
-    import parmap
-    #motion_mask_array = parmap.map(do_filter, pixels, b, a, processes=30)
-    motion_mask_array = parmap.map(motion_mask_parallel, motion_mask_array, maxval, val999, width, power, processes=10)
-    
 
-    #motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
-    #np.save(motion_file, motion_mask)
+        #motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
+        #np.save(motion_file, motion_mask)
 
-    #EITHER AVERAGE THE MASK, OR GRAB LARGEST VALUES IN MASK
-    motion_mask_ave = np.ma.average(motion_mask_array, axis=0)
-    motion_mask = np.power((motion_mask_ave-np.min(motion_mask_ave))/(np.max(motion_mask_ave) - np.min(motion_mask_ave)), np.zeros(motion_mask_ave.shape, dtype=np.float32)+mask_power)
+        #EITHER AVERAGE THE MASK, OR GRAB LARGEST VALUES IN MASK
+        motion_mask_ave = np.ma.average(motion_mask_array, axis=0)
+        motion_mask = np.power((motion_mask_ave-np.min(motion_mask_ave))/(np.max(motion_mask_ave) - np.min(motion_mask_ave)), np.zeros(motion_mask_ave.shape, dtype=np.float32)+mask_power)
+
+    else:
+        print "... no mask applied..."
+        motion_mask = np.zeros(img_temp[0].shape)+1
 
     np.save(filename_motion_mask, np.ma.filled(motion_mask, 0))
 
