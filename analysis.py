@@ -781,7 +781,7 @@ def event_triggered_movies_single_Ca(self):
         
 
     #**************************************
-    #Load behaviour camera data IF AVAILABLE
+    #Load behaviour camera and annotations data - if avialable
     #**************************************
     vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
     if os.path.exists(vid_rate_filename):
@@ -798,7 +798,12 @@ def event_triggered_movies_single_Ca(self):
         print "... frame event triggers: ", self.movie_04frame_locations
 
         #Make movie stack
-        self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
+        movie_indexes = np.arange(self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1), self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1), 1)
+        self.movie_stack = self.movie_data[movie_indexes]
+        
+        #self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
+        #print len(self.movie_stack)
+        #quit()
 
         #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
         new_stack = []
@@ -811,6 +816,29 @@ def event_triggered_movies_single_Ca(self):
         self.movie_stack = np.uint8(new_stack)
         
         print self.movie_stack.shape
+
+
+        #********** Load Annotations ********
+        areas = ['_lick'] #['_lever', '_pawlever', '_lick', '_snout', '_rightpaw', '_leftpaw', '_grooming'] 
+        annotation_array = []
+        for k in range(len(self.movie_data)): annotation_array.append([])
+        for area in areas:
+            data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+area+'_clusters.npz')
+            cluster_indexes=data['cluster_indexes'] 
+            cluster_names=data['cluster_names']
+            
+            for k in range(len(cluster_indexes)):
+                for p in range(len(cluster_indexes[k])):
+                    annotation_array[cluster_indexes[k][p]] = cluster_names[k]
+
+        annotation_array = np.array(annotation_array)[movie_indexes]
+        print annotation_array
+        print len(annotation_array)
+        
+        self.annotation_array=[]
+        for k in range(len(annotation_array)):                  #***************************** SAME DUPLICATION AS ABOVE; Video is 15Hz, imaging is 30Hz
+            self.annotation_array.append(annotation_array[k])
+            self.annotation_array.append(annotation_array[k])
 
     else:
         print "... video data doesn't exist ... "
@@ -912,7 +940,7 @@ def make_movies_ca(self):
 
     def updatefig(j):
         print "...frame: ", j
-        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec", fontsize = 15)
+        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  " +  self.annotation_array[j], fontsize = 15)
 
         # set the data in the axesimage object
         for k in range(len(self.ca_stack)): 
@@ -8129,6 +8157,7 @@ def plot_3D_distribution_new(self):
     
     self.parent.glwindow.plot(X, sids, nids)
 
+
 def points_to_lines(data):
     """ Make lines connecting each point in the data """
 
@@ -8451,7 +8480,7 @@ def on_click_single_frame(event):
         
 
 
-def on_click(event):
+def on_click_OLD(event):
     
     global coords, images_temp, ax, fig, cid
     

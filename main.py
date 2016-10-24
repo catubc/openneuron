@@ -639,7 +639,8 @@ class EventTriggeredImaging(QtGui.QWidget):
         
         for k in range(2): 
             layout.addWidget(QLabel(' '*40, self), row_index,0); row_index+=1
-            
+        
+        
         #**************************************************************************************
         #**************************** DIMENSIONALITY REDUCTION ********************************
         #**************************************************************************************
@@ -803,7 +804,7 @@ class EventTriggeredImaging(QtGui.QWidget):
 
 
     def plt_distribution(self):
-        plot_3D_distribution_new(self)
+        plot_3D_distribution_new(self)      #Plot 3D points a
         
     
     def vw_ave_points(self):
@@ -1639,15 +1640,6 @@ class MouseLeverTools(QtGui.QWidget):
     #****************************************** STROKE TOOLS *****************************************
     #*************************************************************************************************
 
-
-    #def static_stm_ca_mouse_lever(self):
-        #pass
-        
-
-    #def video_stm_ca_mouse_lever(self):
-        #pass
-        
-        
         
     def kmeans_mouse_lever(self):
         print "...kmeans..."
@@ -1700,19 +1692,12 @@ class MouseLeverTools(QtGui.QWidget):
 
 
 
-
-        
     def chunk_mouse_lever(self):
         #Call chunking algorithm
         self.parent.animal.chunk_data(pre_stroke_days, post_stroke_days, post_post_stroke_days)
 
-    ##THIS DOESN"T WORK PROPERLY
-    #def paintEvent(self, event):
-        #painter = QtGui.QPainter()
-        #painter.begin(self)
-        #self.hourColor = QtGui.QColor(255, 255, 0)
-        #painter.drawLine(10, 150, 200, 150)
-        
+
+
         
 class CatTools(QtGui.QWidget):
     def __init__(self, parent):
