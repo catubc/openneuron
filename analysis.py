@@ -12,6 +12,9 @@ from matplotlib.path import Path
 import matplotlib.animation as animation
 import scipy.ndimage as ndimage
 from scipy.signal import butter, filtfilt, cheby1
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 from load_intan_rhd_format import *
 
 from numpy import nan
@@ -819,27 +822,62 @@ def event_triggered_movies_single_Ca(self):
 
 
         #********** Load Annotations ********
-        areas = ['_lick'] #['_lever', '_pawlever', '_lick', '_snout', '_rightpaw', '_leftpaw', '_grooming'] 
-        annotation_array = []
-        for k in range(len(self.movie_data)): annotation_array.append([])
-        for area in areas:
+        print "... making stacks of annotation arrays ...",
+        areas = ['_lick', '_lever'] #, '_pawlever', '_lick', '_snout', '_rightpaw', '_leftpaw', '_grooming'] 
+        annotation_arrays = []
+        
+        for ctr, area in enumerate(areas):
+            annotation_arrays.append([])
+            for k in range(len(self.movie_data)): annotation_arrays[ctr].append([])
+            
             data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+area+'_clusters.npz')
             cluster_indexes=data['cluster_indexes'] 
             cluster_names=data['cluster_names']
             
             for k in range(len(cluster_indexes)):
                 for p in range(len(cluster_indexes[k])):
-                    annotation_array[cluster_indexes[k][p]] = cluster_names[k]
+                    annotation_arrays[ctr][cluster_indexes[k][p]] = cluster_names[k]
 
-        annotation_array = np.array(annotation_array)[movie_indexes]
-        print annotation_array
-        print len(annotation_array)
+            annotation_arrays[ctr] = np.array(annotation_arrays[ctr])[movie_indexes]
+
+        self.annotation_arrays=[]
+        for k in range(len(annotation_arrays)):                  #***************************** SAME DUPLICATION AS ABOVE; Video is 15Hz, imaging is 30Hz
+            self.annotation_arrays.append([])
+            for p in range(len(annotation_arrays[k])):
+                self.annotation_arrays[k].append(annotation_arrays[k][p])
+                self.annotation_arrays[k].append(annotation_arrays[k][p])
+
+        self.annotation_stacks = []
+        for k in range(len(self.annotation_arrays[0])):
+            fig = Figure()
+            canvas = FigureCanvas(fig)
+            ax = fig.gca()
+
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            #ax.tick_params(axis='both', which='both', labelsize=30)
+            #plt.title(self.annotation_arrays[0][k]+'_'+self.annotation_arrays[1][k], fontsize=40)
+            for p in range(len(self.annotation_arrays)):
+                ax.text(-10, p*20+10, areas[p][1:]+':  '+self.annotation_arrays[p][k], fontsize=35, fontweight='bold')
+                #print areas[p][1:]+':  '+self.annotation_arrays[p][k]
+            
+            ax.set_ylim(0,len(self.annotation_arrays)*20+20)
+            ax.set_xlim(0,120)
+            ax.axis('off')
+
+            #ax.plot(x_val[:k],y_val[:k], linewidth=3)
+            #ax.set_ylim(0,120)
+            #ax.set_xlim(0,len(self.movie_stack))
+            canvas.draw()       # draw the canvas, cache the renderer
+            
+            data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
+            data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            self.annotation_stacks.append(data)
         
-        self.annotation_array=[]
-        for k in range(len(annotation_array)):                  #***************************** SAME DUPLICATION AS ABOVE; Video is 15Hz, imaging is 30Hz
-            self.annotation_array.append(annotation_array[k])
-            self.annotation_array.append(annotation_array[k])
-
+        print "...done..."
+        
+        plt.close()
+    
     else:
         print "... video data doesn't exist ... "
         
@@ -857,15 +895,14 @@ def event_triggered_movies_single_Ca(self):
     times_data = np.load(times_file)
     
     start_index = find_nearest(times_data, self.selected_locs_44threshold)
-    print start_index, times_data[start_index]
+    #print start_index, times_data[start_index]
     
     #Initialize lever_stack and find indexes in lever_data @~120Hz that match 30Hz sampling rate; both img_rates should be saved to disk so can use exact vals
     #self.lever_stack = np.zeros((self.movie_stack.shape[0], 120, self.movie_stack.shape[0]), dtype=np.float32)+255
     self.lever_stack = []
     
     #Make plots and convert to img stack
-    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-    from matplotlib.figure import Figure
+
 
     x_val = []
     y_val = []
@@ -882,7 +919,7 @@ def event_triggered_movies_single_Ca(self):
         canvas = FigureCanvas(fig)
         ax = fig.gca()
         
-        ax.tick_params(axis='both', which='both', labelsize=30)
+        ax.tick_params(axis='both', which='both', labelsize=45)
         old_xlabel = np.linspace(0,len(self.movie_stack), 2*int(self.n_sec_window.text()))
         new_xlabel = np.around(np.linspace(-int(self.n_sec_window.text()), int(self.n_sec_window.text()), 2*int(self.n_sec_window.text())), decimals=2)
 
@@ -893,7 +930,7 @@ def event_triggered_movies_single_Ca(self):
         ax.plot([0,len(self.movie_stack)], [34, 34], 'r--', color = 'blue', linewidth=3, alpha = 0.8)
         ax.plot([0,len(self.movie_stack)], [60, 60], color = 'blue', linewidth=2, alpha = 0.8)
         
-        ax.plot(x_val[:k],y_val[:k], linewidth=3)
+        ax.plot(x_val[:k],y_val[:k], linewidth=6)
         ax.set_ylim(0,120)
         ax.set_xlim(0,len(self.movie_stack))
         canvas.draw()       # draw the canvas, cache the renderer
@@ -918,36 +955,44 @@ def make_movies_ca(self):
     fig = plt.figure()
     im = []
     
-    gs = gridspec.GridSpec(2,len(self.ca_stack)*2)
+    #gs = gridspec.GridSpec(2,len(self.ca_stack)*2)
+    gs = gridspec.GridSpec(4,6)
     
-    #[Ca] stack
+    #[Ca] stacks
     for k in range(len(self.ca_stack)):    
-        ax = plt.subplot(gs[0,k*2:k*2+2])
+        ax = plt.subplot(gs[0:2,k*2:k*2+2])
         v_max = np.nanmax(np.ma.abs(self.ca_stack[k])); v_min = -v_max
         ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
         im.append(plt.imshow(self.ca_stack[k][0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
 
-    #Lever position trace
-    ax = plt.subplot(gs[1,:2])
-    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
-    im.append(plt.imshow(self.lever_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
-
-
     #Camera stack
-    ax = plt.subplot(gs[1,2:])
+    ax = plt.subplot(gs[2:4,0:4])
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
+    #Lever position trace
+    ax = plt.subplot(gs[2:3,4:])
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.lever_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+    
+    #Annotation Stck
+    ax = plt.subplot(gs[3:4,4:])
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.annotation_stacks[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+        
+
     def updatefig(j):
         print "...frame: ", j
-        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  " +  self.annotation_array[j], fontsize = 15)
+        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  ", fontsize = 15)
 
         # set the data in the axesimage object
+        ctr=0
         for k in range(len(self.ca_stack)): 
-            im[k].set_array(self.ca_stack[k][j])
+            im[ctr].set_array(self.ca_stack[k][j]); ctr+=1
         
-        im[k+1].set_array(self.lever_stack[j])
-        im[k+2].set_array(self.movie_stack[j])
+        im[ctr].set_array(self.movie_stack[j]); ctr+=1
+        im[ctr].set_array(self.lever_stack[j]); ctr+=1
+        im[ctr].set_array(self.annotation_stacks[j]); ctr+=1
 
         # return the artists set
         return im
