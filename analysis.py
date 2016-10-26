@@ -15,6 +15,10 @@ from scipy.signal import butter, filtfilt, cheby1
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+from sklearn import decomposition
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.cm as cm
+
 from load_intan_rhd_format import *
 
 from numpy import nan
@@ -740,6 +744,9 @@ def event_triggered_movies_single_Ca(self):
     #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
     
    
+    #np.save(self.traces_filename[:-4] + "_Ca_stacks" , self.ca_stack)   #SAVE ARRAYS BEFORE MASKING
+    temp_stack = self.ca_stack   #Save for loading below
+    
     #Apply Generic Mask
     print "...selected trial for stm: ", self.selected_trial
     for k in range(len(self.ca_stack)):
@@ -759,6 +766,63 @@ def event_triggered_movies_single_Ca(self):
     
     self.ca_stack = np.ma.array(self.ca_stack)
     print self.ca_stack.shape
+
+
+    #**************************************
+    #Make PCA Space stacks
+    #**************************************
+
+    data = temp_stack[0]
+    subsampled_array = []
+    for k in range(len(data)):
+        subsampled_array.append(scipy.misc.imresize(data[k], .9, interp='bilinear', mode=None))
+
+    methods = ['MDS', 'tSNE', 'PCA', 'Sammon']
+    method = methods[2]
+    print "... computing original dim reduction ..."
+
+    X = []
+    for k in range(len(subsampled_array)):
+        X.append(np.ravel(subsampled_array[k]))
+
+    X = PCA_reduction(X, n_components=3)
+
+    cm = plt.cm.get_cmap('jet')
+    colors = range(len(X))
+    
+    self.pca_stack = []
+    print "... making pca_stack..."
+    for k in range(len(data)):
+        print k
+        fig = Figure()
+        canvas = FigureCanvas(fig)
+        #ax = fig.gca()
+
+        #fig = plt.figure(1, figsize=(4, 3))
+        plt.clf()
+        ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+
+        #ax.scatter(X[:, 0], X[:, 1], X[:, 2], c = colors, cmap=plt.cm.spectral)
+        ax.scatter(X[:k+1, 0], X[:k+1, 1], X[:k+1, 2], s =200, c = colors[:k+1], cmap=cm)
+        if k>1: ax.plot3D (X[:k, 0], X[:k, 1], X[:k,2])
+
+        ax.w_xaxis.set_ticklabels([])
+        ax.w_yaxis.set_ticklabels([])
+        ax.w_zaxis.set_ticklabels([])
+        
+        ax.set_xlim(np.min(X[:, 0])-1, np.max(X[:, 0])+1)
+        ax.set_ylim(np.min(X[:, 1])-1, np.max(X[:, 1])+1)
+        ax.set_zlim(np.min(X[:, 2])-1, np.max(X[:, 2])+1)
+
+        canvas.draw()       # draw the canvas, cache the renderer
+        
+        data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        self.pca_stack.append(data)
+    
+    print "...done..."
+    
+    plt.close()
 
 
     #**************************************
@@ -848,7 +912,9 @@ def event_triggered_movies_single_Ca(self):
                 self.annotation_arrays[k].append(annotation_arrays[k][p])
 
         self.annotation_stacks = []
+        print "...making annotation_stacks..."
         for k in range(len(self.annotation_arrays[0])):
+            print k
             fig = Figure()
             canvas = FigureCanvas(fig)
             ax = fig.gca()
@@ -915,6 +981,7 @@ def event_triggered_movies_single_Ca(self):
 
     print "... making stacks of lever pull panels...",
     for k in range(len(self.movie_stack)):
+        print k
         fig = Figure()
         canvas = FigureCanvas(fig)
         ax = fig.gca()
@@ -950,7 +1017,7 @@ def make_movies_ca(self):
     
     #***********GENERATE ANIMATIONS
     Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=15000)
   
     fig = plt.figure()
     im = []
@@ -964,6 +1031,12 @@ def make_movies_ca(self):
         v_max = np.nanmax(np.ma.abs(self.ca_stack[k])); v_min = -v_max
         ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
         im.append(plt.imshow(self.ca_stack[k][0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
+
+    #PCA stack
+    ax = plt.subplot(gs[0:2,4:6])
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    im.append(plt.imshow(self.pca_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+   
 
     #Camera stack
     ax = plt.subplot(gs[2:4,0:4])
@@ -990,6 +1063,7 @@ def make_movies_ca(self):
         for k in range(len(self.ca_stack)): 
             im[ctr].set_array(self.ca_stack[k][j]); ctr+=1
         
+        im[ctr].set_array(self.pca_stack[j]); ctr+=1
         im[ctr].set_array(self.movie_stack[j]); ctr+=1
         im[ctr].set_array(self.lever_stack[j]); ctr+=1
         im[ctr].set_array(self.annotation_stacks[j]); ctr+=1
@@ -1002,7 +1076,8 @@ def make_movies_ca(self):
     #ani = animation.FuncAnimation(fig, updatefig, frames=range(len(self.ca_stack[1])), interval=100, blit=False, repeat=True)
 
     if True:
-        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer)
+        #ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=300)
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=100)
     plt.show()
 
 
@@ -1432,6 +1507,21 @@ def compute_dim_reduction(self):
     
     dim_reduction_stack(self)
 
+
+
+def PCA_reduction(X, n_components):
+
+
+    plt.cla()
+    #pca = decomposition.SparsePCA(n_components=3, n_jobs=1)
+    pca = decomposition.PCA(n_components=n_components)
+
+    print "... fitting PCA ..."
+    pca.fit(X)
+    
+    print "... pca transform..."
+    return pca.transform(X)
+        
 
 def compute_dff_events(self):
 
