@@ -797,10 +797,12 @@ def event_triggered_movies_single_Ca(self):
         fig = Figure()
         canvas = FigureCanvas(fig)
         #ax = fig.gca()
+        fig.set_size_inches(10, 10)
 
         #fig = plt.figure(1, figsize=(4, 3))
         plt.clf()
-        ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+        #ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+        ax = Axes3D(fig, rect=[0, 0, 1, 1], elev=48, azim=134)
 
         #ax.scatter(X[:, 0], X[:, 1], X[:, 2], c = colors, cmap=plt.cm.spectral)
         ax.scatter(X[:k+1, 0], X[:k+1, 1], X[:k+1, 2], s =200, c = colors[:k+1], cmap=cm)
@@ -813,6 +815,7 @@ def event_triggered_movies_single_Ca(self):
         ax.set_xlim(np.min(X[:, 0])-1, np.max(X[:, 0])+1)
         ax.set_ylim(np.min(X[:, 1])-1, np.max(X[:, 1])+1)
         ax.set_zlim(np.min(X[:, 2])-1, np.max(X[:, 2])+1)
+
 
         canvas.draw()       # draw the canvas, cache the renderer
         
@@ -913,6 +916,7 @@ def event_triggered_movies_single_Ca(self):
 
         self.annotation_stacks = []
         print "...making annotation_stacks..."
+        areas = ['_Tongue', '_Lever'] #, '_pawlever', '_lick', '_snout', '_rightpaw', '_leftpaw', '_grooming'] 
         for k in range(len(self.annotation_arrays[0])):
             print k
             fig = Figure()
@@ -924,7 +928,7 @@ def event_triggered_movies_single_Ca(self):
             #ax.tick_params(axis='both', which='both', labelsize=30)
             #plt.title(self.annotation_arrays[0][k]+'_'+self.annotation_arrays[1][k], fontsize=40)
             for p in range(len(self.annotation_arrays)):
-                ax.text(-10, p*20+10, areas[p][1:]+':  '+self.annotation_arrays[p][k], fontsize=35, fontweight='bold')
+                ax.text(-10, p*20+30, areas[p][1:]+':  '+self.annotation_arrays[p][k], fontsize=40, fontweight='bold')
                 #print areas[p][1:]+':  '+self.annotation_arrays[p][k]
             
             ax.set_ylim(0,len(self.annotation_arrays)*20+20)
@@ -1000,6 +1004,7 @@ def event_triggered_movies_single_Ca(self):
         ax.plot(x_val[:k],y_val[:k], linewidth=6)
         ax.set_ylim(0,120)
         ax.set_xlim(0,len(self.movie_stack))
+        
         canvas.draw()       # draw the canvas, cache the renderer
         
         data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
@@ -1026,37 +1031,44 @@ def make_movies_ca(self):
     gs = gridspec.GridSpec(4,6)
     
     #[Ca] stacks
+    titles = ["GCamp6s Activity", "GCamp6s (z-Tranformed)"]
     for k in range(len(self.ca_stack)):    
         ax = plt.subplot(gs[0:2,k*2:k*2+2])
+        plt.title(titles[k], fontsize = 12)
+
         v_max = np.nanmax(np.ma.abs(self.ca_stack[k])); v_min = -v_max
         ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
         im.append(plt.imshow(self.ca_stack[k][0], vmin=v_min, vmax = v_max, cmap=plt.get_cmap('jet'), interpolation='none'))
 
     #PCA stack
-    ax = plt.subplot(gs[0:2,4:6])
+    ax = plt.subplot(gs[0:2,4:])
+    plt.title("PCA State Space", fontsize = 12)
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.pca_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
-   
 
     #Camera stack
     ax = plt.subplot(gs[2:4,0:4])
+    plt.title("Behavioural Camera", fontsize = 12)
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
 
     #Lever position trace
     ax = plt.subplot(gs[2:3,4:])
+    plt.title("Lever Position", y = .95 , fontsize = 10)
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.lever_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
     
     #Annotation Stck
     ax = plt.subplot(gs[3:4,4:])
+    plt.title("Annotations", y = .95 , fontsize = 10)
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.annotation_stacks[0], cmap=plt.get_cmap('gray'), interpolation='none'))
         
 
     def updatefig(j):
         print "...frame: ", j
-        plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  ", fontsize = 15)
+        #plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  ", fontsize = 15)
+        plt.suptitle("Time: " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  Frame: "+str(j), fontsize = 15)
 
         # set the data in the axesimage object
         ctr=0
@@ -1077,7 +1089,7 @@ def make_movies_ca(self):
 
     if True:
         #ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=300)
-        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=100)
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=600)
     plt.show()
 
 
@@ -3104,9 +3116,13 @@ def view_templates(self):
         print "...plotting ch: ", k
         traces = []
         for spike in Sort.units[int(self.selected_unit.text())]:
+            print spike
             trace_out = self.tsf.ec_traces[k][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP
+            if len(trace_out)!=(n_samples*2+1): continue
             traces.append(trace_out)
             #plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.1)
+        
+        print len(traces)
         
         trace_ave = np.average(traces, axis=0)
         trace_std = np.std(traces, axis=0)
@@ -3115,7 +3131,7 @@ def view_templates(self):
         plt.plot(t, trace_ave+offset, color='black', linewidth=3)
         ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.4)
 
-    plt.plot([t[-1]+10,t[-1]+10], [-250, 0 ], color='black', linewidth=3)
+    plt.plot([t[-1]+10,t[-1]+10], [-250, 0], color='black', linewidth=3)
 
     #Set ylabel
     old_ylabel = -voltage_scaling*np.linspace(0, np.max(self.tsf.Siteloc), 5)
