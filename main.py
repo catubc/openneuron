@@ -120,8 +120,6 @@ class Load(QtGui.QWidget):
             self.parent.animal.rec_length = self.parent.animal.tsf.n_vd_samples/float(self.parent.animal.tsf.SampleFrequency)
 
 
-
-
 class EventTriggeredEphys(QtGui.QWidget):
     def __init__(self, parent):
         super(EventTriggeredEphys, self).__init__(parent)

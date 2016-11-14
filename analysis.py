@@ -5572,7 +5572,6 @@ def compute_msl_continuous_single(self):
 
     lfp_cluster = int(self.parent.lfp_cluster.text())
 
-
     file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
     jitter_time = 50 #Time to jitter spiketrian
     #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
@@ -5612,8 +5611,8 @@ def compute_msl_continuous_single(self):
             even_times.append([k, even_locks[k]])
     
     even_times = np.array(even_times).T
-    if len(even_times)>0: 
-        plt.scatter(even_times[0], even_times[1], s = 10, color='blue', alpha=.6)
+    #if len(even_times)>0: 
+    #    plt.scatter(even_times[0], even_times[1], s = 10, color='blue', alpha=.6)
     
     #Plot odd times scatter
     odd_times = []
@@ -5621,11 +5620,12 @@ def compute_msl_continuous_single(self):
         if odd_locks[k]!=0.0:
             odd_times.append([k, odd_locks[k]])
     odd_times = np.array(odd_times).T
-    if len(odd_times)>0: 
-        plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
+    #if len(odd_times)>0: 
+    #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
     
-    #Plot ave times plot
+    #Plot ave times plot; search for locking times; if only an odd or even time exists, set that time; otherwise use average;
     ave_times = []
+    error_array = []
     for k in range(len(even_locks)):
         temp = 0
         if even_locks[k]!=0: 
@@ -5633,23 +5633,36 @@ def compute_msl_continuous_single(self):
             if odd_locks[k]!=0: 
                 temp+=odd_locks[k]
                 ave_times.append([k, temp/2.])
+                error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
             else:
                 ave_times.append([k, temp])
+                error_array.append([even_locks[k], even_locks[k]])
         else:
             if odd_locks[k]!=0:
                 ave_times.append([k, odd_locks[k]])
+                error_array.append([odd_locks[k], odd_locks[k]])
 
     if len(ave_times)>0: 
         for k in range(len(ave_times)-1):
+            
+            #Plot magenta line average;
             if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                plt.plot([ave_times[k][0],ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='magenta', linewidth = 5, alpha=.3)
-    
+                plt.plot([ave_times[k][0], ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='blue', linewidth = 8, alpha=.85)
+                
+                #Plot error bar at each point 
+                x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5
+                y1 = error_array[k][0]
+                y2 = error_array[k][1]
+                plt.fill_between(x, y1, y2, color='blue', alpha=0.3)
+
+           
     #Track stats on original data
     diffs = []
     for k in range(len(even_locks)):
         if (even_locks[k]!=0) and (odd_locks[k]!=0):
             diff = abs(even_locks[k]-odd_locks[k])
-            if diff < 50: diffs.append(diff)
+            #if diff < 50: 
+            diffs.append(diff)    #Only 
             
     
     if True:
@@ -5668,8 +5681,8 @@ def compute_msl_continuous_single(self):
                 even_times.append([k, even_locks[k]])
         
         even_times = np.array(even_times).T
-        if len(even_times)>0: 
-            plt.scatter(even_times[0], even_times[1], s = 10, color='green', alpha=.6)
+        #if len(even_times)>0: 
+        #    plt.scatter(even_times[0], even_times[1], s = 10, color='green', alpha=.6)
         
         #Plot odd times scatter
         odd_times = []
@@ -5677,11 +5690,12 @@ def compute_msl_continuous_single(self):
             if odd_locks[k]!=0.0:
                 odd_times.append([k, odd_locks[k]])
         odd_times = np.array(odd_times).T
-        if len(odd_times)>0: 
-            plt.scatter(odd_times[0], odd_times[1], s = 10, color='cyan', alpha=.6)
+        #if len(odd_times)>0: 
+        #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='cyan', alpha=.6)
         
         #Plot ave times plot
         ave_times = []
+        error_array = []
         for k in range(len(even_locks)):
             temp = 0
             if even_locks[k]!=0: 
@@ -5689,23 +5703,39 @@ def compute_msl_continuous_single(self):
                 if odd_locks[k]!=0: 
                     temp+=odd_locks[k]
                     ave_times.append([k, temp/2.])
+                    error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
                 else:
                     ave_times.append([k, temp])
+                    error_array.append([even_locks[k], even_locks[k]])
+
             else:
                 if odd_locks[k]!=0:
                     ave_times.append([k, odd_locks[k]])
+                    error_array.append([odd_locks[k], odd_locks[k]])
 
+        ave_times =np.array(ave_times)
+        ave_times[:,1]=ave_times[:,1]+60.0
+        error_array =np.array(error_array)
+        error_array=error_array+60.0
         if len(ave_times)>0: 
             for k in range(len(ave_times)-1):
                 if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                    plt.plot([ave_times[k][0],ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='green', linewidth = 5, alpha=.3)
+                    plt.plot([ave_times[k][0], ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='green', linewidth = 8, alpha=.85)
         
+                    #Plot error bar at each point 
+                    x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5
+                    y1 = error_array[k][0]
+                    y2 = error_array[k][1]
+                    plt.fill_between(x, y1, y2, color='green', alpha=0.3)
+
+
         #Track stats on poisson data
         diffs_poisson = []
         for k in range(len(even_locks)):
             if (even_locks[k]!=0) and (odd_locks[k]!=0):
                 diff = abs(even_locks[k]-odd_locks[k])
-                if diff < 50: diffs_poisson.append(diff)        
+                #if diff < 50: 
+                diffs_poisson.append(diff)        
                 
                 
         ##************** Plot poisson times rasters *********************
@@ -5755,23 +5785,24 @@ def compute_msl_continuous_single(self):
                     #plt.plot([ave_times[k][0],ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='brown', linewidth = 5, alpha=.3)
         
         
-        
-        
     
     #**********Plot labels and additional info
-    old_label = np.arange(50, 120, 10)
-    new_label = np.arange(-50, 20, 10)
+    old_label = np.arange(50, 170, 10)
+    new_label = [-50,-40,-30,-20,-10,0,-50, -40,-30,-20,-10,0]
     plt.yticks(old_label,new_label, fontsize=25)
     
     plt.plot([0, tsf.n_vd_samples/tsf.SampleFrequency/60.], [100,100], 'r--', color='black', linewidth=4, alpha=.5)
+    plt.plot([0, tsf.n_vd_samples/tsf.SampleFrequency/60.], [160,160], 'r--', color='black', linewidth=4, alpha=.5)
     
-    plt.title("Unit: "+str(unit) + "   #spks: "+str(len(Sort_sua.units[unit]))+"\n Real data: ave(diff): " + str(round(np.mean(diffs),2))+ "   std(diff): " + str(round(np.std(diffs),2))
+    win_len = self.sliding_window_length.text()      #Work in ms
+    plt.title("Unit: "+str(unit) + ",   #spks: "+str(len(Sort_sua.units[unit]))+",    sliding window: "+win_len+" mins.\n Real data: ave(diff): " + str(round(np.mean(diffs),2))+ "   std(diff): " + str(round(np.std(diffs),2))
                 + "\n Poisson data: ave(diff): " + str(round(np.mean(diffs_poisson),2))+ "   std(diff): " + str(round(np.std(diffs_poisson),2)),  
     fontsize=25)
-    ax.tick_params(axis='both', which='both', labelsize=20)
-    plt.ylim(40,110)
+    ax.tick_params(axis='both', which='both', labelsize=25)
+    plt.ylim(40,170)
     plt.xlim(0, tsf.n_vd_samples/tsf.SampleFrequency/60.)
-    plt.ylabel("Locking latency (ms)", fontsize = 25)
+
+    plt.ylabel("Locking Latency (ms)\n Real Data           Poisson Data", fontsize = 30)
     plt.xlabel("Recording time (mins)", fontsize = 25)
     
     spikes = pop_spikes*1E-6/60.
@@ -5839,14 +5870,11 @@ def compute_msl_continuous(self):
     #pop_spikes=(pop_spikes)*1E-3   #Exclude duplicates; convert to milisecond time
     
     print " ... # LFP events: ", len(pop_spikes)
-
     
     #Load saved cell rasters
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     cell_rasters = np.load(cell_rasters_filename+".npy")
     
-    
-        
     
     ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
     lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
@@ -5867,7 +5895,6 @@ def compute_msl_continuous(self):
     pop_spikes=np.array(temp_list)
     
     print "... # LFP events during sync states: ", len(pop_spikes)
-    
     
     #**************************************************************************
     #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
@@ -5897,12 +5924,13 @@ def compute_msl_continuous(self):
     file_out_poisson = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_window_poisson"
     #file_out_poisson_singles = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_window_poisson_singles"
 
-
     cell_rasters_poisson = []
     for unit in range(len(Sort_sua.units)):
         cell_rasters_poisson.append([])
         for p in range(len(cell_rasters[unit])):
-            poisson_spikes = np.random.poisson(10, len(cell_rasters[unit][p]))+(np.random.randint(jitter_time)-jitter_time/2.)
+            #poisson_spikes = np.random.poisson(10, len(cell_rasters[unit][p]))+np.random.randint(jitter_time)-jitter_time/2.
+            #poisson_spikes = np.random.poisson(np.random.randint(jitter_time), len(cell_rasters[unit][p])) -jitter_time
+            poisson_spikes = np.random.poisson(10, len(cell_rasters[unit][p])) -np.random.randint(jitter_time)
             cell_rasters_poisson[unit].append(poisson_spikes)
         
             #if len(cell_rasters[unit][p])>0: 
@@ -5944,7 +5972,6 @@ def compute_msl_continuous(self):
                     lock_time_poisson[unit].append([0,0])
                     lock_time_poisson_singles[unit].append([0,0])
                     continue
-            
             
                 #***********************************************************
                 #*********** Compute Lock Times ****************************
