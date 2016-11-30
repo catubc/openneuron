@@ -2397,7 +2397,7 @@ class IntanTools(QtGui.QWidget):
         
         self.parent = parent
         layout = QtGui.QGridLayout()
-        self.root_dir = '/media/cat/2TB/in_vivo/tim/'
+        self.root_dir = '/media/cat/12TB/in_vivo/tim/'
         
         row_index=0
         
@@ -2428,7 +2428,7 @@ class IntanTools(QtGui.QWidget):
         #*************************************************************
         #********************* CONVERT DIGITAL CHS *******************
         #*************************************************************
-        self.button_digital_convert = QPushButton('Save .rhd digital chs')
+        self.button_digital_convert = QPushButton('Save external channels only')
         self.button_digital_convert.setMaximumWidth(250)
         self.button_digital_convert.clicked.connect(self.rhd_digital_convert)
         layout.addWidget(self.button_digital_convert, row_index, 0); row_index+=1

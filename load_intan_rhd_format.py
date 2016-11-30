@@ -129,6 +129,7 @@ def read_data(filename):
         for i in range(header['num_board_dig_in_channels']):
             data['board_dig_in_data'][i, :] = np.not_equal(np.bitwise_and(data['board_dig_in_raw'], (1 << header['board_dig_in_channels'][i]['native_order'])), 0)
 
+
         # Extract digital output channels to separate variables.
         for i in range(header['num_board_dig_out_channels']):
             data['board_dig_out_data'][i, :] = np.not_equal(np.bitwise_and(data['board_dig_out_raw'], (1 << header['board_dig_out_channels'][i]['native_order'])), 0)

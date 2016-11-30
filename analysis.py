@@ -2792,84 +2792,107 @@ def rhd_to_tsf(filenames):
         ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
         #file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
-        file_out = file_name[:-4].replace('rhd_files','tsf_files')
-        if os.path.exists(file_out)==True: continue
+        #file_out = file_name[:-4].replace('rhd_files','tsf_files')
+        file_out = file_name[:-4]
+        #if os.path.exists(file_out)==True: continue
 
+
+        #********** READ ALL DATA FROM INTAN HARDWARE ***********
         print "Processing: \n", file_name
-
         data = read_data(file_name)
+
+        #****** SCALE EPHYS DATA *************
         ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
         ec_traces*=10.
+        print "Converting data to int16..."
+        ec_traces = np.array(ec_traces, dtype=np.int16)
 
         SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
-
         header = 'Test spike file '
         iformat = 1002
         n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
         vscale_HP = 0.1                             #voltage scale factor
         n_cell_spikes = 0
 
-        print "Converting data to int16..."
-        ec_traces = np.array(ec_traces, dtype=np.int16)
+        #****** PROCESS DIGITAL CHANNELS
+        n_digital_chs = len(data['board_dig_in_data'])
+        print "...# digital channels: ", n_digital_chs
+        
+        #np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
 
-        #print "...plotting..."
-        #plt.plot(ec_traces[30])
-        #plt.show()
-
-
-        #SAVE RAW DATA - ******NB:  SHOULD CLEAN THIS UP: the write function should be shared by all, just data is changing so no need to repeat;
+        #SAVE RAW DATA
         if True:
             print "Writing raw data ..."
-            #print "CHANGE THIS TO WORK THROUGH FUNCTION WITHOUT REPEATING"
-            fout = open(file_out+'_raw.tsf', 'wb')
+            fout = open(file_out+'.tsf', 'wb')
             fout.write(header)
             fout.write(struct.pack('i', 1002))
             fout.write(struct.pack('i', SampleFrequency))
-            fout.write(struct.pack('i', probe.n_electrodes))
+            fout.write(struct.pack('i', probe.n_electrodes+n_digital_chs))
             fout.write(struct.pack('i', n_vd_samples))
             fout.write(struct.pack('f', vscale_HP))
-            
-            for i in range (probe.n_electrodes):
+
+            #Save ephys data location
+            for i in range(probe.n_electrodes):
                 fout.write(struct.pack('h', probe.Siteloc[i][0]))
                 fout.write(struct.pack('h', probe.Siteloc[i][1]))
                 fout.write(struct.pack('i', i+1))
 
+            #Save additional channel locations
+            for i in range(n_digital_chs):
+                fout.write(struct.pack('h', 0))
+                fout.write(struct.pack('h', 2000+100*i))
+                fout.write(struct.pack('i', probe.n_electrodes+i+1))
+
+            #Save Ephys data
             for i in range(probe.n_electrodes):
                 print "...writing ch: ", i
                 ec_traces[probe.layout[i]].tofile(fout)  #Frontside
 
-            fout.write(struct.pack('i', n_cell_spikes))
-            fout.close()
-            
-        #SAVE HIGH PASS WAVELET FILTERED DATA
-        if True:
-            print "Writing hp data ..."
-            fout = open(file_out+'_hp.tsf', 'wb')
-            fout.write(header)
-            fout.write(struct.pack('i', 1002))
-            fout.write(struct.pack('i', SampleFrequency))
-            fout.write(struct.pack('i', probe.n_electrodes))
-            fout.write(struct.pack('i', n_vd_samples))
-            fout.write(struct.pack('f', vscale_HP))
-            
-            for i in range (probe.n_electrodes):
-                fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                fout.write(struct.pack('i', i+1))
-
-            print "Wavelet filtering..."
-            ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
-            print ec_traces_hp.shape
-
-            for i in range(probe.n_electrodes):
-                print "...writing ch: ", i
-                ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+            #Save digital channels
+            for ch in range(n_digital_chs):
+                np.save(file_name[:-4]+'_digitalchannel_'+str(ch), data['board_dig_in_data'][ch])
+                temp_data = np.load(file_name[:-4]+'_digitalchannel_'+str(ch)+ '.npy')
+                temp_data = np.int16(temp_data*10000.)
+                #plt.plot(temp_data)
+                #plt.show()
+                
+                temp_data.tofile(fout)  #Pack data into .tsf file
+        
+                temp_data.tofile(file_name[:-4]+'_digitalchannel_'+str(ch)+'.bin')  #save digital channel separately.
 
             fout.write(struct.pack('i', n_cell_spikes))
             fout.close()
+            
+        ##SAVE HIGH PASS WAVELET FILTERED DATA
+        #if True:
+            #print "Writing hp data ..."
+            #fout = open(file_out+'_hp.tsf', 'wb')
+            #fout.write(header)
+            #fout.write(struct.pack('i', 1002))
+            #fout.write(struct.pack('i', SampleFrequency))
+            #fout.write(struct.pack('i', probe.n_electrodes))
+            #fout.write(struct.pack('i', n_vd_samples))
+            #fout.write(struct.pack('f', vscale_HP))
+            
+            #for i in range (probe.n_electrodes):
+                #fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                #fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                #fout.write(struct.pack('i', i+1))
 
+            #print "Wavelet filtering..."
+            #ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
+            #print ec_traces_hp.shape
 
-def rhd_digital_save(file_name):
+            #for i in range(probe.n_electrodes):
+                #print "...writing ch: ", i
+                #ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+
+            #fout.write(struct.pack('i', n_cell_spikes))
+            #fout.close()
+
+    print "... Done conversion ..."
+
+def rhd_digital_save(file_names):
     '''Read .rhd files, and save digital channels.
     NB: there can be 2, 4 or 6 digital channels inside Intan file
     chs 1 and 2 are laser meta data and laser pulse times (these are off for other experiments)
@@ -2881,28 +2904,28 @@ def rhd_digital_save(file_name):
 
     
     #if os.path.exists(camera_onoff_filename+'.npy')==True: continue
+    for file_name in file_names:
 
-    data = read_data(file_name)
+        data = read_data(file_name)
 
-    print "...# digital channels: ", len(data['board_dig_in_data'])
+        print "...# digital channels: ", len(data['board_dig_in_data'])
 
-    SampleFrequency = data['frequency_parameters']['board_adc_sample_rate']
-    print "SampleFrequency: ", SampleFrequency
-    
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.figure import Figure
+        SampleFrequency = data['frequency_parameters']['board_adc_sample_rate']
+        print "SampleFrequency: ", SampleFrequency
+        
+        #from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+        #from matplotlib.figure import Figure
 
-    plt.close()
-    fig = Figure(figsize=(5,5), dpi=100)
-    ax1 = fig.add_subplot(111)
+        #plt.close()
+        #fig = Figure(figsize=(5,5), dpi=100)
+        #ax1 = fig.add_subplot(111)
 
-    for ch in range(len(data['board_dig_in_data'])):
-        ax1.plot(data['board_dig_in_data'][ch][:100000])
-        plt.show()
+        for ch in range(len(data['board_dig_in_data'])):
+            #ax1.plot(data['board_dig_in_data'][ch][:100000])
+            #plt.show()
 
-        response = raw_input("Please enter filename extension: ")
-        np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
-        print file_name[:-4].replace('rhd_files','camera_files')+'_'+response
+            #response = raw_input("Please enter filename extension: ")
+            np.save(file_name[:-4]+'_channel_'+str(ch), data['board_dig_in_data'][ch])
             
 
 
