@@ -7,6 +7,8 @@ from PyQt4.QtGui import *
 from load import Load
 from event_triggered_ephys import EventTriggeredEphys
 from event_triggered_imaging import EventTriggeredImaging
+from event_triggered_imaging_mcd import EventTriggeredImagingMCD
+
 from mouse_lever_tools import MouseLeverTools
 from cat_tools import CatTools
 from rat_tools import RatTools
@@ -133,6 +135,10 @@ class Window(QtGui.QMainWindow):
         ophysTools.setStatusTip('Event Triggered Imaging')
         ophysTools.triggered.connect(self.ophys_tools)
 
+        ophysToolsMCD = QtGui.QAction("&Event Triggered Imaging - MCD", self)
+        ophysToolsMCD.setStatusTip('Event Triggered Imaging MCD')
+        ophysToolsMCD.triggered.connect(self.ophys_tools_mcd)
+
         ephysTools = QtGui.QAction("&Event Triggered Ephys", self)
         ephysTools.setStatusTip('Event Triggered Ephys')
         ephysTools.triggered.connect(self.ephys_tools)
@@ -201,12 +207,11 @@ class Window(QtGui.QMainWindow):
         fileMenu = mainMenu.addMenu('Event Triggered Analysis')
         #fileMenu.addAction(Event_Triggered_Maps)
         fileMenu.addAction(ophysTools)
+        fileMenu.addAction(ophysToolsMCD)
         fileMenu.addAction(ephysTools)
         fileMenu.addAction(mouseLeverTools)
         #fileMenu.addAction(catTools)
         #fileMenu.addAction(ratTools)
-
-
 
         fileMenu = mainMenu.addMenu('Ephys Tools')
         fileMenu.addAction(View_Traces)
@@ -283,6 +288,13 @@ class Window(QtGui.QMainWindow):
         ophys_widget = EventTriggeredImaging(self)
         self.central_widget.addWidget(ophys_widget)  
         self.central_widget.setCurrentWidget(ophys_widget)
+        
+    def ophys_tools_mcd(self):
+        ophys_widget = EventTriggeredImagingMCD(self)
+        self.central_widget.addWidget(ophys_widget)  
+        self.central_widget.setCurrentWidget(ophys_widget)
+        
+        
 
     def ephys_tools(self):
         ephys_widget = EventTriggeredEphys(self)

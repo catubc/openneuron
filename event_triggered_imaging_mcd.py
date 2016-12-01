@@ -7,9 +7,9 @@ import os
 from analysis import *
 
 
-class EventTriggeredImaging(QtGui.QWidget):
+class EventTriggeredImagingMCD(QtGui.QWidget):
     def __init__(self, parent):
-        super(EventTriggeredImaging, self).__init__(parent)
+        super(EventTriggeredImagingMCD, self).__init__(parent)
         self.parent = parent
         layout = QtGui.QGridLayout()    
 
@@ -298,13 +298,11 @@ class EventTriggeredImaging(QtGui.QWidget):
         layout.addWidget(self.button_video_points, row_index, 0)
         
         
-        
         #*************************************************************************
         row_index+=1
         for o in range(4):
             for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
             row_index+=1
-        
         
         self.setLayout(layout)
 
@@ -340,12 +338,14 @@ class EventTriggeredImaging(QtGui.QWidget):
     def slct_unit(self, text):
         self.selected_unit = text
 
-        if '.ptcs' in self.selected_sort: self.selected_unit_spikes_lbl.setText(str(len(self.Sort.units[int(text)])))
-        else: self.selected_unit_spikes_lbl.setText(str(len(self.text_Sort)))
+        if '.ptcs' in self.selected_sort: 
+            self.selected_unit_spikes_lbl.setText(str(len(self.Sort.units[int(text)])))
+        else: 
+            self.selected_unit_spikes_lbl.setText(str(len(self.text_Sort)))
 
 
     def dff_compute(self):
-        compute_dff_events(self)
+        compute_dff_events_mcd(self)
 
 
     def static_stm_event_trigger(self):

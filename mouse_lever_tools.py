@@ -4,7 +4,8 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-
+from analysis import *
+from mouse_lever import *
 
 class MouseLeverTools(QtGui.QWidget):
     def __init__(self, parent):

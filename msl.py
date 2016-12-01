@@ -4,6 +4,7 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+from analysis import *
 
 class MSL(QtGui.QWidget):
     def __init__(self, parent):
