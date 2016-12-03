@@ -24,7 +24,7 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
         #**************************************************************************************
         #******************************** SELECT ANIMAL & SESSION *****************************
         #**************************************************************************************
-        self.vid_analysis_lbl = QLabel('EVENT TRIGGERED IMAGING', self)
+        self.vid_analysis_lbl = QLabel('EVENT TRIGGERED IMAGING - MCD DATA', self)
         self.vid_analysis_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.vid_analysis_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.vid_analysis_lbl, row_index, 0); row_index+=1
@@ -126,20 +126,26 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
-        self.button3 = QPushButton('Compute DFF Pipe ====>')
+        self.button3 = QPushButton('Compute DFF All Units')
+        self.button3.setMaximumWidth(200)
+        self.button3.clicked.connect(self.dff_compute_all)
+        layout.addWidget(self.button3, row_index, 0)
+
+        self.button3 = QPushButton('Compute DFF Single Unit')
         self.button3.setMaximumWidth(200)
         self.button3.clicked.connect(self.dff_compute)
-        layout.addWidget(self.button3, row_index, 0)
+        layout.addWidget(self.button3, row_index, 1)
+
 
         self.comboBox_select_dff_filter = QtGui.QComboBox(self)
         for filter_ in self.filter_list: self.comboBox_select_dff_filter.addItem(filter_)
-        layout.addWidget(self.comboBox_select_dff_filter, row_index,1)
+        layout.addWidget(self.comboBox_select_dff_filter, row_index,2)
         self.comboBox_select_dff_filter.activated[str].connect(self.select_dff_filter); self.selected_dff_filter = "nofilter" #Set default
 
         dff_list = ['globalAverage', 'slidingWindow']
         self.comboBox_select_dff_method = QtGui.QComboBox(self)
         for dff_ in dff_list: self.comboBox_select_dff_method.addItem(dff_)
-        layout.addWidget(self.comboBox_select_dff_method, row_index,2)
+        layout.addWidget(self.comboBox_select_dff_method, row_index,3)
         self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
         
         
@@ -160,45 +166,51 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
        
         row_index+=1
         
-        self.button31 = QPushButton('Static STM')
+        self.button31 = QPushButton('Mean STM')
         self.button31.setMaximumWidth(200)
-        self.button31.clicked.connect(self.static_stm_event_trigger)
+        self.button31.clicked.connect(self.mean_stm_event_trigger)
         layout.addWidget(self.button31, row_index, 0)
         
+        self.button31 = QPushButton('Variance STM')
+        self.button31.setMaximumWidth(200)
+        self.button31.clicked.connect(self.var_stm_event_trigger)
+        layout.addWidget(self.button31, row_index, 1);  row_index+=1
+
+
         self.button32 = QPushButton('Video STM')
         self.button32.setMaximumWidth(200)
         self.button32.clicked.connect(self.video_stm_mouse_lever)
-        layout.addWidget(self.button32, row_index, 1)        
+        layout.addWidget(self.button32, row_index, 0)        
         
 
         self.window_start = QLineEdit('-3.0')
         self.window_start.setMaximumWidth(50)
-        layout.addWidget(self.window_start, row_index, 2)
+        layout.addWidget(self.window_start, row_index, 1)
         
         self.window_end = QLineEdit('+3.0')
         self.window_end.setMaximumWidth(50)
-        layout.addWidget(self.window_end, row_index, 3)
+        layout.addWidget(self.window_end, row_index, 2)
         
 
         self.block_save = QLineEdit('10')
         self.block_save.setMaximumWidth(50)
         self.block_save_lbl = QLabel('Block Ave:', self)
-        layout.addWidget(self.block_save_lbl, row_index,4)
-        layout.addWidget(self.block_save, row_index,5)
+        layout.addWidget(self.block_save_lbl, row_index,3)
+        layout.addWidget(self.block_save, row_index,4)
 
         self.midline_mask = QLineEdit('5')
         self.midline_mask.setMaximumWidth(50)
         self.midline_mask_lbl = QLabel('Mid-Mask Pixels:', self)
-        layout.addWidget(self.midline_mask_lbl, row_index,6)
-        layout.addWidget(self.midline_mask, row_index,7)
+        layout.addWidget(self.midline_mask_lbl, row_index,5)
+        layout.addWidget(self.midline_mask, row_index,6)
         
         
-        self.vmax_default = QLineEdit('0.0')
-        self.vmax_default.setMaximumWidth(50)
-        layout.addWidget(self.vmax_default, row_index,8)
         self.vmin_default = QLineEdit('0.0')
         self.vmin_default.setMaximumWidth(50)
-        layout.addWidget(self.vmin_default, row_index,9); row_index+=1
+        layout.addWidget(self.vmin_default, row_index,7)
+        self.vmax_default = QLineEdit('0.0')
+        self.vmax_default.setMaximumWidth(50)
+        layout.addWidget(self.vmax_default, row_index,8); row_index+=1
         
         
         #**************************************************************************************
@@ -344,12 +356,18 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
             self.selected_unit_spikes_lbl.setText(str(len(self.text_Sort)))
 
 
+    def dff_compute_all(self):
+        compute_dff_events_mcd_all(self)
+
     def dff_compute(self):
         compute_dff_events_mcd(self)
 
 
-    def static_stm_event_trigger(self):
-        view_static_stm_events(self)
+    def mean_stm_event_trigger(self):
+        view_mean_stm_events(self)
+
+    def var_stm_event_trigger(self):
+        view_var_stm_events(self)
 
 
     def select_dff_filter(self,text):
