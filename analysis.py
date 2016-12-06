@@ -1768,7 +1768,7 @@ def compute_dff_events_mcd_all(self):
     session_img_rate = self.n_images/self.reclength
     print "# img frames: ", self.n_images, " rec length: ", self.reclength, " img_rate: ", session_img_rate
     
-    np.savetxt(path_dir+'img_rate.txt', [session_img_rate])
+    np.savetxt(path_dir+'/img_rate.txt', [session_img_rate])
 
     #Check for filtered version of imaging data w. current filtering params
     lowcut = float(self.lowcut.text()); highcut = float(self.highcut.text())
@@ -1836,32 +1836,31 @@ def compute_dff_events_mcd_all(self):
         #data_stm = parmap.map(parallel_dff, img_frame_triggers, self.images_filtered, self.window, self.dff_method, self.selected_dff_filter, processes=10)
 
 
-        #data_stm = np.zeros((int(self.window*2),n_pixels,n_pixels), dtype=np.float32)
-        data_stm = []
+        data_stm = np.zeros((1000, int(self.window*2),n_pixels,n_pixels), dtype=np.float32) #Make STMs for only 1000 spikes; 
+        #data_stm = []
         for ctr, trigger in enumerate(img_frame_triggers):
+            
+            if ctr==1000: break #Only consider 1000 spikes in train
             print "...frame0: ", trigger, "  event #: ", ctr, " / ", len(img_frame_triggers)
 
             data_chunk = np.float32(self.images_filtered[int(trigger-self.window):int(trigger+self.window)])[:int(self.window*2)] #Fix # of frames
             
             if self.dff_method == 'globalAverage':
-                if self.selected_dff_filter!='nofilter':
+                if self.selected_dff_filter != 'nofilter':
                     temp_data = data_chunk/global_mean
-                    data_stm.append(temp_data)    #Only need to divide by global mean as original data_chunk did not have mean img added in
+                    data_stm[ctr] = temp_data    #Only need to divide by global mean as original data_chunk did not have mean img added in
                 else: 
                     temp_data =(data_chunk-global_mean)/global_mean
-                    data_stm.append(temp_data)
+                    data_stm[ctr] = temp_data
                 
             elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
                 baseline = np.average(np.float32(self.images_unfiltered[int(trigger-2*self.window):int(trigger-self.window)]), axis=0)
-                if self.selected_dff_filter!='nofilter': 
+                if self.selected_dff_filter != 'nofilter': 
                     temp_data= data_chunk/baseline
-                    data_stm.append(temp_data)      #ignore subtracting baseline because it was never added back in 
+                    data_stm[ctr] = temp_data      #ignore subtracting baseline because it was never added back in 
                 else:
                     temp_data= (data_chunk-baseline)/baseline
-                    data_stm.append(temp_data)
-
-        
-            if ctr>1000: break
+                    data_stm[ctr] = temp_data
         
         #plt.imshow(data_stm[0][90])
         #plt.show()
@@ -1941,7 +1940,7 @@ def compute_dff_events_mcd(self):
     epochs_file = path_dir+"/epochs.txt"
     
     #Check to see if multi-epoch file
-    if os.path.exists(epochs_file[0]):  
+    if os.path.exists(epochs_file):  
         print "... multi-epoch recording, loading epochs and rec index..."
         epochs = np.loadtxt(epochs_file)
         rec_index = int(np.loadtxt(path_dir+'/rec_index.txt'))
@@ -1953,11 +1952,10 @@ def compute_dff_events_mcd(self):
         if len(mcd_file)>1: print "... TOO MANY .MCD FILES..."; return
         imaging_onoff_file = mcd_file[0][:-4]+'_imagingonoff.txt'
         
-        if os.path.exists(imaging_onoff_file)==False:
-            #Find .mcd file, make sure only a single file:
-            MCD_read_imagingtimes(mcd_file[0])
+        MCD_read_imagingtimes(mcd_file[0])
 
         onoff_pulse = np.loadtxt(imaging_onoff_file)
+        
         img_start = onoff_pulse[0]  
         img_end = onoff_pulse[1] 
     
@@ -1968,7 +1966,7 @@ def compute_dff_events_mcd(self):
     session_img_rate = self.n_images/self.reclength
     print "# img frames: ", self.n_images, " rec length: ", self.reclength, " img_rate: ", session_img_rate
     
-    np.savetxt(path_dir+'img_rate.txt', [session_img_rate])
+    np.savetxt(path_dir+'/img_rate.txt', [session_img_rate])
 
     #Check for filtered version of imaging data w. current filtering params
     lowcut = float(self.lowcut.text()); highcut = float(self.highcut.text())
@@ -2035,32 +2033,32 @@ def compute_dff_events_mcd(self):
     #data_stm = parmap.map(parallel_dff, img_frame_triggers, self.images_filtered, self.window, self.dff_method, self.selected_dff_filter, processes=10)
 
 
-    #data_stm = np.zeros((int(self.window*2),n_pixels,n_pixels), dtype=np.float32)
-    data_stm = []
+    data_stm = np.zeros((1000, int(self.window*2),n_pixels,n_pixels), dtype=np.float32) #Make 
+    #data_stm = []
     for ctr, trigger in enumerate(img_frame_triggers):
+        
+        if ctr==1000: break #Only consider 1000 spikes in train
         print "...frame0: ", trigger, "  event #: ", ctr, " / ", len(img_frame_triggers)
 
         data_chunk = np.float32(self.images_filtered[int(trigger-self.window):int(trigger+self.window)])[:int(self.window*2)] #Fix # of frames
         
         if self.dff_method == 'globalAverage':
-            if self.selected_dff_filter!='nofilter':
+            if self.selected_dff_filter != 'nofilter':
                 temp_data = data_chunk/global_mean
-                data_stm.append(temp_data)    #Only need to divide by global mean as original data_chunk did not have mean img added in
+                data_stm[ctr] = temp_data    #Only need to divide by global mean as original data_chunk did not have mean img added in
             else: 
                 temp_data =(data_chunk-global_mean)/global_mean
-                data_stm.append(temp_data)
+                data_stm[ctr] = temp_data
             
         elif self.dff_method == 'slidingWindow':            #Use baseline -2*window .. -window
             baseline = np.average(np.float32(self.images_unfiltered[int(trigger-2*self.window):int(trigger-self.window)]), axis=0)
-            if self.selected_dff_filter!='nofilter': 
+            if self.selected_dff_filter != 'nofilter': 
                 temp_data= data_chunk/baseline
-                data_stm.append(temp_data)      #ignore subtracting baseline because it was never added back in 
+                data_stm[ctr] = temp_data      #ignore subtracting baseline because it was never added back in 
             else:
                 temp_data= (data_chunk-baseline)/baseline
-                data_stm.append(temp_data)
-
+                data_stm[ctr] = temp_data
     
-        if ctr>1000: break
     
     #plt.imshow(data_stm[0][90])
     #plt.show()
@@ -2080,9 +2078,11 @@ def compute_dff_events_mcd(self):
 
 
     #Save average and variance data
+    print "...computing variance..."
     data_var = np.var(data_stm, axis=0)
     np.save(stm_file_name+'_var', data_var)
     
+    print "...computing mean..."
     data_ave = np.average(data_stm, axis=0)
     np.save(stm_file_name+'_mean', data_ave)
 
@@ -2318,10 +2318,53 @@ def view_mean_stm_events(self):
     
     block_save = int(self.block_save.text())
     
+    stm_type = self.selected_stm_type
+
     images_file = self.selected_recording
+    self.images_filtered = np.load(self.selected_recording, mmap_mode='r+')
+
+    #*****************************************************************
+    #************** LOAD CAMERA ON/OFF AND IMG_RATE ******************
+    #*****************************************************************
+    #Load ON/OFF light and compute interpolated img rate based on # of frames aquired divided by ephys time stamps for start and end
+    path_dir = os.path.dirname(images_file)
+    epochs_file = path_dir+"/epochs.txt"
+    
+    #Check to see if multi-epoch file
+    if os.path.exists(epochs_file):  
+        print "... multi-epoch recording, loading epochs and rec index..."
+        epochs = np.loadtxt(epochs_file)
+        rec_index = int(np.loadtxt(path_dir+'/rec_index.txt'))
+        img_start, img_end = epochs[rec_index]
+    else: 
+        mcd_file = glob.glob(path_dir+"/*.mcd")
+        print mcd_file
+
+        if len(mcd_file)>1: print "... TOO MANY .MCD FILES..."; return
+        imaging_onoff_file = mcd_file[0][:-4]+'_imagingonoff.txt'
+        
+        MCD_read_imagingtimes(mcd_file[0])
+
+        onoff_pulse = np.loadtxt(imaging_onoff_file)
+        
+        img_start = onoff_pulse[0]  
+        img_end = onoff_pulse[1] 
+    
+    self.reclength = img_end - img_start
+    print "...imaging start offset, img_end: ", img_start, img_end
+    
+    self.n_images=len(self.images_filtered)
+    session_img_rate = np.loadtxt(path_dir+'/img_rate.txt')
+
+    print "# img frames: ", self.n_images, " rec length: ", self.reclength, " img_rate: ", session_img_rate
+    
+    
+    #******************************************************************
+    #**************** LOAD DATA ***************************************
+    #******************************************************************
 
     path_dir = os.path.dirname(images_file)
-    rate_file = path_dir+"img_rate.txt"
+    rate_file = path_dir+"/img_rate.txt"
     img_rate = np.loadtxt(rate_file)   
     
 
@@ -2333,7 +2376,20 @@ def view_mean_stm_events(self):
         stm_file_name = images_file[:-4] + '_img_avg_' + self.selected_dff_filter+'_'+\
         self.dff_method+'_unit'+self.selected_unit.zfill(3)+'_'+str(self.parent.n_sec)+'sec_window_mean'
     
-    data = np.float32(np.load(stm_file_name+'.npy'))
+    
+    path_dir = os.path.dirname(images_file)
+    temp_file = os.path.split(path_dir)[1]
+
+    search_string = path_dir+'/img_avg_'+temp_file+'_unit'+str(self.selected_unit.zfill(2))+"*"+stm_type+"*"
+    stm_file_name = glob.glob(search_string)
+    if len(stm_file_name)==1:
+        stm_file_name = stm_file_name[0]
+    else:
+        print "... file not found: ", search_string
+        return
+    
+    
+    data = np.float32(np.load(stm_file_name))
     print data.shape
     
     temp_array = data
@@ -2344,9 +2400,8 @@ def view_mean_stm_events(self):
     #img_rate = float(np.loadtxt(main_dir+'/img_rate.txt'))
 
 
-
     start_time = float(self.window_start.text()); end_time = float(self.window_end.text()); window_len = float(self.n_sec_window.text())
-    
+
     img_out = []
     for i in range(int(img_rate*(window_len+start_time)),int(img_rate*(window_len+end_time)), block_save):
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
@@ -2376,7 +2431,7 @@ def view_mean_stm_events(self):
     plt.xticks(old_xlabel, new_xlabel, fontsize=18)
 
     plt.title(stm_file_name)
-    plt.suptitle("STM - Mean")
+    plt.suptitle("STM - Mean   spiking type: " + stm_type)
     plt.show()
 
 
@@ -9272,7 +9327,7 @@ def MCD_read_imagingtimes(MCDFilePath):
         if entity.entity_type == 1:
             data["extra"] = fd.entities[indx]
 
-    print "Finding beginning and end of imaging trigger on channel 17th .mcd file"
+    print "... searching trigger on channel 17th .mcd file... looking for epochs..."
     temp_data = []
     for i in range(data['extra'].item_count):
         temp_data.append(data['extra'].get_data(i)) 
@@ -9286,7 +9341,13 @@ def MCD_read_imagingtimes(MCDFilePath):
             end_array.append(temp_data[i])
             start_array.append(temp_data[i+1])
     end_array.append(temp_data[-1])
+    
+    out_data = []
+    for i in range(len(start_array)):
+        out_data.append([start_array[i], end_array[i]])
 
+    path_dir = os.path.dirname(MCDFilePath)
+    np.savetxt(path_dir+'/epochs.txt', out_data, fmt='%5.5f')
     
     filename = os.path.dirname(MCDFilePath)+"/rec_index.txt"
     if os.path.exists(filename): 

@@ -163,6 +163,14 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
         for ctxt in control_txt: self.comboBox_select_control.addItem(ctxt)
         layout.addWidget(self.comboBox_select_control, row_index,7)
         self.comboBox_select_control.activated[str].connect(self.select_control); self.selected_control = "no" #Set default
+        
+
+        self.comboBox_select_stm_type = QtGui.QComboBox(self)
+        stm_type_txt = ["all", "burst", "1sec"]
+        for stm_tp in stm_type_txt: 
+            self.comboBox_select_stm_type.addItem(stm_tp)
+        layout.addWidget(self.comboBox_select_stm_type, row_index,8)
+        self.comboBox_select_stm_type.activated[str].connect(self.select_stm_type); self.selected_stm_type = stm_type_txt[0] #Set default
        
         row_index+=1
         
@@ -330,7 +338,6 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
         path_name, file_name = os.path.split(self.selected_sort)
         self.select_sort_lbl.setText(file_name)
         
-        
         #Reload session list and reset session box
         self.comboBox_selected_unit.clear()
         if '.ptcs' in self.selected_sort: 
@@ -359,12 +366,14 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
     def dff_compute_all(self):
         compute_dff_events_mcd_all(self)
 
+
     def dff_compute(self):
         compute_dff_events_mcd(self)
 
 
     def mean_stm_event_trigger(self):
         view_mean_stm_events(self)
+
 
     def var_stm_event_trigger(self):
         view_var_stm_events(self)
@@ -381,6 +390,8 @@ class EventTriggeredImagingMCD(QtGui.QWidget):
     def select_control(self, text):
         self.selected_control = text
 
+    def select_stm_type(self, text):
+        self.selected_stm_type = text
 
     def video_stm_mouse_lever(self):
         pass
