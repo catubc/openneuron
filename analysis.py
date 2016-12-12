@@ -300,12 +300,12 @@ class Tsf_file(object):
 
         fout.write(struct.pack('i', self.n_cell_spikes))
 
-        try:
-            self.subsample
-        except NameError:
-            self.subsample = 1.0
+        #try:
+            #self.subsample
+        #except NameError:
+            #self.subsample = 1.0
 
-        fout.write(struct.pack('i', self.subsample))
+        #fout.write(struct.pack('i', self.subsample))
 
         fout.close()
 
@@ -3266,11 +3266,11 @@ def compress_lfp(self):
     
     print "...making compressed lfp files ..."
     
-    print self.parent.animal.tsf_file
-    compression_factor = int(self.parent.compress_factor.text())
+    print self.tsf_file
+    compression_factor = int(self.compress_factor.text())
     print "...compressed factor: ", compression_factor
     
-    tsf = Tsf_file(self.parent.animal.tsf_file)
+    tsf = Tsf_file(self.tsf_file)
     tsf.read_ec_traces()
     
     #Leave ADC convertion intact it possible
@@ -3283,7 +3283,7 @@ def compress_lfp(self):
         
     #*********** SAVE COMPRESSED LOW PASS .TSF FILE *********
     #Save compression file name
-    file_out = self.parent.animal.tsf_file[:-4]+'_'+str(compression_factor)+'compressed.tsf'
+    file_out = self.tsf_file[:-4]+'_'+str(compression_factor)+'compressed.tsf'
     print "Saving LFP : ", file_out
     
     #DON"T USE SUBSAMPLING - CAUSES PROBLEMS LATER
@@ -3332,7 +3332,114 @@ def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to
     tsf.n_vd_samples = len(tsf.ec_traces[0])
     
     return tsf
+
+def ephys_to_tsf(filenames):
+    '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
+    NB: There are 2 possible mapping depending on the insertion of the AD converter 
+    TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
+    '''
+    
+    print "...reading amp data..."
+
+    probe = Probe()
+
+    for file_name in filenames:
+        print file_name
+        #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
+        ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
+        #file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
+        #file_out = file_name[:-4].replace('rhd_files','tsf_files')
+        file_out = file_name[:-4]
+        #if os.path.exists(file_out)==True: continue
+
+        #********** READ ALL DATA FROM INTAN HARDWARE ***********
+        print "Processing: \n", file_name
+        data = read_data(file_name)
+
+        #****** SCALE EPHYS DATA *************
+        ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
+        ec_traces*=10.
+        print "...length original traces: ", len(ec_traces)
+        
+        print "Converting data to int16..."
+        for k in range(len(ec_traces)):
+            np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
+        
+        n_electrodes = len(ec_traces)
+
+        ec_traces = []
+        for k in range(n_electrodes):
+            ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
+
+        ec_traces = np.array(ec_traces)
+        
+        print "...length reloaded traces: ", len(ec_traces)
+
+        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
+        header = 'Test spike file '
+        iformat = 1002
+        n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
+        vscale_HP = 0.1                             #voltage scale factor
+        n_cell_spikes = 0
+
+
+        #SAVE RAW DATA
+        if True:
+            print "Writing raw data ..."
+            fout = open(file_out+'.tsf', 'wb')
+            fout.write(header)
+            fout.write(struct.pack('i', 1002))
+            fout.write(struct.pack('i', SampleFrequency))
+            fout.write(struct.pack('i', probe.n_electrodes))
+            fout.write(struct.pack('i', n_vd_samples))
+            fout.write(struct.pack('f', vscale_HP))
+
+            #Save ephys data location
+            for i in range(probe.n_electrodes):
+                fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                fout.write(struct.pack('i', i+1))
+
+            #Save Ephys data
+            for i in range(probe.n_electrodes):
+                print "...writing ch: ", i
+                ec_traces[probe.layout[i]].tofile(fout)  #Frontside
+
+            fout.write(struct.pack('i', n_cell_spikes))
+            fout.close()
+            
+        ##SAVE HIGH PASS WAVELET FILTERED DATA
+        #if True:
+            #print "Writing hp data ..."
+            #fout = open(file_out+'_hp.tsf', 'wb')
+            #fout.write(header)
+            #fout.write(struct.pack('i', 1002))
+            #fout.write(struct.pack('i', SampleFrequency))
+            #fout.write(struct.pack('i', probe.n_electrodes))
+            #fout.write(struct.pack('i', n_vd_samples))
+            #fout.write(struct.pack('f', vscale_HP))
+            
+            #for i in range (probe.n_electrodes):
+                #fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                #fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                #fout.write(struct.pack('i', i+1))
+
+            #print "Wavelet filtering..."
+            #ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
+            #print ec_traces_hp.shape
+
+            #for i in range(probe.n_electrodes):
+                #print "...writing ch: ", i
+                #ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+
+            #fout.write(struct.pack('i', n_cell_spikes))
+            #fout.close()
+
+    print "... Done conversion ..."
+
+    
+
 def rhd_to_tsf(filenames):
     '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
     NB: There are 2 possible mapping depending on the insertion of the AD converter 
@@ -3353,7 +3460,6 @@ def rhd_to_tsf(filenames):
         file_out = file_name[:-4]
         #if os.path.exists(file_out)==True: continue
 
-
         #********** READ ALL DATA FROM INTAN HARDWARE ***********
         print "Processing: \n", file_name
         data = read_data(file_name)
@@ -3361,8 +3467,21 @@ def rhd_to_tsf(filenames):
         #****** SCALE EPHYS DATA *************
         ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
         ec_traces*=10.
+        print "...length original traces: ", len(ec_traces)
+        
         print "Converting data to int16..."
-        ec_traces = np.array(ec_traces, dtype=np.int16)
+        for k in range(len(ec_traces)):
+            np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
+        
+        n_electrodes = len(ec_traces)
+        
+        ec_traces = []
+        for k in range(n_electrodes):
+            ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
+
+        ec_traces = np.array(ec_traces)
+        
+        print "...length reloaded traces: ", len(ec_traces)
 
         SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
         header = 'Test spike file '
@@ -3596,13 +3715,17 @@ def compute_lfp_triggered_template(self):
 
     
 
-def tsf_to_lfp(filenames):
+def tsf_to_lfp(self):
     '''Read .tsf files - subsample to 1Khz, save as *_lp.tsf
     '''
+
+    lfp_samplerate = 1000   #Select LFP sample rate for export
+    
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
     
     print "...making low-pass tsf files (1Khz sample rates)..."
 
-    for file_name in filenames:
+    for file_name in self.tsf_files:
         
         file_out = file_name[:-4]+'_lp.tsf'
         if os.path.exists(file_out)==True: continue
@@ -3617,20 +3740,39 @@ def tsf_to_lfp(filenames):
         
         print "...converting raw to .lfp (1Khz) sample rate tsf files ..."
         temp_traces = []
-        lowcut = 0.1; highcut=110; fs=1000
-        for k in range(tsf.n_electrodes):
-            #Butter band pass and subsample to 1Khz simultaneously
-            temp = np.array(butter_bandpass_filter(tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)], lowcut, highcut, fs, order = 2), dtype=np.int16)
+        temp_siteloc = []
+        for k in range(0, tsf.n_electrodes, electrode_rarifier):
 
-            #Apply 60Hz Notch filter
-            temp_traces.append(Notch_Filter(temp))
-        
+            #Check depth of electrode; skip depth past 900
+            if tsf.Siteloc[k*2+1]>1000: continue    #Skip electrodes deeper than 900um
+           
+            temp_siteloc.append(tsf.Siteloc[k*2]); temp_siteloc.append(tsf.Siteloc[k*2+1])
+            
+           
+            #Butter band pass and subsample to 1Khz simultaneously
+            trace_out = tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)]
+            
+            if (float(self.low_cutoff.text())!=0) and (float(self.high_cutoff.text())!=0):
+                print "...bandpass filter..."
+                trace_out = np.int16(butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), float(self.high_cutoff.text()), fs=lfp_samplerate, order = 2))
+
+            if (float(self.low_cutoff.text())!=0) and (float(self.high_cutoff.text())==0):
+                print "...highpass filter..."
+                trace_out = np.int16(butter_highpass_filter(trace_out, float(self.low_cutoff.text()), fs=lfp_samplerate, order = 2))
+
+            #Apply 60Hz Notch filter - NOT ALWAYS REQUIRED; MAKE IT AN OPTION EVENTUALLY
+            #temp_traces.append(Notch_Filter(temp))
+            temp_traces.append(trace_out)
+            
         tsf.ec_traces = np.int16(temp_traces)
+        tsf.Siteloc = np.int16(temp_siteloc)
+        tsf.n_electrodes = len(tsf.ec_traces)
+
         tsf.n_vd_samples = len(tsf.ec_traces[0])
-        tsf.SampleFrequency = fs
+        tsf.SampleFrequency = lfp_samplerate
         
         #Save data to .tsf file
-        tsf.save_tsf(file_name[:-4]+'_lp.tsf')
+        tsf.save_tsf(file_name[:-4]+'_lfp_'+self.low_cutoff.text()+"hz_"+self.high_cutoff.text()+'hz.tsf')
 
 
 def lfp_to_lptsf(lfpzip_file):
@@ -3740,46 +3882,108 @@ def view_traces(self):
     """ Display raw traces
     """
     
+    colors=['blue', 'red', 'green', 'brown', 'pink', 'mangenta', 'orange']
+    
+    compression_factor = 50
     font_size = 30
     voltage_scaling = float(self.voltage_scale.text())
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     
-    t0 = int(float(self.start_time.text())*self.tsf.SampleFrequency)
-    t1 = int(float(self.end_time.text())*self.tsf.SampleFrequency)
+    t0 = int(float(self.start_time.text())*1000)
+    t1 = int(float(self.end_time.text())*1000)
+    t = np.arange(t0, t1, 1)*1E-3
+
+    #If loading compressed LFP file, uncompress the .tsf file for display in milisecond time steps:
+    if "compressed" in self.selected_recording:
+        self.tsf.SampleFrequency = 1000 
+        #electrode_rarifier = 1              #Plot all electrodes
+        
+    #Sumbsample data if raw sampling rate being used
+    elif self.tsf.SampleFrequency != 1000:
+        
+        subsample = int(self.tsf.SampleFrequency/1000)
+        temp = []
+        for k in range(self.tsf.n_electrodes):
+            temp.append(self.tsf.ec_traces[k][::subsample])
     
-    t = np.linspace(float(self.start_time.text()), float(self.end_time.text()), t1-t0)/60.
+        self.tsf.SampleFrequency = 1000
+        self.tsf.ec_traces = np.array(temp)            
+                
+    print "... .tsf samplerate: ", self.tsf.SampleFrequency
+
     
+    #Plot traces; subsample traces as per electrode-rarifier
+
     ax = plt.subplot(1,1,1)
     ax.get_xaxis().get_major_formatter().set_useOffset(False)
-
-    print self.tsf.Siteloc
-    print self.tsf.SampleFrequency
-    print float(self.low_cutoff.text())
-
     for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
-        trace_out = self.tsf.ec_traces[k][t0:t1]
-        if float(self.low_cutoff.text())!=0.0: trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), 110., fs=1000, order = 2)
-        
-        plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1)
+        if self.tsf.Siteloc[k*2+1]>1000: continue    #Skip electrodes deeper than 900um
 
-    plt.plot(t, -1500*self.camera_pulses[t0:t1], color='blue')
+        trace_out = self.tsf.ec_traces[k][t0:t1]
+        if (float(self.low_cutoff.text())!=0) and (float(self.high_cutoff.text())!=0):
+            print "...bandpass filter..."
+            trace_out = butter_bandpass_filter(trace_out, float(self.low_cutoff.text()), float(self.high_cutoff.text()), fs=1000, order = 2)
+
+        if (float(self.low_cutoff.text())!=0) and (float(self.high_cutoff.text())==0):
+            print "...highpass filter..."
+            trace_out = butter_highpass_filter(trace_out, float(self.low_cutoff.text()), fs=1000, order = 2)
+        
+        print "...len(trace_out): ", len(trace_out), "t0: ", t0, "   t1: ", t1
+        plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=2)
+        #plt.plot(trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=2)
+
+
+    #Plot 
+    for k in range(len(self.Sort.units)):
+        spikes = self.Sort.units[k]*1E-6 *compression_factor #X-axis is in seconds
+
+        ymin = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)
+        ymax = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)-1000
+
+        plt.vlines(spikes, ymin, ymax, color=colors[k], linewidth=10, alpha=0.35)
+    
     #Set labels
     depth_offset = float(self.probe_penentration.text()) #Percent of probe inserted into brain
-    old_ylabel = -voltage_scaling*np.linspace(np.max(self.tsf.Siteloc) - depth_offset*np.max(self.tsf.Siteloc),np.max(self.tsf.Siteloc), 5)
-    new_ylabel = np.int16(np.linspace(0, depth_offset*np.max(self.tsf.Siteloc), 5))
-    plt.locator_params(axis='y',nbins=5)
+    
+    #Setup new y-axis labels
+    old_ylabel = -voltage_scaling*np.arange(900 - depth_offset*900,900+1, 100)
+    #new_ylabel = np.int16(np.arange(0, depth_offset*np.max(self.tsf.Siteloc)+1, 100))
+    new_ylabel = np.int16(np.arange(0, depth_offset*900+1, 100))
+
     plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+
+    #plt.locator_params(axis='y',nbins=5)
     plt.ylabel("Depth (um)", fontsize=font_size)
+    
+        
+    #Setup new x-axis labels
+    #old_xlabel = np.arange(t[0], t[-1], 0.5)
+    #new_xlabel = old_xlabel*1E-3
+    #plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+
+
 
     #Set xlabel
-    plt.xlabel("Time (min)", fontsize = font_size)
+    plt.xlabel("Time (sec)", fontsize = font_size)
     plt.tick_params(axis='both', which='both', labelsize=font_size)
     plt.locator_params(axis='x',nbins=10)
 
-    plt.ylim(old_ylabel[-1],old_ylabel[0])
+    #Plot scale bar
+    plt.plot([t[0], t[0]], [-50,-250], color='black', linewidth=10, alpha=1)
+
+    #plot limits
+    plt.ylim(-voltage_scaling*1025, -voltage_scaling*(-25))
     plt.xlim(t[0], t[-1])
 
+    plt.title("Lowcut: " + self.low_cutoff.text() + "Hz     Highcut: " + self.high_cutoff.text()+"Hz.", fontsize=font_size)
+
     plt.show()
+
+
+
+    #Plot location of imaging frames
+    #plt.plot(t, -1500*self.camera_pulses[t0:t1], color='blue')
+
 
 def view_all_csd(self): 
 
@@ -9274,6 +9478,21 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
 
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y
+
+
+
+      
+def butter_highpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff/nyq
+    b, a = butter(order, normal_cutoff, btype='high', analog=False)
+    return b, a
+
+
+def butter_highpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_highpass(cutoff, fs, order=order)
     y = filtfilt(b, a, data)
     return y
 

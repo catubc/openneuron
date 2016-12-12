@@ -4,6 +4,7 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+from analysis import *
 
 class TracesTools(QtGui.QWidget):
     def __init__(self, parent):
@@ -12,7 +13,7 @@ class TracesTools(QtGui.QWidget):
         layout = QtGui.QGridLayout()
 
         self.parent = parent
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat'
+        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
         
         row_index = 0
 
@@ -23,8 +24,8 @@ class TracesTools(QtGui.QWidget):
         layout.addWidget(self.button_select_recording, row_index, 0)
         
         #self.parent.selected_recording  = os.getcwd()
-        self.parent.selected_recording  = self.parent.root_dir
-        self.select_recording_lbl = QLabel(self.parent.selected_recording, self)
+        self.selected_recording  = self.parent.root_dir
+        self.select_recording_lbl = QLabel(self.selected_recording, self)
         layout.addWidget(self.select_recording_lbl, row_index,1)
         
         #Rec length
@@ -46,22 +47,32 @@ class TracesTools(QtGui.QWidget):
         layout.addWidget(self.select_sort_lbl, row_index,1)
     
 
-
         #% of electrodes
         self.n_electrodes = QLineEdit('1.0');                #parent.start_time = self.start_time
         self.n_electrodes.setMaximumWidth(50)
         self.n_electrodes_lbl = QLabel('%Electrodes', self)
         self.n_electrodes_lbl.setMaximumWidth(100)
-        layout.addWidget(self.n_electrodes_lbl, row_index,5)
+        layout.addWidget(self.n_electrodes_lbl, row_index, 5)
         layout.addWidget(self.n_electrodes, row_index, 6)
         
-        self.low_cutoff = QLineEdit('10.0');                #parent.start_time = self.start_time
+        
+        self.low_cutoff = QLineEdit('0.1');                #parent.start_time = self.start_time
         self.low_cutoff.setMaximumWidth(50)
-        self.low_cutoff_lbl = QLabel('Lowcut Filter', self)
+        self.low_cutoff_lbl = QLabel('Lowcut', self)
         self.low_cutoff_lbl.setMaximumWidth(100)
-        layout.addWidget(self.low_cutoff_lbl, row_index,7)
-        layout.addWidget(self.low_cutoff, row_index, 8); row_index+=1
-                
+        layout.addWidget(self.low_cutoff_lbl, row_index, 7)
+        layout.addWidget(self.low_cutoff, row_index, 8)
+
+
+        self.high_cutoff = QLineEdit('110');                #parent.start_time = self.start_time
+        self.high_cutoff.setMaximumWidth(50)
+        self.high_cutoff_lbl = QLabel('Highcut', self)
+        self.high_cutoff_lbl.setMaximumWidth(100)
+        layout.addWidget(self.high_cutoff_lbl, row_index,9)
+        layout.addWidget(self.high_cutoff, row_index, 10); row_index+=1
+        
+
+
         #View traces
         self.button_view_traces = QPushButton('View Traces')
         self.button_view_traces.setMaximumWidth(200)
@@ -99,7 +110,7 @@ class TracesTools(QtGui.QWidget):
         self.setLayout(layout)
 
     def slct_event_file(self):
-        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.parent.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
+        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
         path_name, file_name = os.path.split(self.selected_sort)
         self.select_sort_lbl.setText(file_name)
 
@@ -127,13 +138,14 @@ class TracesTools(QtGui.QWidget):
 
 
     def slct_recording(self):
-        self.parent.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, 'Load File', self.parent.selected_recording)
-        path_name, file_name = os.path.split(self.parent.selected_recording)
+        self.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, 'Load File', self.selected_recording)
+        path_name, file_name = os.path.split(self.selected_recording)
 
         self.select_recording_lbl.setText(file_name)
 
-        self.tsf = Tsf_file(self.parent.selected_recording)
+        self.tsf = Tsf_file(self.selected_recording)
         self.tsf.read_ec_traces()
+        
         print "...len rec: ", self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)
         self.parent.rec_length.setText(str(self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)))
    

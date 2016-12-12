@@ -15,7 +15,7 @@ from rat_tools import RatTools
 from msl import MSL
 from count_matrix import CountMatrix
 from file_dialog import FileDialog
-from track import Track
+from track_wide_tools import TrackWideTools
 from intan_tools import IntanTools
 from seamans import Seamans
 from template_tools import TemplateTools
@@ -356,7 +356,7 @@ class Window(QtGui.QMainWindow):
 
     #************ PROCESSING MENUS ***************
     def track_tools(self):
-        track_widget = Track(self)
+        track_widget = TrackWideTools(self)
         self.central_widget.addWidget(track_widget)      
         self.central_widget.setCurrentWidget(track_widget)
 
