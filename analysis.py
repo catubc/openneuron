@@ -3937,8 +3937,8 @@ def view_traces(self):
     for k in range(len(self.Sort.units)):
         spikes = self.Sort.units[k]*1E-6 *compression_factor #X-axis is in seconds
 
-        ymin = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)
-        ymax = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)-1000
+        ymin = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)+600
+        ymax = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)-600
 
         plt.vlines(spikes, ymin, ymax, color=colors[k], linewidth=10, alpha=0.35)
     
