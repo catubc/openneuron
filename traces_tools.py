@@ -14,6 +14,8 @@ class TracesTools(QtGui.QWidget):
 
         self.parent = parent
         self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
+        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
+        
         
         row_index = 0
 

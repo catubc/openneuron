@@ -3816,9 +3816,14 @@ def view_templates(self):
     n_samples = int(self.n_sample_pts.text())
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
+
+    
     #compression = 50.   #Need this to convert from compressed sample points to realtime
     
     print self.selected_sort
+
+    self.tsf = Tsf_file(self.selected_recording)
+    self.tsf.read_ec_traces()
 
     #Remove bottom power..
     if self.low_cutoff.text()!='0.0':
@@ -3828,21 +3833,35 @@ def view_templates(self):
         
     #load single units
     Sort = Ptcs(self.selected_sort)
-
-    ax = plt.subplot(1,1,1)
+    maxchan = Sort.maxchan[int(self.selected_unit.text())]
+    print "... maxchan: ", maxchan
+    
+    ax = plt.subplot(1,2,1)
     t = np.arange(-n_samples,n_samples+1,1)
     
     """ Spikes are saved in # of sample points so no need to scale them up from compressed .ptcs sort file to uncompressed lfp file.
     """
+    spikes = Sort.units[int(self.selected_unit.text())]*1E-6 * Sort.samplerate
+    
+    maxchan_trough = []
     for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
         print "...plotting ch: ", k
         traces = []
-        for spike in Sort.units[int(self.selected_unit.text())]:
-            print spike
+        for spike in spikes:
+            #print spike
             trace_out = self.tsf.ec_traces[k][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP
-            if len(trace_out)!=(n_samples*2+1): continue
+            
+            if len(trace_out)!=(n_samples*2+1): 
+                continue
+            
             traces.append(trace_out)
-            #plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.1)
+            
+            #Plot every mod X trace
+            if (int(spike)%10==0): 
+                plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color=self.selected_colour, linewidth=1, alpha=.04)
+        
+            if k==maxchan: 
+                maxchan_trough.append(np.argmin(trace_out[n_samples-20:n_samples+50]))
         
         print len(traces)
         
@@ -3850,14 +3869,20 @@ def view_templates(self):
         trace_std = np.std(traces, axis=0)
        
         offset = -voltage_scaling*self.tsf.Siteloc[k*2+1]
-        plt.plot(t, trace_ave+offset, color='black', linewidth=3)
-        ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.4)
+        plt.plot(t, trace_ave+offset, color='black', linewidth=2)
+        #ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.2)
 
-    plt.plot([t[-1]+10,t[-1]+10], [-250, 0], color='black', linewidth=3)
+        plt.plot([-n_samples,n_samples], [offset, offset], color='black', linewidth=2, alpha=.35)
+
+    maxchan_troughs = np.array(maxchan_trough)-20 #Centre data on exported times
+    print maxchan_troughs
+    
+    plt.plot([t[-1]+10,t[-1]+10], [-220, 20], color='black', linewidth=3)
+    plt.plot([0,0], [150, -5000], 'r--', color='black', linewidth=2, alpha=.5)
 
     #Set ylabel
-    old_ylabel = -voltage_scaling*np.linspace(0, np.max(self.tsf.Siteloc), 5)
-    new_ylabel = np.int16(np.linspace(0, np.max(self.tsf.Siteloc), 5))
+    old_ylabel = -voltage_scaling*np.arange(0, np.max(self.tsf.Siteloc)+1, 100)
+    new_ylabel = np.int16(np.arange(0, np.max(self.tsf.Siteloc)+1, 100))
     plt.locator_params(axis='y',nbins=5)
     plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
     plt.ylabel("Depth (um)", fontsize=font_size)
@@ -3871,18 +3896,31 @@ def view_templates(self):
     plt.tick_params(axis='both', which='both', labelsize=font_size)
     plt.locator_params(axis='x',nbins=10)
 
-    plt.ylim(old_ylabel[-1],old_ylabel[0])
+    plt.ylim(old_ylabel[-1]*1.15,old_ylabel[0]+150)
     plt.xlim(old_xlabel[0], old_xlabel[-1]*5)
     
+    plt.title("# Events: "+ str(len(spikes)), fontsize = font_size)
+    
+    #Plot trough histogram
+    ax = plt.subplot(1,2,2)
+    plt.title("STD: "+ str(np.round(np.std(maxchan_troughs),2))+"ms.", fontsize = font_size)
+
+    bin_width = 1   # histogram bin width in usec
+    print "...std troughs: ", np.std(maxchan_troughs)
+    y = np.histogram(maxchan_troughs, bins = np.arange(-50,50,bin_width))
+    #plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
+    plt.bar(y[1][:-1], y[0], bin_width, color=self.selected_colour)
+    plt.xlabel("Time (ms)", fontsize = font_size)
+    plt.tick_params(axis='both', which='both', labelsize=font_size)
+
     plt.show()
-
-
 
 def view_traces(self):
     """ Display raw traces
     """
     
-    colors=['blue', 'red', 'green', 'brown', 'pink', 'mangenta', 'orange']
+    colors=['gray']
+    colors=['blue', 'red', 'green', 'brown', 'pink', 'magenta', 'orange', 'black', 'cyan']
     
     compression_factor = 50
     font_size = 30
@@ -3917,7 +3955,8 @@ def view_traces(self):
     ax = plt.subplot(1,1,1)
     ax.get_xaxis().get_major_formatter().set_useOffset(False)
     for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
-        if self.tsf.Siteloc[k*2+1]>1000: continue    #Skip electrodes deeper than 900um
+        if 'tim' in self.selected_recording:            #In 64 channel mouse recordings skip electrodes that are too deep
+            if self.tsf.Siteloc[k*2+1]>1000: continue    
 
         trace_out = self.tsf.ec_traces[k][t0:t1]
         if (float(self.low_cutoff.text())!=0) and (float(self.high_cutoff.text())!=0):
@@ -3934,21 +3973,31 @@ def view_traces(self):
 
 
     #Plot 
-    for k in range(len(self.Sort.units)):
-        spikes = self.Sort.units[k]*1E-6 *compression_factor #X-axis is in seconds
+    if True: 
+        
+        #colors=['gray']*100
+        for k in range(len(self.Sort.units)):
+            spikes = self.Sort.units[k]*1E-6 *compression_factor #X-axis is in seconds
 
-        ymin = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)+600
-        ymax = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)-600
+            ymin = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)+600
+            ymax = np.zeros(len(spikes),dtype=np.float32)+self.Sort.chanpos[self.Sort.maxchan[k]][1]*(-voltage_scaling)-600
 
-        plt.vlines(spikes, ymin, ymax, color=colors[k], linewidth=10, alpha=0.35)
-    
+            plt.vlines(spikes, ymin, ymax, color=colors[k], linewidth=10, alpha=0.35)
+        
+        
     #Set labels
     depth_offset = float(self.probe_penentration.text()) #Percent of probe inserted into brain
     
     #Setup new y-axis labels
-    old_ylabel = -voltage_scaling*np.arange(900 - depth_offset*900,900+1, 100)
+    
+    if 'tim' in self.selected_recording:            #In 64 channel mouse recordings skip electrodes that are too deep
+        depth = 900
+    else:
+        depth = np.max(self.tsf.Siteloc)
+
+    old_ylabel = -voltage_scaling*np.arange(depth - depth_offset*depth,depth+1, 100)
     #new_ylabel = np.int16(np.arange(0, depth_offset*np.max(self.tsf.Siteloc)+1, 100))
-    new_ylabel = np.int16(np.arange(0, depth_offset*900+1, 100))
+    new_ylabel = np.int16(np.arange(0, depth_offset*depth+1, 100))
 
     plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
 
@@ -3957,9 +4006,9 @@ def view_traces(self):
     
         
     #Setup new x-axis labels
-    #old_xlabel = np.arange(t[0], t[-1], 0.5)
-    #new_xlabel = old_xlabel*1E-3
-    #plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+    old_xlabel = np.arange(t[0], t[-1], 0.5)
+    new_xlabel = old_xlabel/50.
+    plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
 
 
 
@@ -3972,7 +4021,7 @@ def view_traces(self):
     plt.plot([t[0], t[0]], [-50,-250], color='black', linewidth=10, alpha=1)
 
     #plot limits
-    plt.ylim(-voltage_scaling*1025, -voltage_scaling*(-25))
+    plt.ylim(-voltage_scaling*depth*1.1, -voltage_scaling*(-25))
     plt.xlim(t[0], t[-1])
 
     plt.title("Lowcut: " + self.low_cutoff.text() + "Hz     Highcut: " + self.high_cutoff.text()+"Hz.", fontsize=font_size)
