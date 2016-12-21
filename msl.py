@@ -13,9 +13,9 @@ class MSL(QtGui.QWidget):
         
 
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
-        #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptcs21/'
+        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
         self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_hp.ptcs'
         self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_lp_50compression.ptcs'
 
@@ -167,7 +167,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_msl_continuous, row_index, 0)
         
         
-        self.sliding_window_length = QLineEdit('10');               
+        self.sliding_window_length = QLineEdit('60');               
         self.sliding_window_length.setMaximumWidth(50)
         self.sliding_window_length_lbl = QLabel('Window (mins)', self)
         layout.addWidget(self.sliding_window_length_lbl,row_index,1)
@@ -184,19 +184,49 @@ class MSL(QtGui.QWidget):
         self.button_msl_continuous_single = QPushButton('MSL Sliding Win - Single Unit')
         self.button_msl_continuous_single.setMaximumWidth(200)
         self.button_msl_continuous_single.clicked.connect(self.view_msl_continuous_single)
-        layout.addWidget(self.button_msl_continuous_single, row_index, 5); row_index+=1
+        layout.addWidget(self.button_msl_continuous_single, row_index, 5)
+
+        self.button_msl_continuous_multi = QPushButton('MSL Sliding Win - Multi Unit')
+        self.button_msl_continuous_multi.setMaximumWidth(200)
+        self.button_msl_continuous_multi.clicked.connect(self.view_msl_continuous_multi)
+        layout.addWidget(self.button_msl_continuous_multi, row_index, 6)
+
+
+        self.multiple_units = QLineEdit('0, 1, 2');               
+        self.multiple_units.setMaximumWidth(50)
+        self.multiple_units_lbl = QLabel('Selected Units', self)
+        layout.addWidget(self.multiple_units_lbl,row_index,7)
+        layout.addWidget(self.multiple_units,row_index,8); row_index+=1
+
 
         self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
         layout.addWidget(self.button_msl_single_lfpevent, row_index, 0); row_index+=1
-
-        self.button1 = QPushButton('View P-vals')
+        
+        
+        self.button1 = QPushButton('Compute All P-Values')
         self.button1.setMaximumWidth(200)
-        self.button1.clicked.connect(self.view_msl_Pvals)
-        layout.addWidget(self.button1, row_index, 0); row_index+=1
+        self.button1.clicked.connect(self.compute_msl_Pvals)
+        layout.addWidget(self.button1, row_index, 0)
 
+        self.view_pvalue = QPushButton('View P-Value')
+        self.view_pvalue.setMaximumWidth(200)
+        self.view_pvalue.clicked.connect(self.view_pval)
+        layout.addWidget(self.view_pvalue, row_index, 1)
+                
+        self.vmin_value = QLineEdit('0.01');               
+        self.vmin_value.setMaximumWidth(50)
+        self.vmin_value_lbl = QLabel('Vmin Value', self)
+        layout.addWidget(self.vmin_value_lbl,row_index,2)
+        layout.addWidget(self.vmin_value,row_index,3)
 
+        self.vmax_value = QLineEdit('1.0');               
+        self.vmax_value.setMaximumWidth(50)
+        self.vmax_value_lbl = QLabel('Vmax Value', self)
+        layout.addWidget(self.vmax_value_lbl,row_index,4)
+        layout.addWidget(self.vmax_value,row_index,5); row_index+=1
+        
         self.button_percentages = QPushButton('% Lock Plots')
         self.button_percentages.setMaximumWidth(200)
         self.button_percentages.clicked.connect(self.sua_lockpercentage)
@@ -210,10 +240,10 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
 
 
-
         #**************************************************************************************
         #***************************** CSD ANALYSIS **************************************
         #**************************************************************************************
+        
         layout.addWidget(QLabel('', self), row_index,0); row_index+=1
         self.preprocess_lbl = QLabel('CSD ANALYSIS', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
@@ -274,8 +304,6 @@ class MSL(QtGui.QWidget):
         self.button_natscene_pairisi.clicked.connect(self.view_natscene_pairisi)
         layout.addWidget(self.button_natscene_pairisi, row_index, 2)
 
-
-        
         
         self.bin_width = QLineEdit('0.001');               
         self.bin_width.setMaximumWidth(50)
@@ -371,12 +399,17 @@ class MSL(QtGui.QWidget):
         compute_msl_single_lfpevent(self)
 
     
-    def view_msl_continuous(self):
+    def view_msl_continuous(self):                  #Plot MSL drift for all cells
         compute_msl_continuous(self)
         
     
-    def view_msl_continuous_single(self):
+    def view_msl_continuous_single(self):           #Plot MSL drift for a single cell
         compute_msl_continuous_single(self)
+    
+    
+    def view_msl_continuous_multi(self):            #Plot MSL drift for multiple cells
+        compute_msl_continuous_multi_unit(self)
+    
     
     def view_msl_drift(self):
         cell_msl_drift(self)
@@ -398,8 +431,12 @@ class MSL(QtGui.QWidget):
         sua_lock_percentage(self)
 
             
-    def view_msl_Pvals(self):
-        compute_msl_pvals(self)
+    def compute_msl_Pvals(self):
+        compute_msl_pvals(self)                 #Compute P-values from 2-value KS test
+
+
+    def view_pval(self):
+        view_msl_pval(self)                     #View P-Values
 
 
     def view_csd_rasters(self):
