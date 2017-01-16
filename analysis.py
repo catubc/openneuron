@@ -1722,7 +1722,7 @@ def compute_dff_events_mcd_all(self):
     n_pixels = len(self.images_filtered[0])
 
     self.unfiltered_file = images_file[:-4]+'.npy'
-    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='r+')
+    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='c')
     
     if os.path.exists(images_file[:-4]+'_mean.npy'):
         global_mean = np.load(images_file[:-4]+'_mean.npy')
@@ -1894,7 +1894,7 @@ def compute_dff_events_mcd_all(self):
         #np.save(images_file[:-4], data_stm)
 
         print ''
-        self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
+        self.images_filtered = np.load(self.filtered_file,  mmap_mode='c')
         
         
         
@@ -1917,11 +1917,11 @@ def compute_dff_events_mcd(self):
         self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
     else: 
         self.filtered_file = images_file[:-4]+'.npy'   #Load unfiltered file and use it as "filtered_file"
-    self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
+    self.images_filtered = np.load(self.filtered_file,  mmap_mode='c')
     print "...images_file.shape: ",  self.images_filtered.shape
     
     self.unfiltered_file = images_file[:-4]+'.npy'
-    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='r+')
+    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='c')
     
     if os.path.exists(images_file[:-4]+'_mean.npy'):
         global_mean = np.load(images_file[:-4]+'_mean.npy')
@@ -2218,7 +2218,17 @@ def compute_DFF_function(self):
 
     #Check img_rate; First, need to load session, so find index of tif_file name in tif_files.npy
     temp_tif_files = np.load(self.parent.animal.home_dir+self.parent.animal.name+"/tif_files.npy")
+    temp_filearray = []
+    for p in range(len(temp_tif_files)): 
+        temp_filearray.append(temp_tif_files[p].replace("12TB", self.parent.replacement_dir))
+    temp_tif_files = temp_filearray
+
     temp_event_files = np.load(self.parent.animal.home_dir+self.parent.animal.name+"/event_files.npy")
+    temp_filearray = []
+    for p in range(len(temp_event_files)): 
+        temp_filearray.append(temp_event_files[p].replace("12TB", self.parent.replacement_dir))
+    temp_event_files = temp_filearray
+        
     for k in range(len(temp_tif_files)):
         if self.rec_filename in temp_tif_files[k]:
             index = k; break
@@ -2320,7 +2330,7 @@ def view_mean_stm_events(self):
     stm_type = self.selected_stm_type
 
     images_file = self.selected_recording
-    self.images_filtered = np.load(self.selected_recording, mmap_mode='r+')
+    self.images_filtered = np.load(self.selected_recording, mmap_mode='c')
 
     #*****************************************************************
     #************** LOAD CAMERA ON/OFF AND IMG_RATE ******************
@@ -2710,7 +2720,7 @@ def make_stm_motion_mask(self):
     #print "...resetting stm_name to: ", filename
 
     if os.path.exists(filename)==True: 
-        data = np.load(filename,  mmap_mode='r+')
+        data = np.load(filename,  mmap_mode='c')
     else:
         print "...data not yet processed ******************"
         return
@@ -3913,9 +3923,10 @@ def view_templates(self):
     y = np.histogram(maxchan_troughs, bins = np.arange(-50,100,bin_width))
     #plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
     plt.bar(y[1][:-1], y[0], bin_width, color=self.selected_colour)
-    plt.xlabel("Time (ms)", fontsize = font_size)
-    plt.tick_params(axis='both', which='both', labelsize=font_size)
-    plt.xlim(-20,80)
+    plt.xlabel("Time (ms)", fontsize = font_size*1.5)
+    plt.tick_params(axis='both', which='both', labelsize=font_size*1.5)
+
+    plt.xlim(-40,80)
 
     plt.show()
 
@@ -6923,7 +6934,7 @@ def compute_msl_continuous_multi_unit(self):
     plt.ylim(raster_offset-7-clr_ctr*3,20)
     plt.xlim(0, lfp.n_vd_samples/lfp.SampleFrequency/60.)
 
-    plt.ylabel("Locking Latency (ms)\n Single Units   LFP Events", fontsize = 30)
+    plt.ylabel("Mean-Spike-Latency (ms)\n Single Units   LFP Events", fontsize = 30)
     plt.xlabel("Recording time (mins)", fontsize = 25)
 
     
@@ -7701,7 +7712,8 @@ def compute_msl_pvals(self):
     print len(locked_spike_array[0])
     
     units = np.arange(0,118,1)
-    empty_row = np.zeros(len(locked_spike_array),dtype=np.float32)+1.0
+    #unit = [56,99,100]
+    empty_row = np.zeros(len(locked_spike_array),dtype=np.float32)+123.0
     for unit in units: 
         kstest_array = []
         for k in range(len(locked_spike_array)):
@@ -7710,7 +7722,7 @@ def compute_msl_pvals(self):
             
             temp = locked_spike_array[k][unit][:10]
             if len(temp)==0:
-                kstest_array[k] = empty_row            
+                kstest_array[k] = empty_row             #DESYNCH STATES; APPEND DUMMY VALUE
                 continue
     
             spk1 = np.hstack(locked_spike_array[k][unit])*1E-3
@@ -7721,7 +7733,7 @@ def compute_msl_pvals(self):
             #for p in range(200):
                 temp = locked_spike_array[p][unit][:10]
                 if len(temp)==0:
-                    kstest_array[k].append(1)            
+                    kstest_array[k].append(123.0)       #DESYNCH STATES; APPEND DUMMY VALUE     
                     continue
                 
                 spk2 = np.hstack(locked_spike_array[p][unit])*1E-3
@@ -7729,6 +7741,8 @@ def compute_msl_pvals(self):
                 spk2 = spk2[indexes]
                  
                 KS, p_val = stats.ks_2samp(spk1, spk2)
+                
+                
                 #print "... p_val: ", p_val
                 kstest_array[k].append(p_val)
        
@@ -7769,24 +7783,52 @@ def view_msl_pval(self):
 
     ks_img = np.load(file_out_locked_spikes+"_unit_"+str(unit)+'.npy')
     ks_img = np.flipud(ks_img)
-    ks_img = 1-ks_img
+    
+    #plt.imshow(ks_img, vmax=float(self.vmin_value.text()), vmin=float(self.vmax_value.text()))
+    #plt.show()
+    #return
     
     print ks_img.shape
     
-    #print ks_img[:100]
-    #print ks_img.ravel()
-    mask_indexes = np.where(ks_img.ravel()==0.0)
-    mask_array = np.zeros(len(ks_img.ravel()), dtype=np.int8)
-    mask_array[mask_indexes]=1
-    #print mask_indexes
-    img_temp = np.ma.masked_array(ks_img, mask = mask_array)
-    print img_temp.shape
-    ks_img = np.ma.array(np.split(img_temp, 453))
-    print ks_img.shape
-    ks_img = np.ma.vstack(ks_img)
-    print ks_img.shape
+    #Mask desynch periods
+    if True: 
+        mask_indexes = np.where(ks_img.ravel()==123.0)
+        mask_array = np.zeros(len(ks_img.ravel()), dtype=np.int8)
+        mask_array[mask_indexes]=1
+        ks_img = np.ma.masked_array(ks_img, mask = mask_array)
+
+        #Recombine to make img
+        print ks_img.shape
+        ks_img = np.ma.array(np.split(ks_img, 453))
+        print ks_img.shape
+        ks_img = np.ma.vstack(ks_img)
+        print ks_img.shape
     
-    cax = ax.imshow(ks_img, vmax=float(self.vmin_value.text()), vmin=float(self.vmax_value.text()), interpolation='none')
+    
+    #Remove desynch periods
+    if False:
+        new_array = []
+        for k in range(len(ks_img)):
+           if np.min(ks_img[k])<100:
+                new_array.append(ks_img[k])
+        new_array = np.vstack(new_array).T
+        
+        ks_img = []
+        for k in range(len(new_array)):
+            if np.min(new_array[k])<100:
+                ks_img.append(new_array[k])
+        ks_img=np.vstack(ks_img).T        
+    
+        
+    #print ks_img
+    #ks_img = 1-ks_img    
+
+    #ks_img = np.ma.log10(np.clip(1-ks_img,0,1))
+    ks_img = np.ma.log10(ks_img)
+    
+    #print ks_img
+    
+    cax = ax.imshow(ks_img, vmax=float(self.vmin_value.text()), vmin=float(self.vmax_value.text()), cmap=cm.jet_r, interpolation='none')
     #plt.ylim(len(ks_img),0)
 
     #ax = plt.subplot(2,3,4)
@@ -7803,13 +7845,18 @@ def view_msl_pval(self):
     plt.xlabel("Time (min)", fontsize=30)
     plt.ylabel("Time (min)", fontsize=30)
     
-    old_ylabel = np.arange(len(ks_img), 0, -100)
-    new_ylabel = np.arange(0,len(ks_img),100)
+    tstep= 50
+    #old_xlabel = np.arange(len(ks_img), 0, -tstep)
+    new_xlabel = np.arange(0,len(ks_img),tstep)
+    plt.xticks(new_xlabel, fontsize=30) #, rotation='vertical')    
+    
+    old_ylabel = np.arange(len(ks_img), 0, -tstep)
+    new_ylabel = np.arange(0,len(ks_img),tstep)
     plt.yticks(old_ylabel, new_ylabel, fontsize=30) #, rotation='vertical')    
-    
-    
-    cbar = fig.colorbar(cax, ticks=[float(self.vmin_value.text()), float(self.vmax_value.text())])
-    cbar.ax.set_yticklabels(["<"+self.vmax_value.text(), ">"+self.vmin_value.text()])  # vertically oriented colorbar
+        
+    x_ticks = np.arange(float(self.vmin_value.text()), float(self.vmax_value.text())+1, 1)
+    cbar = fig.colorbar(cax, ticks=[x_ticks])
+    #cbar.ax.set_yticklabels(['1^'+self.vmin_value.text(), '1^'+self.vmax_value.text()])  # vertically oriented colorbar
     cbar.ax.tick_params(labelsize=30) 
 
     plt.suptitle("2-Sample KS-Test: P-values "+ " Unit: " + str(unit), fontsize=30)
