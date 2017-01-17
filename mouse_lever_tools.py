@@ -16,8 +16,8 @@ class MouseLeverTools(QtGui.QWidget):
 
         #Mouse IA1 as default experiment for Greg experiments
         #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/yuki/' 
-        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/yuki/'
-        self.parent.replacement_dir = 'All.Data.3TB'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/yuki/'
+        self.parent.replacement_dir = "12TB"# 'All.Data.3TB'
         self.parent.n_sec = 3
         self.parent.exp_type = 'mouse_lever'
         

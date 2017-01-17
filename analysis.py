@@ -853,6 +853,7 @@ def event_triggered_movies_single_Ca(self):
     #Load behaviour camera and annotations data - if avialable
     #**************************************
     vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
+    print "...loading behavavioural camera data..."
     if os.path.exists(vid_rate_filename):
         self.vid_rate = np.loadtxt(vid_rate_filename)
 
@@ -1063,7 +1064,7 @@ def make_movies_ca(self):
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.annotation_stacks[0], cmap=plt.get_cmap('gray'), interpolation='none'))
         
-
+    print "...making final video..."
     def updatefig(j):
         print "...frame: ", j
         #plt.suptitle(self.selected_dff_filter+'  ' +self.dff_method + "\nFrame: "+str(j)+"  " +str(format(float(j)/self.img_rate-self.parent.n_sec,'.2f'))+"sec  ", fontsize = 15)
