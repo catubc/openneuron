@@ -671,7 +671,7 @@ def event_triggered_movies_single_Ca(self):
             str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_stm.npy"
     print "...stm_name: ", self.traces_filename
     
-    data = np.load(self.traces_filename, mmap_mode='r+')[int(self.selected_trial)]  #Load only selected trial
+    data = np.load(self.traces_filename, mmap_mode='c')[int(self.selected_trial)]  #Load only selected trial
     print data.shape
 
     #Smooth and convolve original data to look for flow:
@@ -1364,7 +1364,7 @@ def view_spontaneous_activity(self):
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
         
-    data= np.load(filtered_file,  mmap_mode='r+')
+    data= np.load(filtered_file,  mmap_mode='c')
     print data.shape
 
     #Load stack and mean of filtered data
@@ -1386,7 +1386,7 @@ def view_ave_points(self):
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
         
-    data= np.load(filtered_file,  mmap_mode='r+')
+    data= np.load(filtered_file,  mmap_mode='c')
     print data.shape
 
     #Select only clustered frames
@@ -1407,7 +1407,7 @@ def view_all_points(self):
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
         
-    data= np.load(filtered_file,  mmap_mode='r+')
+    data= np.load(filtered_file,  mmap_mode='c')
     print data.shape
 
     #Select only clustered frames
@@ -1441,7 +1441,7 @@ def video_points(self):
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
         
-    data= np.load(filtered_file,  mmap_mode='r+')
+    data= np.load(filtered_file,  mmap_mode='c')
     print data.shape
 
     #Load stack and mean of filtered data
@@ -1508,7 +1508,7 @@ def compute_dim_reduction(self):
     filter_type = self.selected_filter; lowcut = float(self.parent.filter_low.text()); highcut = float(self.parent.filter_high.text())
     self.filtered_file = images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz.npy'
         
-    data= np.load(self.filtered_file,  mmap_mode='r+')
+    data= np.load(self.filtered_file,  mmap_mode='c')
     print data.shape
 
     #Load stack and mean of filtered data
@@ -1553,11 +1553,11 @@ def compute_dff_events(self):
         self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
     else: 
         self.filtered_file = images_file[:-4]+'.npy'   #Load unfiltered file and use it as "filtered_file"
-    self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
+    self.images_filtered = np.load(self.filtered_file,  mmap_mode='c')
     print "...images_file.shape: ",  self.images_filtered.shape
     
     self.unfiltered_file = images_file[:-4]+'.npy'
-    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='r+')
+    self.images_unfiltered = np.load(self.unfiltered_file,  mmap_mode='c')
     
     if os.path.exists(images_file[:-4]+'_mean.npy'):
         global_mean = np.load(images_file[:-4]+'_mean.npy')
@@ -1718,7 +1718,7 @@ def compute_dff_events_mcd_all(self):
         self.filtered_file = images_file[:-4]+'_'+self.selected_dff_filter+'_'+self.lowcut.text()+'hz_'+self.highcut.text()+'hz.npy'
     else: 
         self.filtered_file = images_file[:-4]+'.npy'   #Load unfiltered file and use it as "filtered_file"
-    self.images_filtered = np.load(self.filtered_file,  mmap_mode='r+')
+    self.images_filtered = np.load(self.filtered_file,  mmap_mode='c')
     print "...images_file.shape: ",  self.images_filtered.shape
     n_pixels = len(self.images_filtered[0])
 
@@ -2122,8 +2122,64 @@ def parallel_dff(trigger, images_filtered, window, dff_method, selected_dff_filt
             data_stm = temp_data
     
     return data_stm
+
+
+def load_behavioural_annotation_data(self):
+    ''' Find all annotation fields called "*_clusters.npz" and add their annotations '''
+    filenames = glob.glob(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session+"*_clusters.npz")
+    
+    print "...img_rate: ", self.parent.animal.img_rate
+
+    
+    for k in range(len(filenames)):
+        print filenames[k]
+        data = np.load(filenames[k])
+        
+        for cluster, cluster_data in zip(data['cluster_names'], data['cluster_indexes']):
+            
+            if cluster==self.selected_code: 
+                #Save locations and ids of events
+                cluster_indexes = [cluster]*len(cluster_data)
+                print "...cluster_indexes: ", cluster_indexes[:10]
+                print "...cluster_data: ", cluster_data[:10]
+                print len(cluster_data)
+                self.code_44threshold_selected= cluster_indexes 
+                self.locs_44threshold_selected= np.int32(cluster_data)/float(self.parent.animal.img_rate)
+                                
+                return    
+    
+    return
     
     
+    #cluster_1 = data['cluster_indexes'][1]; cluster_2 = data['cluster_indexes'][0]  #Licking info is in 2nd cluster
+    #t = np.arange(0,max(np.max(cluster_1), np.max(cluster_2)),1)/15.
+
+    #clrs = []
+    #locs = []
+    #last_loc = 0
+    #for k in range(len(t)):
+        #if k in cluster_1: 
+            #locs.append(1.)
+            #last_loc=k
+        #else:
+            #if (k-last_loc)<2:
+                #locs.append(1)
+            #else:
+                #locs.append(0)
+
+    #plt.plot(t, locs, color='red', alpha=0.8)#, color=clrs)
+    #ax.fill_between(t, np.zeros(len(locs)), locs, color='red', alpha=0.2)
+
+        
+    #indexes = np.where(self.code_44threshold==self.selected_code)[0]
+    #print "...indexes: "; print indexes
+
+    #self.code_44threshold_selected = self.code_44threshold[indexes]
+    #self.locs_44threshold_selected = self.locs_44threshold[indexes]
+    
+    
+    
+                
 
 def compute_dff_mouse_lever(self):
     print "\n\n... dff computation..."
@@ -2132,7 +2188,7 @@ def compute_dff_mouse_lever(self):
     self.rec_filename = self.selected_session.replace(self.parent.root_dir+self.parent.animal.name+"/tif_files/",'')
 
     images_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned.npy'
-    data_mean = np.load(images_file[:-4]+'_mean.npy' )
+    data_mean = np.load(images_file[:-4]+'_mean.npy')
     print "... data_mean.shape: ", data_mean.shape #; plt.imshow(data_mean); plt.show()
     
     #Check for filtered version of imaging data w. current filtering params
@@ -2140,14 +2196,27 @@ def compute_dff_mouse_lever(self):
     fs = self.parent.animal.img_rate
     print "... frame rate: ", fs, "  low_cutoff: ", self.lowcut, "  high_cutoff: ", self.highcut
     
-    print "...self.locs_44threshold: "; print self.locs_44threshold
-    print "...self.code_44threshold: "; print self.code_44threshold
     print "...self.selected_code: ", self.selected_code
+
+    #Process reward triggered data
+    if (self.selected_code =='02') or (self.selected_code =='02') or (self.selected_code =='02'):
+        print "...self.locs_44threshold: "; print self.locs_44threshold
+        print "...self.code_44threshold: "; print self.code_44threshold
+        
+        indexes = np.where(self.code_44threshold==self.selected_code)[0]
+        print "...indexes: "; print indexes
+
+        self.code_44threshold_selected = self.code_44threshold[indexes]
+        self.locs_44threshold_selected = self.locs_44threshold[indexes]
+
+    #Process behaviour triggered data;
+    else:
+        print self.code_44threshold_selected[:10] 
+        print self.locs_44threshold_selected[:10]
     
-    indexes = np.where(self.code_44threshold==self.selected_code)[0]
-    print "...indexes: "; print indexes
-    self.code_44threshold_selected = self.code_44threshold[indexes]
-    self.locs_44threshold_selected = self.locs_44threshold[indexes]
+    
+    print len(self.code_44threshold_selected)
+    print len(self.locs_44threshold_selected)
     
     compute_DFF_function(self)
 
@@ -2258,7 +2327,7 @@ def compute_DFF_function(self):
     print "...img_frame_triggers...", img_frame_triggers
     
     
-    #BASELINE FOR GLOBAL BASLINE REMOVAL
+    #BASELINE FOR GLOBAL BASELINE REMOVAL
     mean_file = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.rec_filename+'/'+self.rec_filename+'_aligned_mean.npy'
     global_mean = np.load(mean_file)
 
@@ -2297,7 +2366,8 @@ def compute_DFF_function(self):
         #***PROCESS TRACES - WORKING IN DIFFERENT TIME SCALE
         lever_window = 120*self.parent.n_sec    #NB: Lever window is computing in real time steps @ ~120Hz; and discontinuous;
         t = np.linspace(-lever_window*0.0082,lever_window*0.0082, lever_window*2)
-        lever_position_index = find_nearest(np.array(self.abstimes), self.locs_44threshold[counter])
+        #lever_position_index = find_nearest(np.array(self.abstimes), self.locs_44threshold[counter])
+        lever_position_index = find_nearest(np.array(self.abstimes), self.locs_44threshold_selected[counter])
         
         lever_trace = self.abspositions[int(lever_position_index-lever_window):int(lever_position_index+lever_window)]
 

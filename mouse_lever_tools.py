@@ -179,7 +179,6 @@ class MouseLeverTools(QtGui.QWidget):
         self.comboBox_select_dff_method.activated[str].connect(self.select_dff_method); self.dff_method = "globalAverage"
         
         #Reward code dropdown box
-        self.code_list = ['02', '04', '07']
         self.locs_44threshold = []; self.code_44threshold = []
         temp_file = self.parent.root_dir+self.selected_animal + '/tif_files/'+self.selected_session+'/'+self.selected_session
         print temp_file
@@ -187,8 +186,16 @@ class MouseLeverTools(QtGui.QWidget):
             self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
             self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
         self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
+        
+        #Make reward code box; May need to redo below if adding other types of codes;
+        self.code_list = ['02', '04', '07']
+        
+        #Search for behavioural annotation data:
+        self.code_list.extend(self.find_annotated_clusters())
+        
         self.comboBox_select_code = QtGui.QComboBox(self)
-        for code_ in self.code_list: self.comboBox_select_code.addItem(code_)
+        for code_ in self.code_list: 
+            self.comboBox_select_code.addItem(code_)
         layout.addWidget(self.comboBox_select_code, row_index, 3)
         self.comboBox_select_code.activated[str].connect(self.select_reward_code); 
         
@@ -223,13 +230,13 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(trial_lbl, row_index,2)
                 
         self.comboBox_select_trial = QtGui.QComboBox(self)
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.selected_trial = ''
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
             self.selected_trial = '0' #Redundant method
         layout.addWidget(self.comboBox_select_trial, row_index,3)
-        self.comboBox_select_trial.activated[str].connect(self.select_trial)
+        self.comboBox_select_trial.activated[str].connect(self.initialize_trial)
         
         self.block_save = QLineEdit('1')
         self.block_save.setMaximumWidth(50)
@@ -547,7 +554,7 @@ class MouseLeverTools(QtGui.QWidget):
         print self.selected_code
 
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
@@ -576,14 +583,24 @@ class MouseLeverTools(QtGui.QWidget):
             self.code_44threshold = np.load(self.tif_file[:-4]+'_code44threshold.npy')
 
         print "... code_44threshold: ", self.code_44threshold
+
+        #Update code list values
+        self.code_list = ['02', '04', '07']
+        self.code_list.extend(self.find_annotated_clusters())
+        print "...updated code_list: ", self.code_list
+        
+        self.comboBox_select_code.clear()
+        for code_ in self.code_list: 
+            self.comboBox_select_code.addItem(code_)
         
         self.comboBox_select_code.setCurrentIndex(0)
-        self.selected_code = '02'; self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
+        self.selected_code = '02' 
+        self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
         self.n_codes_lbl.setText(str(self.n_codes))
-        #print "\n\n"
-
+        
+        
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
@@ -600,32 +617,39 @@ class MouseLeverTools(QtGui.QWidget):
         print "...code selected: ", text 
         self.selected_code = text
         
-        #CALL CODE COUNTING FUNCTIONS
-        self.locs_44threshold = []; self.code_44threshold = []
-        temp_file = self.parent.root_dir + self.parent.animal.name + "/tif_files/"+ self.selected_session+'/'+self.selected_session
-        print "...temp_file: ", temp_file
-        
-        if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
-            self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
-            self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+        #Load Standard Reward Codes
+        if (self.selected_code=='02') or (self.selected_code=='04') or (self.selected_code=='07'):
+            self.locs_44threshold = []; self.code_44threshold = []
+            temp_file = self.parent.root_dir + self.parent.animal.name + "/tif_files/"+ self.selected_session+'/'+self.selected_session
+            print "...temp_file: ", temp_file
+            
+            if os.path.exists(temp_file + '_locs44threshold.npy')==True: 
+                self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+                self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
 
-    
-        print self.code_44threshold     
-        self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
-        self.n_codes_lbl.setText(str(self.n_codes))
+        
+            print self.code_44threshold     
+            self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
+            self.n_codes_lbl.setText(str(self.n_codes))
+
+        #Load Times for specific 
+        else: 
+            load_behavioural_annotation_data(self)
+            self.n_codes = len(self.code_44threshold_selected)         
+            self.n_codes_lbl.setText(str(self.n_codes))
         
         print "..reseting reward code, # codes: ", self.n_codes
         print "\n\n"
 
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
             self.selected_trial = '0' #crappy method; redundant
         
-    #SELECT TRIAL
-    def select_trial(self, text):
+    #Initialize Trial - ONLY USED ONCE
+    def initialize_trial(self, text):
         print "...selecting trial: ", text
         self.selected_trial = text
         
@@ -685,10 +709,9 @@ class MouseLeverTools(QtGui.QWidget):
         compute_dff_mouse_lever(self)
         
         #self.parent.animal.process_sessions(self)
-        
 
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
@@ -726,7 +749,7 @@ class MouseLeverTools(QtGui.QWidget):
         
         
         
-    def load_stm_name(self):        
+    def load_trials(self):        
 
         if self.selected_dff_filter == 'nofilter':
             self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
@@ -737,8 +760,7 @@ class MouseLeverTools(QtGui.QWidget):
 
         filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
 
-        #print "...resetting stm_name to: ", filename
-
+        #Load trial file if data has been computed. 
         if os.path.exists(filename)==True: 
             data = np.load(filename,  mmap_mode='r+')
             print data.shape
@@ -751,7 +773,7 @@ class MouseLeverTools(QtGui.QWidget):
         self.selected_dff_filter=text
         
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
@@ -766,12 +788,26 @@ class MouseLeverTools(QtGui.QWidget):
         self.dff_method = text
         
         #Reset trial value
-        n_trials_in = self.load_stm_name()
+        n_trials_in = self.load_trials()
         self.comboBox_select_trial.clear()
         for k in range(n_trials_in):
             self.comboBox_select_trial.addItem(str(k))
             self.selected_trial = '0' #crappy method; redundant
+
+    def find_annotated_clusters(self):        
+        ''' Find all annotation fiels called "*_clusters.npz" and add their annotations '''
+        filenames = glob.glob(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session+"*_clusters.npz")
+        
+        clusters_out = []
+        for k in range(len(filenames)):
+            print filenames[k]
+            data = np.load(filenames[k])
             
+            for cluster in data['cluster_names']:
+                if "no_" in cluster: pass
+                else: clusters_out.append(cluster)
+
+        return clusters_out            
 
     def static_stm_mouse_lever(self):
         view_static_stm(self)
