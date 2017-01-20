@@ -832,18 +832,21 @@ def event_triggered_movies_single_Ca(self):
     #**************************************
   
     self.abstimes = np.load(temp_file+'_abstimes.npy')
-    self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
-    self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+    #self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+    #self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
     #print self.locs_44threshold
     #print self.code_44threshold
 
     print "...self.selected_code: ", self.selected_code
     print "...self.selected_trial: ", self.selected_trial
     
-    indexes = np.where(self.code_44threshold==self.selected_code)[0]
-    print indexes
-    self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
-    self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
+    #indexes = np.where(self.code_44threshold==self.selected_code)[0]
+    #print indexes
+    #self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
+    #self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
+    self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
+    self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
+    
     #print self.selected_locs_44threshold
     #print self.selected_code_44threshold
     
@@ -897,7 +900,8 @@ def event_triggered_movies_single_Ca(self):
             annotation_arrays.append([])
             for k in range(len(self.movie_data)): annotation_arrays[ctr].append([])
             
-            data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+area+'_clusters.npz')
+            #data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+area+'_clusters.npz')
+            data = np.load(self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+area+'_clusters.npz')
             cluster_indexes=data['cluster_indexes'] 
             cluster_names=data['cluster_names']
             
@@ -1089,7 +1093,7 @@ def make_movies_ca(self):
 
     if True:
         #ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=300)
-        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'_'+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=600)
+        ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(self.selected_code)+"_"+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=600)
     plt.show()
 
 
