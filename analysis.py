@@ -657,204 +657,44 @@ def event_triggered_movies_single_Ca(self):
     self.parent.n_sec = float(self.n_sec_window.text())
     self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
 
-    #**************************************
-    #Read [Ca] data
-    #**************************************
     temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
-    self.img_rate = np.load(temp_file+'_img_rate.npy') #imaging rate
-    
-    if self.selected_dff_filter == 'nofilter':
-        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
-            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_stm.npy"
-    else:
-        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
-            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_stm.npy"
-    print "...stm_name: ", self.traces_filename
-    
-    data = np.load(self.traces_filename, mmap_mode='c')[int(self.selected_trial)]  #Load only selected trial
-    print data.shape
 
-    #Smooth and convolve original data to look for flow:
-    import cv2
-    import scipy
-    import scipy.ndimage
-    
-    self.data_norm = []
-    self.ca_stack = []
-    n_stacks = 2
-    for k in range(n_stacks): 
-        self.ca_stack.append([])
-    
-    self.ca_stack[0] = data
-    
-    #Normalize data; opencv functions largely work on unit8 data types
-    
-    #img_rate = 30.0
-    #start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
-    #for k in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), 1):
-    for k in range(len(data)):
-        data_norm = ((data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*255).astype(np.uint8)      #Normalize data to gray scale 0..255
-        #data_norm = (data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*2. - 1.   #Normalize to: -1.. 0 .. +1 scale
-        self.data_norm.append(data_norm)
-    
-    self.data_norm = np.array(self.data_norm)
-    self.data_norm_ave = np.average(self.data_norm, axis = 0)
-    
-    
-    filter_power = float(self.mask_power.text())
-    
-    for k in range(len(self.data_norm)): 
-        stack_ctr = 1
-        
-        sigma=2
-        img_arctan = np.ma.arctanh((self.data_norm[k]-128.)/128.)
-        
-        data_neg = -1. * np.ma.clip(img_arctan, -100., 0)
-        data_neg = -np.ma.power(data_neg, filter_power)
-        data_pos = np.ma.clip(img_arctan, 0, 100.)
-        data_pos = np.ma.power(data_pos, filter_power)
-        data_total = np.float32(data_neg + data_pos)
-        
-        #img_uint8 = ((data_total-np.min(data_total))/(np.max(data_total)-np.min(data_total))*255.).astype(np.uint8)
-        img_gaussian = ndimage.gaussian_filter(data_total, sigma=sigma)    #Recentre image around zero
-        #negatives = np.clip(img_gaussian, -1E-6, 1E-6)/1E-6
-        #data_out = np.power(np.ma.abs(img_gaussian), filter_power)*negatives
+    #************************************************************************************************************
+    #********************************* BEHAVIOURAL ANNOTATION PANEL *********************************************
+    #************************************************************************************************************
 
-        self.ca_stack[stack_ctr].append(img_gaussian);  stack_ctr+=1
-
-
-        #kernel_5pix = np.ones((5,5),np.float32)/5.
-        #data_out = cv2.filter2D(self.data_norm[k],-1,kernel_5pix)
-        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
-
-        #sigma = 10
-        #data_out = ndimage.gaussian_filter(self.data_norm[k], sigma=sigma)
-        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
-        
-        
-        #sx = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=0, mode='nearest')
-        #sy = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=1, mode='nearest')
-        #data_out = np.hypot(sx, sy)
-        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
-    
-    
-    #REmove averages from the smoothed stacks;
-    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
-    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
-    
-   
-    #np.save(self.traces_filename[:-4] + "_Ca_stacks" , self.ca_stack)   #SAVE ARRAYS BEFORE MASKING
-    temp_stack = self.ca_stack   #Save for loading below
-    
-    #Apply Generic Mask
-    print "...selected trial for stm: ", self.selected_trial
-    for k in range(len(self.ca_stack)):
-        self.ca_stack[k] = quick_mask(self, self.ca_stack[k])
-   
-
-    #Last and apply Motion Mask
-    filename_motion_mask = self.traces_filename.replace('_traces.npy','')[:-4]+'_motion_mask.npy'
-    print filename_motion_mask
-    if os.path.exists(filename_motion_mask)==False:
-        print "...motion mask missing..."
-        return
-    else: 
-        motion_mask = np.load(filename_motion_mask)
-        for k in range(len(self.ca_stack)):
-            self.ca_stack[k] = self.ca_stack[k] * motion_mask
-    
-    self.ca_stack = np.ma.array(self.ca_stack)
-    print self.ca_stack.shape
-
-
-    #**************************************
-    #Make PCA Space stacks
-    #**************************************
-
-    data = temp_stack[0]
-    subsampled_array = []
-    for k in range(len(data)):
-        subsampled_array.append(scipy.misc.imresize(data[k], .9, interp='bilinear', mode=None))
-
-    methods = ['MDS', 'tSNE', 'PCA', 'Sammon']
-    method = methods[2]
-    print "... computing original dim reduction ..."
-
-    X = []
-    for k in range(len(subsampled_array)):
-        X.append(np.ravel(subsampled_array[k]))
-
-    X = PCA_reduction(X, n_components=3)
-
-    cm = plt.cm.get_cmap('jet')
-    colors = range(len(X))
-    
-    self.pca_stack = []
-    print "... making pca_stack..."
-    for k in range(len(data)):
-        print k
-        fig = Figure()
-        canvas = FigureCanvas(fig)
-        #ax = fig.gca()
-        fig.set_size_inches(10, 10)
-
-        #fig = plt.figure(1, figsize=(4, 3))
-        plt.clf()
-        #ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
-        ax = Axes3D(fig, rect=[0, 0, 1, 1], elev=48, azim=134)
-
-        #ax.scatter(X[:, 0], X[:, 1], X[:, 2], c = colors, cmap=plt.cm.spectral)
-        ax.scatter(X[:k+1, 0], X[:k+1, 1], X[:k+1, 2], s =200, c = colors[:k+1], cmap=cm)
-        if k>1: ax.plot3D (X[:k, 0], X[:k, 1], X[:k,2])
-
-        ax.w_xaxis.set_ticklabels([])
-        ax.w_yaxis.set_ticklabels([])
-        ax.w_zaxis.set_ticklabels([])
-        
-        ax.set_xlim(np.min(X[:, 0])-1, np.max(X[:, 0])+1)
-        ax.set_ylim(np.min(X[:, 1])-1, np.max(X[:, 1])+1)
-        ax.set_zlim(np.min(X[:, 2])-1, np.max(X[:, 2])+1)
-
-
-        canvas.draw()       # draw the canvas, cache the renderer
-        
-        data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
-        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        self.pca_stack.append(data)
-    
-    print "...done..."
-    
-    plt.close()
-
-
-    #**************************************
-    #Load trigger times
-    #**************************************
-  
     self.abstimes = np.load(temp_file+'_abstimes.npy')
-    #self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
-    #self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
-    #print self.locs_44threshold
-    #print self.code_44threshold
 
+    #Process reward triggered data
+    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
+        self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
+        self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
+        
+        indexes = np.where(self.code_44threshold==self.selected_code)[0]
+        print "...indexes: "; print indexes
+
+        self.code_44threshold = self.code_44threshold[indexes]  #Select only indexes that match the code selected
+        self.locs_44threshold = self.locs_44threshold[indexes]
+
+    #Process behaviour triggered data;
+    else:
+        load_behavioural_annotation_data(self)
+        
+        print len(self.code_44threshold)
+        print len(self.locs_44threshold)
+    
+    
     print "...self.selected_code: ", self.selected_code
     print "...self.selected_trial: ", self.selected_trial
     
-    #indexes = np.where(self.code_44threshold==self.selected_code)[0]
-    #print indexes
-    #self.selected_locs_44threshold = self.locs_44threshold[indexes][int(self.selected_trial)]
-    #self.selected_code_44threshold = self.code_44threshold[indexes][int(self.selected_trial)]
+
     self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
     self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
     
-    #print self.selected_locs_44threshold
-    #print self.selected_code_44threshold
-    
-        
+    print self.selected_locs_44threshold
+    print self.selected_code_44threshold
 
-    #**************************************
     #Load behaviour camera and annotations data - if avialable
-    #**************************************
     vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
     print "...loading behavavioural camera data..."
     if os.path.exists(vid_rate_filename):
@@ -864,6 +704,7 @@ def event_triggered_movies_single_Ca(self):
         movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
         self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
         self.movie_data = movie_data[np.load(self.blue_light_filename)]
+        
         
         #Find movie frame corresponding to lever pull trigger
         movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
@@ -878,7 +719,7 @@ def event_triggered_movies_single_Ca(self):
         #print len(self.movie_stack)
         #quit()
 
-        #Interpolate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
+        #Duplicate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
         new_stack = []
         for frame in range(len(self.movie_stack)):
             new_stack.append(self.movie_stack[frame])
@@ -958,9 +799,178 @@ def event_triggered_movies_single_Ca(self):
         self.movie_stack = np.zeros((len(self.ca_stack[0]), 30, 40), dtype=np.int8)
         
 
-    #**************************************
-    #Read Lever position data
-    #**************************************
+    #************************************************************************************************************
+    #**************************************** CALCIUM IMAGING PANEL *********************************************
+    #************************************************************************************************************
+
+    self.img_rate = np.load(temp_file+'_img_rate.npy') #imaging rate
+    
+    if self.selected_dff_filter == 'nofilter':
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_stm.npy"
+    else:
+        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
+            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_stm.npy"
+    print "...stm_name: ", self.traces_filename
+    
+    data = np.load(self.traces_filename, mmap_mode='c')[int(self.selected_trial)]  #Load only selected trial
+    print data.shape
+
+    #Smooth and convolve original data to look for flow:
+    import cv2
+    import scipy
+    import scipy.ndimage
+    
+    self.data_norm = []
+    self.ca_stack = []
+    n_stacks = 2
+    for k in range(n_stacks): 
+        self.ca_stack.append([])
+    
+    self.ca_stack[0] = data
+    
+    #Normalize data; opencv functions largely work on unit8 data types
+    
+    #img_rate = 30.0
+    #start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
+    #for k in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), 1):
+    for k in range(len(data)):
+        data_norm = ((data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*255).astype(np.uint8)      #Normalize data to gray scale 0..255
+        #data_norm = (data[k]-np.min(data[k]))/(np.max(data[k])-np.min(data[k]))*2. - 1.   #Normalize to: -1.. 0 .. +1 scale
+        self.data_norm.append(data_norm)
+    
+    self.data_norm = np.array(self.data_norm)
+    self.data_norm_ave = np.average(self.data_norm, axis = 0)
+    
+    
+    filter_power = float(self.mask_power.text())
+    
+    for k in range(len(self.data_norm)): 
+        stack_ctr = 1
+        
+        sigma=2
+        img_arctan = np.ma.arctanh((self.data_norm[k]-128.)/128.)
+        
+        data_neg = -1. * np.ma.clip(img_arctan, -100., 0)
+        data_neg = -np.ma.power(data_neg, filter_power)
+        data_pos = np.ma.clip(img_arctan, 0, 100.)
+        data_pos = np.ma.power(data_pos, filter_power)
+        data_total = np.float32(data_neg + data_pos)
+        
+        #img_uint8 = ((data_total-np.min(data_total))/(np.max(data_total)-np.min(data_total))*255.).astype(np.uint8)
+        img_gaussian = ndimage.gaussian_filter(data_total, sigma=sigma)    #Recentre image around zero
+        #negatives = np.clip(img_gaussian, -1E-6, 1E-6)/1E-6
+        #data_out = np.power(np.ma.abs(img_gaussian), filter_power)*negatives
+
+        self.ca_stack[stack_ctr].append(img_gaussian);  stack_ctr+=1
+
+
+        #kernel_5pix = np.ones((5,5),np.float32)/5.
+        #data_out = cv2.filter2D(self.data_norm[k],-1,kernel_5pix)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+
+        #sigma = 10
+        #data_out = ndimage.gaussian_filter(self.data_norm[k], sigma=sigma)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+        
+        
+        #sx = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=0, mode='nearest')
+        #sy = scipy.ndimage.sobel(data_out.astype(np.uint8), axis=1, mode='nearest')
+        #data_out = np.hypot(sx, sy)
+        #self.ca_stack[stack_ctr].append(data_out);  stack_ctr+=1
+    
+    
+    #Remove averages from the smoothed stacks;
+    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
+    #self.ca_stack[2] = self.ca_stack[2] - np.average(self.ca_stack[2], axis=0)
+    
+   
+    #np.save(self.traces_filename[:-4] + "_Ca_stacks" , self.ca_stack)   #SAVE ARRAYS BEFORE MASKING
+    temp_stack = self.ca_stack   #Save for loading below
+    
+    #Apply Generic Mask
+    print "...selected trial for stm: ", self.selected_trial
+    for k in range(len(self.ca_stack)):
+        self.ca_stack[k] = quick_mask(self, self.ca_stack[k])
+   
+
+    #Last and apply Motion Mask
+    filename_motion_mask = self.traces_filename.replace('_traces.npy','')[:-4]+'_motion_mask.npy'
+    print filename_motion_mask
+    if os.path.exists(filename_motion_mask)==False:
+        print "...motion mask missing..."
+        return
+    else: 
+        motion_mask = np.load(filename_motion_mask)
+        for k in range(len(self.ca_stack)):
+            self.ca_stack[k] = self.ca_stack[k] * motion_mask
+    
+    self.ca_stack = np.ma.array(self.ca_stack)
+    print self.ca_stack.shape
+
+
+    #************************************************************************************************************
+    #**************************************** PCA SPACE CALCIUM IMAGING PANEL ***********************************
+    #************************************************************************************************************
+    
+    data = temp_stack[0]
+    subsampled_array = []
+    for k in range(len(data)):
+        subsampled_array.append(scipy.misc.imresize(data[k], .9, interp='bilinear', mode=None))
+
+    methods = ['MDS', 'tSNE', 'PCA', 'Sammon']
+    method = methods[2]
+    print "... computing original dim reduction ..."
+
+    X = []
+    for k in range(len(subsampled_array)):
+        X.append(np.ravel(subsampled_array[k]))
+
+    X = PCA_reduction(X, n_components=3)
+
+    cm = plt.cm.get_cmap('jet')
+    colors = range(len(X))
+    
+    self.pca_stack = []
+    print "... making pca_stack..."
+    for k in range(len(data)):
+        print k
+        fig = Figure()
+        canvas = FigureCanvas(fig)
+        #ax = fig.gca()
+        fig.set_size_inches(10, 10)
+
+        #fig = plt.figure(1, figsize=(4, 3))
+        plt.clf()
+        #ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+        ax = Axes3D(fig, rect=[0, 0, 1, 1], elev=48, azim=134)
+
+        #ax.scatter(X[:, 0], X[:, 1], X[:, 2], c = colors, cmap=plt.cm.spectral)
+        ax.scatter(X[:k+1, 0], X[:k+1, 1], X[:k+1, 2], s =200, c = colors[:k+1], cmap=cm)
+        if k>1: ax.plot3D (X[:k, 0], X[:k, 1], X[:k,2])
+
+        ax.w_xaxis.set_ticklabels([])
+        ax.w_yaxis.set_ticklabels([])
+        ax.w_zaxis.set_ticklabels([])
+        
+        ax.set_xlim(np.min(X[:, 0])-1, np.max(X[:, 0])+1)
+        ax.set_ylim(np.min(X[:, 1])-1, np.max(X[:, 1])+1)
+        ax.set_zlim(np.min(X[:, 2])-1, np.max(X[:, 2])+1)
+
+
+        canvas.draw()       # draw the canvas, cache the renderer
+        
+        data = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        self.pca_stack.append(data)
+    
+    print "...done..."
+    
+    plt.close()
+
+    #************************************************************************************************************
+    #**************************************** LEVER POSITION PANEL *********************************************
+    #************************************************************************************************************
     
     lever_file = temp_file+'_abspositions.npy'
     times_file = temp_file+'_abstimes.npy'
@@ -976,8 +986,6 @@ def event_triggered_movies_single_Ca(self):
     self.lever_stack = []
     
     #Make plots and convert to img stack
-
-
     x_val = []
     y_val = []
     for k in range(len(self.movie_stack)):
@@ -1067,7 +1075,8 @@ def make_movies_ca(self):
     plt.title("Annotations", y = .95 , fontsize = 10)
     ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
     im.append(plt.imshow(self.annotation_stacks[0], cmap=plt.get_cmap('gray'), interpolation='none'))
-        
+    
+    #Loop to combine all video insets into 1
     print "...making final video..."
     def updatefig(j):
         print "...frame: ", j
@@ -2134,7 +2143,6 @@ def load_behavioural_annotation_data(self):
     
     print "...img_rate: ", self.parent.animal.img_rate
 
-    
     for k in range(len(filenames)):
         print filenames[k]
         data = np.load(filenames[k])
@@ -2142,14 +2150,20 @@ def load_behavioural_annotation_data(self):
         for cluster, cluster_data in zip(data['cluster_names'], data['cluster_indexes']):
             
             if cluster==self.selected_code: 
+                print "... loading: ", cluster
                 #Save locations and ids of events
                 cluster_indexes = [cluster]*len(cluster_data)
                 print "...cluster_indexes: ", cluster_indexes[:10]
-                print "...cluster_data: ", cluster_data[:10]
+                print "...cluster_data: ", cluster_data[:10], cluster_data[-10:]
                 print len(cluster_data)
+
+                #SET BOTH OVERALL THRESHOLDS AND SELECTED THRESHOLDS TO THE SAME VALUES....
+                self.code_44threshold= cluster_indexes 
+                self.locs_44threshold= np.int32(cluster_data)/float(15.)       #Unclear if this is matching up to data correctly
+
                 self.code_44threshold_selected= cluster_indexes 
-                self.locs_44threshold_selected= np.int32(cluster_data)/float(self.parent.animal.img_rate)
-                                
+                self.locs_44threshold_selected= np.int32(cluster_data)/float(15.)       #Unclear if this is matching up to data correctly
+                                                #************************CHECK THIS**************************
                 return    
     
     return
@@ -2182,8 +2196,6 @@ def load_behavioural_annotation_data(self):
     #self.locs_44threshold_selected = self.locs_44threshold[indexes]
     
     
-    
-                
 
 def compute_dff_mouse_lever(self):
     print "\n\n... dff computation..."
@@ -2203,7 +2215,7 @@ def compute_dff_mouse_lever(self):
     print "...self.selected_code: ", self.selected_code
 
     #Process reward triggered data
-    if (self.selected_code =='02') or (self.selected_code =='02') or (self.selected_code =='02'):
+    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
         print "...self.locs_44threshold: "; print self.locs_44threshold
         print "...self.code_44threshold: "; print self.code_44threshold
         
