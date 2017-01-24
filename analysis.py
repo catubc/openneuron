@@ -20,6 +20,13 @@ from sklearn import decomposition
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cm
 
+import multiprocessing
+
+#Smooth and convolve original data to look for flow:
+import cv2
+import scipy
+import scipy.ndimage
+
 from load_intan_rhd_format import *
 
 from numpy import nan
@@ -650,87 +657,10 @@ def make_movies_from_triggers(self):
         ani.save(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'_'+str(len(self.movie_stack))+'.mp4', writer=writer)
     plt.show()
 
-
-def event_triggered_movies_single_Ca(self):
-    """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
-
-    self.parent.n_sec = float(self.n_sec_window.text())
-    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
-
-    temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
-
-    #************************************************************************************************************
-    #********************************* BEHAVIOURAL ANNOTATION PANEL *********************************************
-    #************************************************************************************************************
-
-    self.abstimes = np.load(temp_file+'_abstimes.npy')
-
-    #Process reward triggered data
-    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
-        self.locs_44threshold = np.load(temp_file+'_locs44threshold.npy')
-        self.code_44threshold = np.load(temp_file+'_code44threshold.npy')
-        
-        indexes = np.where(self.code_44threshold==self.selected_code)[0]
-        print "...indexes: "; print indexes
-
-        self.code_44threshold = self.code_44threshold[indexes]  #Select only indexes that match the code selected
-        self.locs_44threshold = self.locs_44threshold[indexes]
-
-    #Process behaviour triggered data;
-    else:
-        load_behavioural_annotation_data(self)
-        
-        print len(self.code_44threshold)
-        print len(self.locs_44threshold)
+def behavioural_stack(self):
     
-    
-    print "...self.selected_code: ", self.selected_code
-    print "...self.selected_trial: ", self.selected_trial
-    
-
-    self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
-    self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
-    
-    print self.selected_locs_44threshold
-    print self.selected_code_44threshold
-
     #Load behaviour camera and annotations data - if avialable
-    vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
-    print "...loading behavavioural camera data..."
-    if os.path.exists(vid_rate_filename):
-        self.vid_rate = np.loadtxt(vid_rate_filename)
-
-        #Load original movie data and index only during blue_light_frames
-        movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy')
-        self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
-        self.movie_data = movie_data[np.load(self.blue_light_filename)]
-        
-        
-        #Find movie frame corresponding to lever pull trigger
-        movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
-        self.movie_04frame_locations = find_nearest(movie_times, self.selected_locs_44threshold)
-        print "... frame event triggers: ", self.movie_04frame_locations
-
-        #Make movie stack
-        movie_indexes = np.arange(self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1), self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1), 1)
-        self.movie_stack = self.movie_data[movie_indexes]
-        
-        #self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
-        #print len(self.movie_stack)
-        #quit()
-
-        #Duplicate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
-        new_stack = []
-        for frame in range(len(self.movie_stack)):
-            new_stack.append(self.movie_stack[frame])
-            #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
-            new_stack.append(self.movie_stack[frame])
-            
-        #new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
-        self.movie_stack = np.uint8(new_stack)
-        
-        print self.movie_stack.shape
-
+    if os.path.exists(self.vid_rate_filename):
 
         #********** Load Annotations ********
         print "... making stacks of annotation arrays ...",
@@ -750,7 +680,7 @@ def event_triggered_movies_single_Ca(self):
                 for p in range(len(cluster_indexes[k])):
                     annotation_arrays[ctr][cluster_indexes[k][p]] = cluster_names[k]
 
-            annotation_arrays[ctr] = np.array(annotation_arrays[ctr])[movie_indexes]
+            annotation_arrays[ctr] = np.array(annotation_arrays[ctr])[self.movie_indexes]
 
         self.annotation_arrays=[]
         for k in range(len(annotation_arrays)):                  #***************************** SAME DUPLICATION AS ABOVE; Video is 15Hz, imaging is 30Hz
@@ -763,7 +693,7 @@ def event_triggered_movies_single_Ca(self):
         print "...making annotation_stacks..."
         areas = ['_Tongue', '_Lever'] #, '_pawlever', '_lick', '_snout', '_rightpaw', '_leftpaw', '_grooming'] 
         for k in range(len(self.annotation_arrays[0])):
-            print k
+            #print k
             fig = Figure()
             canvas = FigureCanvas(fig)
             ax = fig.gca()
@@ -789,21 +719,27 @@ def event_triggered_movies_single_Ca(self):
             data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
             self.annotation_stacks.append(data)
         
-        print "...done..."
+        print "...behavioural stack done..."
         
         plt.close()
     
     else:
-        print "... video data doesn't exist ... "
+        print "... behavioural video data doesn't exist ... "
         
+        self.annotation_stacks = []
+
         self.movie_stack = np.zeros((len(self.ca_stack[0]), 30, 40), dtype=np.int8)
-        
 
-    #************************************************************************************************************
-    #**************************************** CALCIUM IMAGING PANEL *********************************************
-    #************************************************************************************************************
+    filesave = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+ \
+                self.selected_session+'_'+self.selected_code+'_'+self.selected_trial+'_annotation_stack'
+               
+    np.save(filesave, self.annotation_stacks)
+    
+    #conn.send(self.annotation_stacks)
+    #conn.close()
 
-    self.img_rate = np.load(temp_file+'_img_rate.npy') #imaging rate
+def calcium_stack(self):
+    
     
     if self.selected_dff_filter == 'nofilter':
         self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
@@ -816,11 +752,7 @@ def event_triggered_movies_single_Ca(self):
     data = np.load(self.traces_filename, mmap_mode='c')[int(self.selected_trial)]  #Load only selected trial
     print data.shape
 
-    #Smooth and convolve original data to look for flow:
-    import cv2
-    import scipy
-    import scipy.ndimage
-    
+
     self.data_norm = []
     self.ca_stack = []
     n_stacks = 2
@@ -892,7 +824,7 @@ def event_triggered_movies_single_Ca(self):
     print "...selected trial for stm: ", self.selected_trial
     for k in range(len(self.ca_stack)):
         self.ca_stack[k] = quick_mask(self, self.ca_stack[k])
-   
+    
 
     #Last and apply Motion Mask
     filename_motion_mask = self.traces_filename.replace('_traces.npy','')[:-4]+'_motion_mask.npy'
@@ -906,7 +838,7 @@ def event_triggered_movies_single_Ca(self):
             self.ca_stack[k] = self.ca_stack[k] * motion_mask
     
     self.ca_stack = np.ma.array(self.ca_stack)
-    print self.ca_stack.shape
+    print "...self.ca_stack.shape: ", self.ca_stack.shape
 
 
     #************************************************************************************************************
@@ -934,7 +866,7 @@ def event_triggered_movies_single_Ca(self):
     self.pca_stack = []
     print "... making pca_stack..."
     for k in range(len(data)):
-        print k
+        #print k
         fig = Figure()
         canvas = FigureCanvas(fig)
         #ax = fig.gca()
@@ -964,16 +896,25 @@ def event_triggered_movies_single_Ca(self):
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.pca_stack.append(data)
     
-    print "...done..."
+    print "...done pca_stack..."
     
     plt.close()
 
-    #************************************************************************************************************
-    #**************************************** LEVER POSITION PANEL *********************************************
-    #************************************************************************************************************
+    filesave = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+ \
+               self.selected_session+'_'+self.selected_code+'_'+self.selected_trial
+               
+    np.save(filesave+'_ca_stack', np.ma.filled(self.ca_stack, np.nan))
     
-    lever_file = temp_file+'_abspositions.npy'
-    times_file = temp_file+'_abstimes.npy'
+    #self.ca_stack.dump(filesave+'_ca_stack')
+    
+    np.save(filesave+'_pca_stack', self.pca_stack)
+    #self.ca_stack.dump(filesave+'_ca_stack')
+
+    
+def lever_position_stack(self):
+
+    lever_file = self.temp_file+'_abspositions.npy'
+    times_file = self.temp_file+'_abstimes.npy'
     
     lever_data = np.load(lever_file)
     times_data = np.load(times_file)
@@ -995,9 +936,9 @@ def event_triggered_movies_single_Ca(self):
 
     print y_val
 
-    print "... making stacks of lever pull panels...",
+    print "... making stacks of lever pull panels..."
     for k in range(len(self.movie_stack)):
-        print k
+        #print k
         fig = Figure()
         canvas = FigureCanvas(fig)
         ax = fig.gca()
@@ -1023,10 +964,124 @@ def event_triggered_movies_single_Ca(self):
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.lever_stack.append(data)
     
-    print "...done..."
+    print "...done lever stack..."
     
     plt.close()
     
+    filesave = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+ \
+               self.selected_session+'_'+self.selected_code+'_'+self.selected_trial+'_lever_stack'
+               
+    np.save(filesave, self.lever_stack)
+    
+    
+def event_triggered_movies_single_Ca(self):
+    """ Load [Ca] imaging and behavioural camera data and align to selected trial"""
+
+    self.parent.n_sec = float(self.n_sec_window.text())
+    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
+    self.temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.abstimes = np.load(self.temp_file+'_abstimes.npy')
+
+    self.img_rate = np.load(self.temp_file+'_img_rate.npy') #imaging rate
+
+    #Process reward triggered data
+    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
+        self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
+        self.code_44threshold = np.load(self.temp_file+'_code44threshold.npy')
+        
+        indexes = np.where(self.code_44threshold==self.selected_code)[0]
+        print "...indexes: "; print indexes
+
+        self.code_44threshold = self.code_44threshold[indexes]  #Select only indexes that match the code selected
+        self.locs_44threshold = self.locs_44threshold[indexes]
+
+    #Process behaviour triggered data;
+    else:
+        load_behavioural_annotation_data(self)
+        
+        print len(self.code_44threshold)
+        print len(self.locs_44threshold)
+    
+    
+    print "...self.selected_code: ", self.selected_code
+    print "...self.selected_trial: ", self.selected_trial
+    
+
+    self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
+    self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
+    
+    print self.selected_locs_44threshold
+    print self.selected_code_44threshold
+
+    #****************************** Load behaviour video ******************************
+    #Load behaviour camera and annotations data - if avialable
+    self.vid_rate_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_vid_rate.npy'
+    print "...loading behavioural camera data..."
+    if os.path.exists(self.vid_rate_filename):
+        
+        self.vid_rate = np.loadtxt(self.vid_rate_filename)
+
+        #Load original movie data and index only during blue_light_frames
+        movie_data = np.load(self.parent.root_dir+self.parent.animal.name+"/video_files/"+self.selected_session+'.npy', mmap_mode='c')
+        self.blue_light_filename = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+self.selected_session+'_blue_light_frames.npy'
+        self.movie_data = movie_data[np.load(self.blue_light_filename)]
+        
+        #Find movie frame corresponding to lever pull trigger
+        movie_times = np.linspace(0, self.abstimes[-1], self.movie_data.shape[0])
+        self.movie_04frame_locations = find_nearest(movie_times, self.selected_locs_44threshold)
+        print "... frame event triggers: ", self.movie_04frame_locations
+
+        #Make movie stack
+        self.movie_indexes = np.arange(self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1), self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1), 1)
+        self.movie_stack = self.movie_data[self.movie_indexes]
+        
+        #self.movie_stack = self.movie_data[self.movie_04frame_locations+int(-self.parent.n_sec*self.vid_rate-1): self.movie_04frame_locations+int(self.parent.n_sec*self.vid_rate+1)]
+        #print len(self.movie_stack)
+        #quit()
+
+        #Duplicate movie stack to match [Ca] imaging rate     #******************NB INTERPOLATION IS KIND OF HARDWIRED TO 30HZ & 15HZ.... PERHAPS THIS CAN SKIP FRAME SOMETIMES !?!
+        new_stack = []
+        for frame in range(len(self.movie_stack)):
+            new_stack.append(self.movie_stack[frame])
+            #new_stack.append((np.int16(self.movie_stack[frame])+np.int16(self.movie_stack[frame+1]))/2.)        #Interpolation, maybe not use it.
+            new_stack.append(self.movie_stack[frame])
+            
+        #new_stack.append(self.movie_stack[-1]);  new_stack.append(self.movie_stack[-1])
+        self.movie_stack = np.uint8(new_stack)
+        
+        print self.movie_stack.shape
+        
+    else:
+        print "... behavioural video data doesn't exist ... "
+        
+        self.movie_stack = np.zeros((len(self.ca_stack[0]), 30, 40), dtype=np.int8)
+
+
+    #*************************************************************************************************************
+    #Process stacks in parallel - save data to disk
+    procs=[]
+    procs.append(multiprocessing.Process(target=behavioural_stack, args=(self,)))
+    procs.append(multiprocessing.Process(target=calcium_stack, args=(self,)))
+    procs.append(multiprocessing.Process(target=lever_position_stack, args=(self,)))
+
+    map(lambda x: x.start(), procs)
+    map(lambda x: x.join(), procs)
+    
+    
+    #*******************************************************************************************************
+    #Load processed data from disk
+    filesave = self.parent.root_dir+self.parent.animal.name+"/tif_files/"+self.selected_session+'/'+ \
+               self.selected_session+'_'+self.selected_code+'_'+self.selected_trial
+               
+    self.annotation_stacks = np.load(filesave+'_annotation_stack.npy')
+    self.ca_stack = np.load(filesave+'_ca_stack.npy', allow_pickle=True)
+    self.pca_stack = np.load(filesave+'_pca_stack.npy')
+    self.lever_stack = np.load(filesave+'_lever_stack.npy')    
+    
+    print "... len pca_stack: ", len(self.pca_stack)
+    print "... len ca_stack: ", len(self.ca_stack)
+    
+    #Make movies
     make_movies_ca(self)
 
 
