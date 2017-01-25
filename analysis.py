@@ -1160,8 +1160,81 @@ def make_movies_ca(self):
         ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(self.selected_code)+"_"+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=600)
     plt.show()
 
+def show_trial_locations(self):
+    
+    
+    self.parent.n_sec = float(self.n_sec_window.text())
+    self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
+    self.temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.abstimes = np.load(self.temp_file+'_abstimes.npy')
 
+    self.img_rate = np.load(self.temp_file+'_img_rate.npy') #imaging rate
 
+    #Process reward triggered data
+    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
+        self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
+        self.code_44threshold = np.load(self.temp_file+'_code44threshold.npy')
+        
+        indexes = np.where(self.code_44threshold==self.selected_code)[0]
+        print "...indexes: "; print indexes
+
+        self.code_44threshold = self.code_44threshold[indexes]  #Select only indexes that match the code selected
+        self.locs_44threshold = self.locs_44threshold[indexes]
+
+    #Process behaviour triggered data;
+    else:
+        load_behavioural_annotation_data_all(self)
+        
+        print len(self.code_44threshold)
+        print len(self.locs_44threshold)
+    
+    
+    print "...self.selected_code: ", self.selected_code
+    print "...self.selected_trial: ", self.selected_trial
+    
+
+    self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
+    self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
+    
+    
+    #************************************** PLOT EVENT TIMES *************************************
+    ax = plt.subplot(111)
+    cluster_1 = self.locs_44threshold  
+    t = np.arange(0,np.max(cluster_1),1)
+    print "... cluster_1: ", cluster_1[0:25]
+    print "... t: ", t[0:25]
+    
+    clrs = []
+    locs = []
+    last_loc = 0
+    for k in range(len(t)):
+        if k in cluster_1: 
+            locs.append(1.)
+            last_loc=k
+        else:
+            if (k-last_loc)<3:      #Merge behaviours if only separated by single frame;
+                locs.append(1.)
+            else:
+                locs.append(0)
+
+    #bar_width=t[1]-t[0]
+    #plt.bar(locs, [1]*len(locs), bar_width, color='blue', alpha=0.7)
+
+    #ymin = np.zeros(len(locs))
+    #ymax = np.zeros(len(locs))+1
+    #plt.vlines(locs, ymin, ymax, color='blue', linewidth=1/15.)#, alpha=0.8)
+
+    #plt.plot(t, locs, color='blue')#, color=clrs)
+    t = t/15.   #Convert to realtime by dividing by framerate
+    plt.plot(t, locs, color='blue', alpha=0.8)#, color=clrs)
+    ax.fill_between(t, np.zeros(len(locs)), locs, color='blue', alpha=0.2)
+    plt.xlabel("Time (sec)", fontsize = 30)
+    plt.tick_params(axis='both', which='both', labelsize=30)
+
+    plt.show()
+    
+    
+    
 def filter_data(self):
     """ Filter _aligned.npy files for lever_pull analysis.  
         NB: mean value of stack is added back into filtered data - so it isn't a purely filtered 
@@ -2221,8 +2294,7 @@ def load_behavioural_annotation_data(self):
                                                 #************************CHECK THIS**************************
                 return    
     
-    return
-    
+        
     
     #cluster_1 = data['cluster_indexes'][1]; cluster_2 = data['cluster_indexes'][0]  #Licking info is in 2nd cluster
     #t = np.arange(0,max(np.max(cluster_1), np.max(cluster_2)),1)/15.
@@ -2249,6 +2321,39 @@ def load_behavioural_annotation_data(self):
 
     #self.code_44threshold_selected = self.code_44threshold[indexes]
     #self.locs_44threshold_selected = self.locs_44threshold[indexes]
+    
+    
+    
+def load_behavioural_annotation_data_all(self):
+    
+    ''' Find all annotation fields called "*_clusters.npz" and add their annotations '''
+    filenames = glob.glob(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session+"*_clusters.npz")
+    
+    print "...img_rate: ", self.parent.animal.img_rate
+
+    for k in range(len(filenames)):
+        print filenames[k]
+        data = np.load(filenames[k])
+        
+        for cluster, cluster_data in zip(data['cluster_names'], data['cluster_indexes']):
+            
+            if cluster==self.selected_code: 
+                print "... loading: ", cluster
+                #Save locations and ids of events
+                cluster_indexes = [cluster]*len(cluster_data)
+                print "...cluster_indexes: ", cluster_indexes[:10]
+                print "...cluster_data: ", cluster_data[:10], cluster_data[-10:]
+                print len(cluster_data)
+
+                #SET BOTH OVERALL THRESHOLDS AND SELECTED THRESHOLDS TO THE SAME VALUES....
+                self.code_44threshold= cluster_indexes 
+                self.locs_44threshold= np.int32(cluster_data)       #LEAVE DATA HERE IN FRAME TIME INTEGERS UNTIL READY TO USE
+
+                self.code_44threshold_selected= cluster_indexes 
+                self.locs_44threshold_selected= np.int32(cluster_data)
+                                                                                        #************************CHECK THIS**************************
+                return    
+    
     
     
 

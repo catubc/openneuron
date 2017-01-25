@@ -203,6 +203,11 @@ class MouseLeverTools(QtGui.QWidget):
         self.n_codes_lbl = QLabel(str(self.n_codes), self)
         layout.addWidget(self.n_codes_lbl, row_index, 4)
         
+        #Display location of trials
+        self.loc_trials = QPushButton('Trial Locations')
+        self.loc_trials.setMaximumWidth(200)
+        self.loc_trials.clicked.connect(self.view_trial_locations)
+        layout.addWidget(self.loc_trials, row_index, 5)
         
         self.n_sec_window = QLineEdit('3')
         self.n_sec_window.setMaximumWidth(50)
@@ -652,7 +657,15 @@ class MouseLeverTools(QtGui.QWidget):
     def initialize_trial(self, text):
         print "...selecting trial: ", text
         self.selected_trial = text
+
+
+
+    def view_trial_locations(self):
+        print "... displaying trial locations..."
+        show_trial_locations(self)
         
+        
+
 
     #*****************************************************************************************************
     #************************************* PREPROCESS ALL DATA ******************************************
