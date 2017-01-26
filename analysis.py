@@ -1171,22 +1171,67 @@ def show_trial_locations(self):
     self.img_rate = np.load(self.temp_file+'_img_rate.npy') #imaging rate
 
     #Process reward triggered data
-    if (self.selected_code =='02') or (self.selected_code =='04') or (self.selected_code =='07'):
-        self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
-        self.code_44threshold = np.load(self.temp_file+'_code44threshold.npy')
-        
-        indexes = np.where(self.code_44threshold==self.selected_code)[0]
-        print "...indexes: "; print indexes
+    self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
+    self.code_44threshold = np.load(self.temp_file+'_code44threshold.npy')
+       
+    indexes = np.where(self.code_44threshold=="02")[0]
+    self.locs_02 = self.locs_44threshold[indexes]
+    indexes = np.where(self.code_44threshold=="04")[0]
+    self.locs_04 = self.locs_44threshold[indexes]
+    indexes = np.where(self.code_44threshold=="07")[0]
+    self.locs_07 = self.locs_44threshold[indexes]
 
-        self.code_44threshold = self.code_44threshold[indexes]  #Select only indexes that match the code selected
-        self.locs_44threshold = self.locs_44threshold[indexes]
+    print self.locs_02[:10],"...", self.locs_02[-10:]
+    #print self.locs_04
+    #print self.locs_07
 
-    #Process behaviour triggered data;
-    else:
-        load_behavioural_annotation_data_all(self)
+    
+    self.locs_annotated = []
+    for annotated_cluster in self.annotated_clusters:
+        self.locs_annotated.append(load_behavioural_annotation_data_all(self, annotated_cluster))   
+    
+    
+    print self.locs_annotated[0][:10],"...", self.locs_annotated[0][-10:]
+    print self.locs_annotated[1][:10],"...", self.locs_annotated[1][-10:]
+    print self.locs_annotated[2][:10],"...", self.locs_annotated[2][-10:]
+
+
+    #Make matrix for plotting
+    annotated_matrix = np.zeros((6,21000), dtype=np.float32)
+    
+    #Extend reward codes over 1second; mostly onwards from time of code; save for about 8 behavioural imaging frames ~=500ms
+    for k in range(0,8,1):
+        annotated_matrix[0][np.int32(self.locs_02*15.)+k] = 1
+        annotated_matrix[1][np.int32(self.locs_04*15.)+k] = 2
+        annotated_matrix[2][np.int32(self.locs_07*15.)+k] = 3
+    
+    for k in range(len(self.locs_annotated)):
+        annotated_matrix[k+3][self.locs_annotated[k]]=4+k
         
-        print len(self.code_44threshold)
-        print len(self.locs_44threshold)
+    
+    #Make discrete colour map:
+        
+    cmap = mpl.colors.ListedColormap(['w','r', 'g', 'b', 'c','m','y','k'])
+    
+    plt.imshow(annotated_matrix,  extent=[0,21000/15.,0,len(annotated_matrix)], aspect='auto', cmap=cmap)
+    
+    
+    old_ylabel = np.linspace(0,len(annotated_matrix),len(annotated_matrix)+1)+.5
+    new_ylabel = ['02','04','07']
+    for k in self.annotated_clusters:
+        new_ylabel.append(k)
+    new_ylabel = reversed(new_ylabel)
+    print new_ylabel
+    plt.yticks(old_ylabel, new_ylabel, fontsize=18)    
+    plt.tick_params(axis='both', which='both', labelsize=25)
+    plt.xlabel("Time (sec)", fontsize=25)
+    plt.show()
+
+    return
+    
+    
+    print len(self.code_44threshold)
+    print len(self.locs_44threshold)
     
     
     print "...self.selected_code: ", self.selected_code
@@ -1195,7 +1240,7 @@ def show_trial_locations(self):
 
     self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
     self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
-    
+
     
     #************************************** PLOT EVENT TIMES *************************************
     ax = plt.subplot(111)
@@ -2324,26 +2369,19 @@ def load_behavioural_annotation_data(self):
     
     
     
-def load_behavioural_annotation_data_all(self):
+def load_behavioural_annotation_data_all(self, annotated_cluster):
     
     ''' Find all annotation fields called "*_clusters.npz" and add their annotations '''
     filenames = glob.glob(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session+"*_clusters.npz")
     
-    print "...img_rate: ", self.parent.animal.img_rate
-
     for k in range(len(filenames)):
-        print filenames[k]
         data = np.load(filenames[k])
         
         for cluster, cluster_data in zip(data['cluster_names'], data['cluster_indexes']):
             
-            if cluster==self.selected_code: 
-                print "... loading: ", cluster
+            if cluster==annotated_cluster: 
                 #Save locations and ids of events
                 cluster_indexes = [cluster]*len(cluster_data)
-                print "...cluster_indexes: ", cluster_indexes[:10]
-                print "...cluster_data: ", cluster_data[:10], cluster_data[-10:]
-                print len(cluster_data)
 
                 #SET BOTH OVERALL THRESHOLDS AND SELECTED THRESHOLDS TO THE SAME VALUES....
                 self.code_44threshold= cluster_indexes 
@@ -2352,7 +2390,7 @@ def load_behavioural_annotation_data_all(self):
                 self.code_44threshold_selected= cluster_indexes 
                 self.locs_44threshold_selected= np.int32(cluster_data)
                                                                                         #************************CHECK THIS**************************
-                return    
+                return self.locs_44threshold_selected
     
     
     

@@ -811,16 +811,16 @@ class MouseLeverTools(QtGui.QWidget):
         ''' Find all annotation fiels called "*_clusters.npz" and add their annotations '''
         filenames = glob.glob(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session+"*_clusters.npz")
         
-        clusters_out = []
+        self.annotated_clusters = []
         for k in range(len(filenames)):
             print filenames[k]
             data = np.load(filenames[k])
             
             for cluster in data['cluster_names']:
                 if "no_" in cluster: pass
-                else: clusters_out.append(cluster)
+                else: self.annotated_clusters.append(cluster)
 
-        return clusters_out            
+        return self.annotated_clusters            
 
     def static_stm_mouse_lever(self):
         view_static_stm(self)
