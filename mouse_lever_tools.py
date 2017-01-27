@@ -145,7 +145,13 @@ class MouseLeverTools(QtGui.QWidget):
         parent.filter_high.setMaximumWidth(50)
         filter_high_lbl = QLabel('High Cutoff (HZ):', self)
         layout.addWidget(filter_high_lbl, row_index,4)
-        layout.addWidget(parent.filter_high, row_index,5); row_index+=1
+        layout.addWidget(parent.filter_high, row_index,5)
+        
+        self.n_sec_window = QLineEdit('3')
+        self.n_sec_window.setMaximumWidth(50)
+        self.n_sec_window_lbl = QLabel('Window (sec):', self)
+        layout.addWidget(self.n_sec_window_lbl, row_index,6)
+        layout.addWidget(self.n_sec_window, row_index,7); row_index+=1
 
         
         #**************************************************************************************
@@ -209,11 +215,19 @@ class MouseLeverTools(QtGui.QWidget):
         self.loc_trials.clicked.connect(self.view_trial_locations)
         layout.addWidget(self.loc_trials, row_index, 5)
         
-        self.n_sec_window = QLineEdit('3')
-        self.n_sec_window.setMaximumWidth(50)
-        self.n_sec_window_lbl = QLabel('Window (sec):', self)
-        layout.addWidget(self.n_sec_window_lbl, row_index,6)
-        layout.addWidget(self.n_sec_window, row_index,7); row_index+=1
+        #Display location of trials
+        self.annotated_movies = QPushButton('Annotated Movies')
+        self.annotated_movies.setMaximumWidth(200)
+        self.annotated_movies.clicked.connect(self.make_annotated_movies)
+        layout.addWidget(self.annotated_movies, row_index, 6)
+        
+        
+        #Display location of trials
+        self.isolated_behaviours = QPushButton('Isolated Behaviours')
+        self.isolated_behaviours.setMaximumWidth(200)
+        self.isolated_behaviours.clicked.connect(self.find_isolated_behaviours)
+        layout.addWidget(self.isolated_behaviours, row_index, 7); row_index+=1
+        
         
         
         #**************************************************************************************
@@ -665,7 +679,14 @@ class MouseLeverTools(QtGui.QWidget):
         show_trial_locations(self)
         
         
+    def make_annotated_movies(self):
+        print "... making annotated movies..."
+        annotate_movies(self)
 
+
+    def find_isolated_behaviours(self):
+        print "... finding isolated behaviours..."
+        find_isolated(self)
 
     #*****************************************************************************************************
     #************************************* PREPROCESS ALL DATA ******************************************

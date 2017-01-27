@@ -1160,7 +1160,14 @@ def make_movies_ca(self):
         ani.save(self.parent.root_dir+self.parent.animal.name+"/movie_files/"+self.selected_session+'_'+str(self.selected_code)+"_"+str(self.selected_trial)+'trial.mp4', writer=writer, dpi=600)
     plt.show()
 
-def show_trial_locations(self):
+def annotate_movies(self):
+    ''' Make annotated movies
+    '''
+    
+    #Constants for processing
+    n_frames = 21000        #Number of frames of video to process
+    video_rate = 15.        #Video rate in Hz.
+    
     
     
     self.parent.n_sec = float(self.n_sec_window.text())
@@ -1197,88 +1204,165 @@ def show_trial_locations(self):
 
 
     #Make matrix for plotting
-    annotated_matrix = np.zeros((6,21000), dtype=np.float32)
+    annotated_matrix = np.zeros((6,n_frames), dtype=np.float32)
     
+    #Shift time of behaviours based on blue_light data
+    blue_light_index = np.load(self.temp_file+'_blue_light_frames.npy')[0]  #load number of video frames at which excitation light starts
+
     #Extend reward codes over 1second; mostly onwards from time of code; save for about 8 behavioural imaging frames ~=500ms
     for k in range(0,8,1):
-        annotated_matrix[0][np.int32(self.locs_02*15.)+k] = 1
-        annotated_matrix[1][np.int32(self.locs_04*15.)+k] = 2
-        annotated_matrix[2][np.int32(self.locs_07*15.)+k] = 3
+        annotated_matrix[0][np.int32(self.locs_02*video_rate)+k+blue_light_index] = 1
+        annotated_matrix[1][np.int32(self.locs_04*video_rate)+k+blue_light_index] = 2
+        annotated_matrix[2][np.int32(self.locs_07*video_rate)+k+blue_light_index] = 3
     
     for k in range(len(self.locs_annotated)):
-        annotated_matrix[k+3][self.locs_annotated[k]]=4+k
-        
+        annotated_matrix[k+3][self.locs_annotated[k]+blue_light_index]=4+k
+
+
+
+
+
+    #Load video 
+    #movie_raw = np.load(self.temp_file+'.m4v')
+    if False: 
+        camera = cv2.VideoCapture(filename)
+
+        #Find 200th frame in video: #Save cropped raw image into .npy array
+        ctr = 0
+        while ctr<200: 
+            (grabbed, frame) = camera.read()
+            ctr+=1
+
+        image_original = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image_original_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
     
+    movie_raw = np.load(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/movie.npy', mmap_mode='r')
+    print movie_raw.shape
+    
+    
+    
+    return
+
+
+
+
+
+
+    ax = plt.subplot(111)
     #Make discrete colour map:
-        
-    cmap = mpl.colors.ListedColormap(['w','r', 'g', 'b', 'c','m','y','k'])
+    cmap = mpl.colors.ListedColormap(['w','r', 'g', 'c','m','y','k'])
     
-    plt.imshow(annotated_matrix,  extent=[0,21000/15.,0,len(annotated_matrix)], aspect='auto', cmap=cmap)
+    #Plot data
+    plt.imshow(annotated_matrix,  extent=[0,n_frames/video_rate,0,len(annotated_matrix)], aspect='auto', cmap=cmap)
     
-    
+    #Save label data
     old_ylabel = np.linspace(0,len(annotated_matrix),len(annotated_matrix)+1)+.5
     new_ylabel = ['02','04','07']
     for k in self.annotated_clusters:
         new_ylabel.append(k)
     new_ylabel = reversed(new_ylabel)
+    
     print new_ylabel
     plt.yticks(old_ylabel, new_ylabel, fontsize=18)    
     plt.tick_params(axis='both', which='both', labelsize=25)
     plt.xlabel("Time (sec)", fontsize=25)
+
+    
+    
+    
+    
     plt.show()
 
-    return
+    
+def find_isolated(self):
     
     
-    print len(self.code_44threshold)
-    print len(self.locs_44threshold)
     
-    
-    print "...self.selected_code: ", self.selected_code
-    print "...self.selected_trial: ", self.selected_trial
-    
+    #************* FIND ISOLATED BEHAIVOURS - 3 SEC GAPS *******************
+    #LOOP OVER ALL ARRAYS
+    for k in range(len(self.locs_annotated)):
+        for frame in self.locs_annotated[k]:
+            ctr=0
+            print_array = ["behaviour: "+str(k)+" time: "+str(frame/video_rate)]
+            for p in range(len(self.locs_annotated)):
+                if p == k: break    #Don't check array against itself
+                if abs(frame - self.locs_annotated[p][find_nearest(self.locs_annotated[p], frame)]) < 30:       #If nearest other behaviour is less than 30 frames away exit loop
+                    break
+                else:
+                    #print "...behaviour: ", k, " frame: ", frame, "   nearest frame: ", self.locs_annotated[p][find_nearest(self.locs_annotated[p], frame)], \
+                    #        "   compared behaviour: ", p
+                    print_array.append("nearste behaviour: "+str(p)+ " time: "+ str(self.locs_annotated[p][find_nearest(self.locs_annotated[p], frame)]/video_rate))
+                    ctr+=1
+            if ctr==(len(self.locs_annotated)-1):
+                print "... isolated behaviour..."
+                print print_array
+                print ""
+   
 
-    self.selected_locs_44threshold = self.locs_44threshold[int(self.selected_trial)]        #selected_locs should already have been selected above
-    self.selected_code_44threshold = self.code_44threshold[int(self.selected_trial)]
 
+def show_trial_locations(self):
     
-    #************************************** PLOT EVENT TIMES *************************************
+    #Constants for processing
+    n_frames = 21000        #Number of frames of video to process
+    video_rate = 15.        #Video rate in Hz.
+    
+    self.temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.img_rate = np.load(self.temp_file+'_img_rate.npy') #imaging rate
+
+    #Process reward annotated data
+    self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
+    self.code_44threshold = np.load(self.temp_file+'_code44threshold.npy')
+       
+    indexes = np.where(self.code_44threshold=="02")[0]
+    self.locs_02 = self.locs_44threshold[indexes]
+    indexes = np.where(self.code_44threshold=="04")[0]
+    self.locs_04 = self.locs_44threshold[indexes]
+    indexes = np.where(self.code_44threshold=="07")[0]
+    self.locs_07 = self.locs_44threshold[indexes]
+
+    #Process behaviourally annotated data
+    self.locs_annotated = []
+    for annotated_cluster in self.annotated_clusters:
+        self.locs_annotated.append(load_behavioural_annotation_data_all(self, annotated_cluster))   
+
+    #Make matrix for plotting
+    annotated_matrix = np.zeros((6,n_frames), dtype=np.float32)
+    
+    #Shift time of behaviours based on blue_light data
+    blue_light_index = np.load(self.temp_file+'_blue_light_frames.npy')[0]  #load number of video frames at which excitation light starts
+
+    #Extend reward codes over 1second; mostly onwards from time of code; save for about 8 behavioural imaging frames ~=500ms
+    for k in range(0,8,1):
+        annotated_matrix[0][np.int32(self.locs_02*video_rate)+k+blue_light_index] = 1
+        annotated_matrix[1][np.int32(self.locs_04*video_rate)+k+blue_light_index] = 2
+        annotated_matrix[2][np.int32(self.locs_07*video_rate)+k+blue_light_index] = 3
+    
+    for k in range(len(self.locs_annotated)):
+        annotated_matrix[k+3][self.locs_annotated[k]+blue_light_index]=4+k
+        
     ax = plt.subplot(111)
-    cluster_1 = self.locs_44threshold  
-    t = np.arange(0,np.max(cluster_1),1)
-    print "... cluster_1: ", cluster_1[0:25]
-    print "... t: ", t[0:25]
+    #Make discrete colour map:
+    cmap = mpl.colors.ListedColormap(['w','r', 'g', 'c','m','y','k'])
     
-    clrs = []
-    locs = []
-    last_loc = 0
-    for k in range(len(t)):
-        if k in cluster_1: 
-            locs.append(1.)
-            last_loc=k
-        else:
-            if (k-last_loc)<3:      #Merge behaviours if only separated by single frame;
-                locs.append(1.)
-            else:
-                locs.append(0)
-
-    #bar_width=t[1]-t[0]
-    #plt.bar(locs, [1]*len(locs), bar_width, color='blue', alpha=0.7)
-
-    #ymin = np.zeros(len(locs))
-    #ymax = np.zeros(len(locs))+1
-    #plt.vlines(locs, ymin, ymax, color='blue', linewidth=1/15.)#, alpha=0.8)
-
-    #plt.plot(t, locs, color='blue')#, color=clrs)
-    t = t/15.   #Convert to realtime by dividing by framerate
-    plt.plot(t, locs, color='blue', alpha=0.8)#, color=clrs)
-    ax.fill_between(t, np.zeros(len(locs)), locs, color='blue', alpha=0.2)
-    plt.xlabel("Time (sec)", fontsize = 30)
-    plt.tick_params(axis='both', which='both', labelsize=30)
-
+    #Plot data
+    plt.imshow(annotated_matrix,  extent=[0,n_frames/video_rate,0,len(annotated_matrix)], aspect='auto', cmap=cmap)
+    
+    #Save label data
+    old_ylabel = np.linspace(0,len(annotated_matrix),len(annotated_matrix)+1)+.5
+    new_ylabel = ['02','04','07']
+    for k in self.annotated_clusters:
+        new_ylabel.append(k)
+    new_ylabel = reversed(new_ylabel)
+    
+    print new_ylabel
+    plt.yticks(old_ylabel, new_ylabel, fontsize=18)    
+    plt.tick_params(axis='both', which='both', labelsize=25)
+    plt.xlabel("Time (sec)", fontsize=25)
+    
+    
     plt.show()
-    
-    
+
     
 def filter_data(self):
     """ Filter _aligned.npy files for lever_pull analysis.  
