@@ -12,12 +12,12 @@ class MSL(QtGui.QWidget):
         self.parent = parent
         
 
-        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
-        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
-        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_hp.ptcs'
-        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_lp_50compression.ptcs'
+        #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_hp.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_lp_50compression.ptcs'
 
 
         layout = QtGui.QGridLayout()
@@ -137,7 +137,7 @@ class MSL(QtGui.QWidget):
 
         self.button_msl = QPushButton('Compute MSL Chunks')
         self.button_msl.setMaximumWidth(200)
-        self.button_msl.clicked.connect(self.view_msl)
+        self.button_msl.clicked.connect(self.compute_msl_chunks)
         layout.addWidget(self.button_msl, row_index, 0)
         
         self.button_MSL_drift = QPushButton('Single Cell MSL Drift')
@@ -391,8 +391,8 @@ class MSL(QtGui.QWidget):
         peth_scatter_plots(self)
         
         
-    def view_msl(self, main_widget):
-        msl_plots(self)
+    def compute_msl_chunks(self, main_widget):
+        Compute_MSL_chunks(self)
     
 
     def view_msl_single_lfpevent(self):

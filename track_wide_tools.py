@@ -14,7 +14,8 @@ class TrackWideTools(QtGui.QWidget):
         
         self.parent = parent
         layout = QtGui.QGridLayout()
-        self.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
+        #self.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
+        self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
 
         row_index= 0
         #*****************************************************************
@@ -93,9 +94,16 @@ class TrackWideTools(QtGui.QWidget):
     
     def multi_tsf(self):
         print "... selecting multiple recordings ..."
-        out_files = QtGui.QFileDialog.getOpenFileNames(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        out_files = QtGui.QFileDialog.getOpenFileNames(self, "*", self.root_dir, "*")
         self.tsf_files = out_files
         
+        print out_files[0]
+        
+        if '.txt' in out_files[0]:
+            with open(out_files[0]) as f: 
+                self.tsf_files = [line.rstrip('\n') for line in f]
+                    
+        print "... concatenate multiple recordings ..."
         concatenate_tsf(self) 
     
     

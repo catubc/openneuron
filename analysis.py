@@ -29,6 +29,11 @@ import scipy.ndimage
 
 from load_intan_rhd_format import *
 
+sys.path.append('/home/cat/code/')
+import TSF.TSF as TSF
+import PTCS.PTCS as PTCS
+
+
 from numpy import nan
 
 np.set_printoptions(precision=20, threshold=nan, edgeitems=None, suppress=None)
@@ -231,90 +236,145 @@ class Ptcs(object):
         self.nspikes = len(self.spikes)
 
 
-class Tsf_file(object):
+#class Tsf_file(object):
 
-    def __init__(self, file_name):
+    #def __init__(self, file_name):
         
-        self.read_header(file_name)
+        #self.read_header(file_name)
         
-    def read_header(self, file_name):
+    #def read_header(self, file_name):
         
-        self.fin = open(file_name, "rb")
+        #self.fin = open(file_name, "rb")
         
-        self.header = self.fin.read(16)
-        self.iformat = struct.unpack('i',self.fin.read(4))[0] 
-        self.SampleFrequency = struct.unpack('i',self.fin.read(4))[0] 
-        self.n_electrodes = struct.unpack('i',self.fin.read(4))[0] 
-        self.n_vd_samples = struct.unpack('i',self.fin.read(4))[0] 
-        self.vscale_HP = struct.unpack('f',self.fin.read(4))[0] 
+        #self.header = self.fin.read(16)
+        #self.iformat = struct.unpack('i',self.fin.read(4))[0] 
+        #self.SampleFrequency = struct.unpack('i',self.fin.read(4))[0] 
+        #self.n_electrodes = struct.unpack('i',self.fin.read(4))[0] 
+        #self.n_vd_samples = struct.unpack('i',self.fin.read(4))[0] 
+        #self.vscale_HP = struct.unpack('f',self.fin.read(4))[0] 
 
-        if self.iformat==1001:
-            self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
-            self.Siteloc = struct.unpack(str(2*self.n_electrodes)+'h', self.fin.read(2*self.n_electrodes*2))
-        if self.iformat==1002:
-            self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
-            self.Readloc = np.zeros((self.n_electrodes), dtype=np.int32)
-            for i in range(self.n_electrodes):
-                self.Siteloc[i*2] = struct.unpack('h', self.fin.read(2))[0]
-                self.Siteloc[i*2+1] = struct.unpack('h', self.fin.read(2))[0]
-                self.Readloc[i] = struct.unpack('i', self.fin.read(4))[0]
+        #if self.iformat==1001:
+            #self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
+            #self.Siteloc = struct.unpack(str(2*self.n_electrodes)+'h', self.fin.read(2*self.n_electrodes*2))
+        #if self.iformat==1002:
+            #self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
+            #self.Readloc = np.zeros((self.n_electrodes), dtype=np.int32)
+            #for i in range(self.n_electrodes):
+                #self.Siteloc[i*2] = struct.unpack('h', self.fin.read(2))[0]
+                #self.Siteloc[i*2+1] = struct.unpack('h', self.fin.read(2))[0]
+                #self.Readloc[i] = struct.unpack('i', self.fin.read(4))[0]
 
-    def read_ec_traces(self):
-        print " ... reading data, #chs: ", self.n_electrodes, " nsamples: ", self.n_vd_samples, " len: ", float(self.n_vd_samples)/float(self.SampleFrequency), " sec."
-        self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_electrodes*self.n_vd_samples)
-        self.ec_traces.shape = self.n_electrodes, self.n_vd_samples
+    #def read_ec_traces(self):
+        #print " ... reading data, #chs: ", self.n_electrodes, " nsamples: ", self.n_vd_samples, " len: ", float(self.n_vd_samples)/float(self.SampleFrequency), " sec."
+        #self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_electrodes*self.n_vd_samples)
+        #self.ec_traces.shape = self.n_electrodes, self.n_vd_samples
 
-        self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
+        #self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
         
-        #print "No. ground truth cell spikes: ", self.n_cell_spikes
-        if (self.n_cell_spikes>0):
-            if (self.iformat==1001):
-                self.vertical_site_spacing = struct.unpack('i',self.fin.read(4))[0] 
-                self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
+        ##print "No. ground truth cell spikes: ", self.n_cell_spikes
+        #if (self.n_cell_spikes>0):
+            #if (self.iformat==1001):
+                #self.vertical_site_spacing = struct.unpack('i',self.fin.read(4))[0] 
+                #self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
 
-            self.fake_spike_times =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            self.fake_spike_assignment =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            self.fake_spike_channels =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+            #self.fake_spike_times =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+            #self.fake_spike_assignment =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+            #self.fake_spike_channels =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
         
-        self.fin.close()
+        #self.fin.close()
 
-    def read_trace(self, channel):
-        #Load single channel 
+    #def read_trace(self, channel):
+        ##Load single channel 
 
-        indent = 16+20+self.n_electrodes*8
+        #indent = 16+20+self.n_electrodes*8
 
-        self.fin.seek(indent+channel*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
-        self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_vd_samples)
-        self.fin.close()
+        #self.fin.seek(indent+channel*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
+        #self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_vd_samples)
+        #self.fin.close()
     
-    def save_tsf(self, file_name):
+    #def save_tsf(self, file_name):
         
-        fout = open(file_name, 'wb')
-        print "...saving: ",  file_name
-        fout.write(self.header)
-        fout.write(struct.pack('i', self.iformat))
-        fout.write(struct.pack('i', self.SampleFrequency))
-        fout.write(struct.pack('i', self.n_electrodes))
-        fout.write(struct.pack('i', self.n_vd_samples))
-        fout.write(struct.pack('f', self.vscale_HP))
-        for i in range (self.n_electrodes):
-            fout.write(struct.pack('h', self.Siteloc[i*2]))
-            fout.write(struct.pack('h', self.Siteloc[i*2+1]))
-            fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
+        #fout = open(file_name, 'wb')
+        #print "...saving: ",  file_name
+        #fout.write(self.header)
+        #fout.write(struct.pack('i', self.iformat))
+        #fout.write(struct.pack('i', self.SampleFrequency))
+        #fout.write(struct.pack('i', self.n_electrodes))
+        #fout.write(struct.pack('i', self.n_vd_samples))
+        #fout.write(struct.pack('f', self.vscale_HP))
+        #for i in range (self.n_electrodes):
+            #fout.write(struct.pack('h', self.Siteloc[i*2]))
+            #fout.write(struct.pack('h', self.Siteloc[i*2+1]))
+            #fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
 
-        self.ec_traces.tofile(fout)
+        #self.ec_traces.tofile(fout)
 
-        fout.write(struct.pack('i', self.n_cell_spikes))
+        #fout.write(struct.pack('i', self.n_cell_spikes))
 
-        #try:
-            #self.subsample
-        #except NameError:
-            #self.subsample = 1.0
+        ##try:
+            ##self.subsample
+        ##except NameError:
+            ##self.subsample = 1.0
 
-        #fout.write(struct.pack('i', self.subsample))
+        ##fout.write(struct.pack('i', self.subsample))
 
-        fout.close()
+        #fout.close()
 
+
+    #def read_footer(self):
+        
+        ##Header indent
+        #indent = 16+20+self.n_electrodes*8
+
+        ##Voltage indent
+        #self.fin.seek(indent+self.n_electrodes*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
+        
+        ##Read last record
+        #self.n_cell_spikes =  np.fromfile(self.fin, dtype=np.int32, count=1)
+        #print "... n spikes: ", self.n_cell_spikes
+        
+
+        ##print "No. ground truth cell spikes: ", self.n_cell_spikes
+        #if (self.n_cell_spikes>0):
+            #self.fake_spike_times =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+            #self.fake_spike_assignment =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+            #self.fake_spike_channels =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
+        
+        ##Save meta data into files.
+        
+        ##CHECK TO SEE IF 
+        #self.n_files =  np.fromfile(self.fin, dtype=np.int32, count=1)
+        #if len(self.n_files)==0:
+            #print "... reached end of file ... older version of .tsf does not contain original file names or original # of samples.."
+            #return
+
+        #self.file_names = []
+        #self.n_samples = []
+        #self.n_digital_chs = []
+        #self.digital_channels = []
+        
+        #print "... n files: ", self.n_files                                 #THIS IS FOR GENERAL CASE where > 1 .tsf file saved.
+        #for k in range(len(self.n_files)):
+            #self.file_names.append(self.fin.read(256))
+            #print "... original file name: ", self.file_names[k]
+
+            #self.n_samples.append(np.fromfile(self.fin, dtype=np.int32, count=1))
+            #print "... original n_samples: ", self.n_samples[k]
+            
+            ##Load digital channels
+            #self.n_digital_chs.append(np.fromfile(self.fin, dtype=np.int32, count=1))
+
+            #if len(self.n_digital_chs[0])==0:
+                #print "... reached end of file ... older version of .tsf does not contain digital channel information..."
+                #return
+
+            #print "... # of digital chs: ", self.n_digital_chs
+            
+            #temp_chs = []
+            #for ch in range(self.n_digital_chs[k]):
+                #temp_chs.append(np.fromfile(self.fin, dtype=bool, count=self.n_samples[k]))         #Load the original #samples saved to disk, NOT n_vd_samples
+
+            #self.digital_channels.append(temp_chs)
 
 
 class Probe(object):      
@@ -334,10 +394,10 @@ class Probe(object):
         self.n_electrodes = 64
 
         #Fixed location array for NeurNexus probe layotus
-        self.Siteloc = np.zeros((self.n_electrodes,2), dtype=np.int16) #Read as 1D array
+        self.Siteloc = np.zeros((self.n_electrodes*2), dtype=np.int16) #Read as 1D array
         for i in range (self.n_electrodes):
-            self.Siteloc[i][0]=30*(i%2)
-            self.Siteloc[i][1]=i*23
+            self.Siteloc[i*2]=30*(i%2)
+            self.Siteloc[i*2+1]=i*23
 
 
         #A64 Omnetics adaptor
@@ -391,22 +451,55 @@ class Probe(object):
 def save_tsf_single(tsf, file_name):
     
     fout = open(file_name, 'wb')
-    print file_name
+
     fout.write(tsf.header)
     fout.write(struct.pack('i', tsf.iformat))
     fout.write(struct.pack('i', tsf.SampleFrequency))
     fout.write(struct.pack('i', tsf.n_electrodes))
     fout.write(struct.pack('i', tsf.n_vd_samples))
     fout.write(struct.pack('f', tsf.vscale_HP))
-    for i in range (tsf.n_electrodes):
+    
+    for i in range(tsf.n_electrodes):
         fout.write(struct.pack('h', tsf.Siteloc[i*2]))
         fout.write(struct.pack('h', tsf.Siteloc[i*2+1]))
-        fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
+        fout.write(struct.pack('i', i+1))
 
-    tsf.ec_traces.tofile(fout)
+    for i in range(tsf.n_electrodes):
+        np.int16(tsf.ec_traces[tsf.layout[i]]).tofile(fout)  #Save ec_traces for each channel while converting to int16; the channel order comes from probe
+        #tsf.ec_traces[i].tofile(fout)  #Save ec_traces for each channel while converting to int16; the channel order comes from probe
 
     fout.write(struct.pack('i', tsf.n_cell_spikes))
+
+    #Save additional spike information if value non-zero
+    if tsf.n_cell_spikes!=0:
+        np.int32(tsf.fake_spike_times).tofile(fout)
+        np.int32(tsf.fake_spike_assignment).tofile(fout)
+        np.int32(tsf.fake_spike_channels).tofile(fout)
+
+    #Footer information
+    #number of files saved in tsf; 
+    n_files = len(tsf.file_names)       #Save # of files first
+    np.int32(n_files).tofile(fout)
+    
+    #Save: name of each file; number of digital channels; digital channels in boolean format
+    for fname, n_samples, n_dig_chs, dig_chs in zip(tsf.file_names, tsf.n_samples, tsf.n_digital_chs, tsf.digital_chs):
+        fname = fname+" "*(256-len(fname))
+        print "...saving file_name: ", fname
+        fout.write(fname)
+        fout.write(struct.pack('i', n_samples))
+
+        #Save digital channels
+        print "... # of digital chs: ", n_dig_chs
+        np.int32(n_dig_chs).tofile(fout)        #Save # of digital channels
+        print "... number of actual saved data streams: ", len(dig_chs)
+        for ch in range(len(dig_chs)):
+            print "...xaving ch: ", ch
+            dig_chs[ch].tofile(fout)
+    
     fout.close()
+    
+   
+    
 
 def convert_bin_to_npy(self):
     
@@ -1163,19 +1256,38 @@ def make_movies_ca(self):
 def annotate_movies(self):
     ''' Make annotated movies
     '''
-    
     #Constants for processing
     n_frames = 21000        #Number of frames of video to process
     video_rate = 15.        #Video rate in Hz.
     
-    
-    
     self.parent.n_sec = float(self.n_sec_window.text())
     self.start_time = -self.parent.n_sec; self.end_time = self.parent.n_sec
-    self.temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session    
+    self.temp_file = self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/'+self.selected_session   
     self.abstimes = np.load(self.temp_file+'_abstimes.npy')
-
     self.img_rate = np.load(self.temp_file+'_img_rate.npy') #imaging rate
+
+
+    #****************** LOAD RAW VIDEO ***********************
+    #movie_raw = np.load(self.temp_file+'.m4v')
+    #movie_raw = np.load(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/movie.npy', mmap_mode='r')
+    #print movie_raw.shape
+    movie_stack = []
+    n_movie_frames = 20000
+    if True: 
+        camera = cv2.VideoCapture(self.temp_file+'.m4v')
+
+        #Find 200th frame in video: #Save cropped raw image into .npy array
+        ctr = 0
+        while ctr<n_movie_frames: 
+            (grabbed, frame) = camera.read()
+            ctr+=1
+            movie_stack.append(cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY))
+            print ctr
+        #image_original = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        #image_original_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+    
+    #************************ PROCESS ANNOTATIONS ********************* 
 
     #Process reward triggered data
     self.locs_44threshold = np.load(self.temp_file+'_locs44threshold.npy')
@@ -1218,29 +1330,76 @@ def annotate_movies(self):
     for k in range(len(self.locs_annotated)):
         annotated_matrix[k+3][self.locs_annotated[k]+blue_light_index]=4+k
 
-
-
-
-
-    #Load video 
-    #movie_raw = np.load(self.temp_file+'.m4v')
-    if False: 
-        camera = cv2.VideoCapture(filename)
-
-        #Find 200th frame in video: #Save cropped raw image into .npy array
-        ctr = 0
-        while ctr<200: 
-            (grabbed, frame) = camera.read()
-            ctr+=1
-
-        image_original = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image_original_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-
+    annotated_stack = []
+    for k in range(n_movie_frames):
+        annotated_stack.append(annotated_matrix[:, k:k+80])
     
-    movie_raw = np.load(self.parent.root_dir + self.parent.animal.name + '/tif_files/'+self.selected_session+'/movie.npy', mmap_mode='r')
-    print movie_raw.shape
+    annotated_stack = np.array(annotated_stack)
+    print annotated_stack.shape
+
+    #ax = plt.subplot(111)
+    #Make discrete colour map:
+    cmap = mpl.colors.ListedColormap(['w','r', 'g', 'c','m','y','k'])
+    
+    #Plot data
+    
+
+    #***********GENERATE ANIMATIONS
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=15000)
+  
+    fig = plt.figure()
+    gs = gridspec.GridSpec(6,3)
+    
+        
+    #PLOT MOVIES
+    im = [] 
+    ax = plt.subplot(gs[0:2,0:3])
+    #ax = plt.subplot(2,1,1)
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    #v_max1 = np.nanmax(np.ma.abs(self.stack)); v_min1 = -v_max1; print v_min1, v_max1
+    im.append(plt.imshow(movie_stack[0], cmap=plt.get_cmap('gray'), interpolation='none'))
+
+
+    #PLOT ANNOTATIONS
+    #ax = plt.subplot(2,1,2)
+    ax = plt.subplot(gs[2:6,0:3])
+    ax.get_xaxis().set_visible(False); ax.yaxis.set_ticks([]); ax.yaxis.labelpad = 0
+    #Save label data
+    old_ylabel = np.linspace(0,len(annotated_matrix),len(annotated_matrix)+1) #+.5
+    new_ylabel = ['02','04','07']
+    for k in self.annotated_clusters:
+        if k == "paw_to_mouth":
+            new_ylabel.append("pawing")
+        else:
+            new_ylabel.append(k)
+    #new_ylabel = reversed(new_ylabel)
+    plt.yticks(old_ylabel, new_ylabel, fontsize=10)    
+    
+    im.append(plt.imshow(annotated_stack[0], cmap=cmap,  aspect='auto', interpolation='none'))
+
+
+    def updatefig(j):
+        print "...making frame: ", j
+        plt.suptitle("Frame: "+str(j)+"  " +str(format(float(j)/15.,'.2f'))+"sec", fontsize = 15)
+
+        # set the data in the axesimage object
+        im[0].set_array(movie_stack[j])
+        im[1].set_array(annotated_stack[j])
+        #im[1].set_array(self.stack_mean[j])
+
+        # return the artists set
+        return im
+        
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(movie_stack)), interval=100, blit=False, repeat=True)
+
+    if True:
+        ani.save(self.temp_file+'.mp4', writer=writer)
+    plt.show()    
     
     
+
     
     return
 
@@ -1262,9 +1421,9 @@ def annotate_movies(self):
     for k in self.annotated_clusters:
         new_ylabel.append(k)
     new_ylabel = reversed(new_ylabel)
-    
-    print new_ylabel
     plt.yticks(old_ylabel, new_ylabel, fontsize=18)    
+
+
     plt.tick_params(axis='both', which='both', labelsize=25)
     plt.xlabel("Time (sec)", fontsize=25)
 
@@ -3558,19 +3717,45 @@ def concatenate_tsf(self):
     
     print "...concatenate multiple .tsf..."
     
+    tsf = TSF.TSF('')
+    
     total_n_vd_samples = 0
+    temp_names = []
+    temp_n_samples = []
+    temp_n_digital_chs = []
+    temp_digital_chs = []
     for k in range(len(self.tsf_files)):  
-        tsf = Tsf_file(self.tsf_files[k])
-        total_n_vd_samples += tsf.n_vd_samples
+        temp_tsf = TSF.TSF(self.tsf_files[k])
+        total_n_vd_samples += temp_tsf.n_vd_samples
+        print "...len loaded data: ", temp_tsf.n_vd_samples
+        
+        temp_tsf.read_footer()                      #Reads the footer and original file_name if available;
+        temp_names.extend(temp_tsf.file_names)
+        temp_n_samples.extend(temp_tsf.n_samples)
+        
+        temp_n_digital_chs.extend(temp_tsf.n_digital_chs)
+        temp_digital_chs.extend(temp_tsf.digital_chs)
+        
     
-    print "...original layout: ",     
-    print tsf.Siteloc
-    print tsf.Readloc
-    
-    
-    print "...total length of recs: ", total_n_vd_samples
-    tsf.n_vd_samples = total_n_vd_samples #Set total tsf file # samples 
+    #Header
+    tsf.header = temp_tsf.header
+    tsf.iformat = temp_tsf.iformat
+    tsf.SampleFrequency = temp_tsf.SampleFrequency
+    tsf.vscale_HP = temp_tsf.vscale_HP
+    tsf.n_vd_samples = total_n_vd_samples
+    tsf.Siteloc = temp_tsf.Siteloc
+    tsf.n_electrodes = temp_tsf.n_electrodes
     tsf.n_cell_spikes = 0
+    tsf.layout = temp_tsf.Readloc - 1   #The order of the channels is the same as Readloc; change to zero-based indices
+
+    #Footer; tsf object doesn't exist above, otherwise could have assigend directly.
+    tsf.file_names = temp_names     #These are the original filenames to be preserved;
+    tsf.n_samples = temp_n_samples
+    tsf.n_digital_chs = temp_n_digital_chs
+    tsf.digital_chs = temp_digital_chs
+    
+    
+    print "... channel order layout: ", tsf.layout
     
     #Initialize ec_traces total
     tsf.ec_traces = np.zeros((tsf.n_electrodes, total_n_vd_samples), dtype=np.int16)
@@ -3580,7 +3765,7 @@ def concatenate_tsf(self):
     tsf_index = 0
     for ctr, file_name in enumerate(self.tsf_files):
         print "... loading: ", file_name
-        temp_tsf = Tsf_file(file_name)
+        temp_tsf = TSF.TSF(file_name)
         temp_tsf.read_ec_traces()
         
         for ch in range(len(temp_tsf.ec_traces)):
@@ -3588,12 +3773,17 @@ def concatenate_tsf(self):
         
         tsf_index+=len(temp_tsf.ec_traces[ch])
         
-    print ''; print "...saving alltrack .tsf..."
+    print "...saving alltrack .tsf..."
 
     file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
-    save_tsf_single(tsf, file_name)
+    tsf.save_tsf(file_name)
         
+    print "... done saving..."
 
+
+
+    
+    
 def concatenate_lfp_zip(self):
     """ Function doc """
 
@@ -3639,6 +3829,8 @@ def concatenate_lfp_zip(self):
     print ''; print "...saving alltrack .tsf..."
     file_name = self.parent.animal.tsf_files[0] + "_alltrack_lp.tsf"
     save_tsf_single(tsf, file_name)    
+    
+    print "... done saving..."
 
 def compress_lfp(self):
     
@@ -3648,9 +3840,12 @@ def compress_lfp(self):
     compression_factor = int(self.compress_factor.text())
     print "...compressed factor: ", compression_factor
     
-    tsf = Tsf_file(self.tsf_file)
+    tsf = TSF.TSF(self.tsf_file)
+    tsf.read_footer()
+
     tsf.read_ec_traces()
     
+    tsf.layout = tsf.Readloc-1
     #Leave ADC convertion intact it possible
     #tsf.ec_traces= np.int16(tsf.ec_traces*tsf.vscale_HP)
     #tsf.vscale_HP = 1.0 
@@ -3711,6 +3906,11 @@ def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to
     
     return tsf
 
+
+def do_butter_highpass_filter(data, a, b):
+    return filtfilt(b, a, data)
+    
+    
 def ephys_to_tsf(filenames):
     '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
     NB: There are 2 possible mapping depending on the insertion of the AD converter 
@@ -3718,103 +3918,143 @@ def ephys_to_tsf(filenames):
     '''
     
     print "...reading amp data..."
-
-    probe = Probe()
+    
+    probe = Probe()     #Load 64ch probe layout
 
     for file_name in filenames:
+        #Make empty tsf object and then append to it. 
+        tsf = TSF.TSF('')
+
         print file_name
         #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
         ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
-        #file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
-        #file_out = file_name[:-4].replace('rhd_files','tsf_files')
         file_out = file_name[:-4]
-        #if os.path.exists(file_out)==True: continue
 
         #********** READ ALL DATA FROM INTAN HARDWARE ***********
         print "Processing: \n", file_name
         data = read_data(file_name)
 
+        tsf.SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate'])
+
+        #********** PROCESS DIGITAL CHANNELS FIRST ***************
+        if 'board_dig_in_data' in data.keys():
+            
+            tsf.n_digital_chs = [len(data['board_dig_in_data'])]
+            print "...# digital channels: ", len(data['board_dig_in_data'])
+            temp_chs = []
+            for ch in range(len(data['board_dig_in_data'])):
+                temp_chs.append(np.array(data['board_dig_in_data'][ch],dtype=bool))     #Load digital channel data as boolean;
+        
+        else:
+            print "... no digital channels recorded..."
+            tsf.n_digital_chs=[0]
+            temp_chs=[]
+            
+        tsf.digital_chs = []
+        tsf.digital_chs.append(temp_chs)
+        
         #****** SCALE EPHYS DATA *************
-        ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
-        ec_traces*=10.
-        print "...length original traces: ", len(ec_traces)
+        tsf.ec_traces = data['amplifier_data']  #Data comes out as int32?  NOT SURE, NEED TO CHECK...
+        tsf.ec_traces*=10.                      #*10       #Multiply by 10 to increase resolution for int16 conversion
+
+        #***** META DATA FOR HEADER AND FOOTER
+        tsf.n_electrodes = len(tsf.ec_traces)
+        tsf.header = 'Test spike file '
+        tsf.iformat = 1002
+        tsf.layout = probe.layout
+        tsf.n_vd_samples = len(tsf.ec_traces[0])
+        tsf.vscale_HP = 0.1                             #voltage scale factor set manually by scaling data...
+        tsf.n_cell_spikes = 0       
+        tsf.Siteloc = probe.Siteloc
+
+        #Footer
+        tsf.file_names = [file_name]
+        tsf.n_samples = [tsf.n_vd_samples]              #Need this to save to footer
         
-        print "Converting data to int16..."
-        for k in range(len(ec_traces)):
-            np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
-        
-        n_electrodes = len(ec_traces)
-
-        ec_traces = []
-        for k in range(n_electrodes):
-            ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
-
-        ec_traces = np.array(ec_traces)
-        
-        print "...length reloaded traces: ", len(ec_traces)
-
-        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
-        header = 'Test spike file '
-        iformat = 1002
-        n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
-        vscale_HP = 0.1                             #voltage scale factor
-        n_cell_spikes = 0
-
-
+        #************************* THIS SHOULD BE DONE VIA FUNCTION ************************
         #SAVE RAW DATA
-        if True:
-            print "Writing raw data ..."
-            fout = open(file_out+'.tsf', 'wb')
-            fout.write(header)
-            fout.write(struct.pack('i', 1002))
-            fout.write(struct.pack('i', SampleFrequency))
-            fout.write(struct.pack('i', probe.n_electrodes))
-            fout.write(struct.pack('i', n_vd_samples))
-            fout.write(struct.pack('f', vscale_HP))
+        if False:
+            tsf.ec_traces = tsf.ec_traces_raw
+            tsf.save_tsf(file_out+'_raw.tsf')
+           
+        #SAVE LFP to 250Hz.
+        if True: 
+            tsf_lfp = TSF.TSF('')
+            tsf_lfp.SampleFrequency = 1000   #LFP to be downsampled to 1khz from raw data.
+            
+            print "...converting raw to .lfp (1Khz) sample rate tsf files ..."
+            lowpass_freq = 250      #250Hz for lowpass cutoff
+            temp_traces = []
+            temp_siteloc = []
+            for k in range(tsf.n_electrodes):
+               
+                #Butter band pass and subsample to 1Khz simultaneously
+                trace_out = tsf.ec_traces[k][::int(tsf.SampleFrequency/1000)]
+                
+                #print "...lowpass filter ch: ", k
+                trace_out = butter_lowpass_filter(trace_out, lowpass_freq, fs=tsf_lfp.SampleFrequency, order = 2)
 
-            #Save ephys data location
-            for i in range(probe.n_electrodes):
-                fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                fout.write(struct.pack('i', i+1))
+                #Apply 60Hz Notch filter - NOT ALWAYS REQUIRED; MAKE IT AN OPTION EVENTUALLY
+                #temp_traces.append(Notch_Filter(temp))
+                temp_traces.append(trace_out)
+            
+            tsf_lfp.header = 'Test spike file '
+            tsf_lfp.iformat = 1002
+            tsf_lfp.vscale_HP = 0.1                             #voltage scale factor
+            tsf_lfp.n_cell_spikes = 0 
+            tsf_lfp.Siteloc = tsf.Siteloc
 
-            #Save Ephys data
-            for i in range(probe.n_electrodes):
-                print "...writing ch: ", i
-                ec_traces[probe.layout[i]].tofile(fout)  #Frontside
+            tsf_lfp.ec_traces = temp_traces
+            tsf_lfp.Siteloc = tsf.Siteloc
+            tsf_lfp.n_electrodes = len(tsf_lfp.ec_traces)
+            tsf_lfp.layout = tsf.layout
+            
+            tsf_lfp.n_vd_samples = len(tsf_lfp.ec_traces[0])
 
-            fout.write(struct.pack('i', n_cell_spikes))
-            fout.close()
+            #Footer
+            tsf_lfp.file_names = tsf.file_names     #Same as original
+            tsf_lfp.n_samples = [tsf.n_vd_samples]              #Need this to save to footer
+            tsf_lfp.digital_chs = tsf.digital_chs 
+            tsf_lfp.n_digital_chs = tsf.n_digital_chs
+
+            tsf_lfp.save_tsf(file_name[:-4]+'_lfp_'+str(lowpass_freq)+'hz.tsf')
+
             
         ##SAVE HIGH PASS WAVELET FILTERED DATA
-        #if True:
-            #print "Writing hp data ..."
-            #fout = open(file_out+'_hp.tsf', 'wb')
-            #fout.write(header)
-            #fout.write(struct.pack('i', 1002))
-            #fout.write(struct.pack('i', SampleFrequency))
-            #fout.write(struct.pack('i', probe.n_electrodes))
-            #fout.write(struct.pack('i', n_vd_samples))
-            #fout.write(struct.pack('f', vscale_HP))
+        #if False:
             
-            #for i in range (probe.n_electrodes):
-                #fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                #fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                #fout.write(struct.pack('i', i+1))
-
             #print "Wavelet filtering..."
-            #ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
-            #print ec_traces_hp.shape
+            #wname='db4'
+            #maxlevel = 4
+            #tsf.ec_traces = wavelet(tsf.ec_traces_raw, wname, maxlevel)
+            #print tsf.ec_traces.shape
+            
+            #print "Writing hp data wavelet filtered ..."
+            #save_tsf_single(tsf, file_out+'_hp_wavelet.tsf')
 
-            #for i in range(probe.n_electrodes):
-                #print "...writing ch: ", i
-                #ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+        
+        #SAVE BUTTER PASS FILTERED DATA
+        if True:
 
-            #fout.write(struct.pack('i', n_cell_spikes))
-            #fout.close()
+            print "... highpass filtering data (parallel version)..."
+            cutoff = 1000
+            order = 2
+            temp_traces = []
 
-    print "... Done conversion ..."
+            nyq = 0.5 * tsf.SampleFrequency
+            normal_cutoff = cutoff/nyq
+            b, a = butter(order, normal_cutoff, btype='high', analog=False)
+            
+            #Use parmap
+            import parmap
+            #filtered_pixels = parmap.map(do_filter, pixels, b, a, processes=30)
+            tsf.ec_traces = parmap.map(do_filter, tsf.ec_traces, b, a, processes=16)
+            
+            print "Writing butter pass filtered data ..."
+            tsf.save_tsf(file_out+'_hp_butter.tsf')
+                    
+    print "... Done converting data to .tsf format ..."
 
     
 
@@ -3842,26 +4082,27 @@ def rhd_to_tsf(filenames):
         print "Processing: \n", file_name
         data = read_data(file_name)
 
+        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
+
         #****** SCALE EPHYS DATA *************
         ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
         ec_traces*=10.
         print "...length original traces: ", len(ec_traces)
         
-        print "Converting data to int16..."
-        for k in range(len(ec_traces)):
-            np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
+        #print "Converting data to int16..."
+        #for k in range(len(ec_traces)):
+        #    np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
         
         n_electrodes = len(ec_traces)
         
-        ec_traces = []
-        for k in range(n_electrodes):
-            ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
+        #ec_traces = []
+        #for k in range(n_electrodes):
+        #    ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
 
-        ec_traces = np.array(ec_traces)
+        #ec_traces = np.array(ec_traces)
         
-        print "...length reloaded traces: ", len(ec_traces)
+        #print "...length reloaded traces: ", len(ec_traces)
 
-        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
         header = 'Test spike file '
         iformat = 1002
         n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
@@ -3973,13 +4214,18 @@ def rhd_digital_save(file_names):
         #plt.close()
         #fig = Figure(figsize=(5,5), dpi=100)
         #ax1 = fig.add_subplot(111)
+        
 
+        
         for ch in range(len(data['board_dig_in_data'])):
+            #plt.plot(np.array(data['board_dig_in_data'][ch][:1000000],dtype=bool))
+            #plt.show()
+            
             #ax1.plot(data['board_dig_in_data'][ch][:100000])
             #plt.show()
 
             #response = raw_input("Please enter filename extension: ")
-            np.save(file_name[:-4]+'_channel_'+str(ch), data['board_dig_in_data'][ch])
+            np.save(file_name[:-4]+'_channel_'+str(ch), np.array(data['board_dig_in_data'][ch],dtype=bool))
             
 
 
@@ -4007,7 +4253,7 @@ def compute_lfp_triggered_template(self):
     excluded_trials = self.excluded_trials.text()
     
     
-    tsf = Tsf_file(self.selected_recording)
+    tsf = TSF.TSF(self.selected_recording)
     tsf.read_ec_traces()
     
     print self.triggers
@@ -4110,7 +4356,7 @@ def tsf_to_lfp(self):
 
         print "Processing: \n", file_name
 
-        tsf = Tsf_file(file_name)
+        tsf = TSF.TSF(file_name)
         tsf.read_ec_traces()
         print tsf.Siteloc.shape
         
@@ -4200,7 +4446,7 @@ def view_templates(self):
     
     print self.selected_sort
 
-    self.tsf = Tsf_file(self.selected_recording)
+    self.tsf = TSF.TSF(self.selected_recording)
     self.tsf.read_ec_traces()
 
     #Remove bottom power..
@@ -4528,7 +4774,7 @@ def compute_csd_event_triggered(self):
             #self.tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
     
     #Raw traces
-    tsf = Tsf_file(self.selected_recording)
+    tsf = TSF.TSF(self.selected_recording)
     tsf.read_ec_traces()
     
     #load single units
@@ -4687,7 +4933,7 @@ def view_csd(self):
 
 def Specgram_syncindex(self):
     
-    channel=int(self.parent.specgram_ch.text())
+    channel=int(self.specgram_ch.text())
     
     #if self.parent.exp_type=="mouse":
         #self.parent.animal.load_channel(self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+
@@ -4705,14 +4951,14 @@ def Specgram_syncindex(self):
     
     colors=['blue','green','violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
 
-    if '.tsf' in self.parent.recName:
-        tsf = Tsf_file(self.parent.recName)
+    if '.tsf' in self.recName:
+        tsf = TSF.TSF(self.recName)
         tsf.read_ec_traces()
-        for k in range(len(tsf.Siteloc)):
-            print k, tsf.Siteloc[k]
+        for k in range(0, len(tsf.Siteloc),2):
+            print k, tsf.Siteloc[k], tsf.Siteloc[k+1]
             
-    elif '.lfp.zip' in self.parent.recName:
-        tsf = load_lfpzip(self.parent.recName)
+    elif '.lfp.zip' in self.recName:
+        tsf = load_lfpzip(self.recName)
         for k in range(len(tsf.Siteloc)):
             print k, tsf.Siteloc[k]
 
@@ -4727,9 +4973,9 @@ def Specgram_syncindex(self):
 
     #Compute Specgram
     print "computing specgram..."
-    data_in = tsf.ec_traces[channel]
+    data_in = tsf.ec_traces[channel][:]
     f0 = 0.1; f1 = 100
-    p0 = float(self.parent.specgram_db_clip.text())
+    p0 = float(self.specgram_db_clip.text())
     P, extent = Compute_specgram_signal(data_in, samp_freq, f0, f1, p0)
     plt.imshow(P, extent=extent, aspect='auto')
 
@@ -4763,7 +5009,7 @@ def Specgram_syncindex(self):
 
     plt.ylabel("Synchrony Index             Specgram Frequency (Hz)      ", fontsize=font_size-5)           
     plt.xlabel("Time (mins)", fontsize = font_size)
-    plt.title(self.parent.recName, fontsize=font_size-10)
+    #plt.title(self.recName, fontsize=font_size-10)
     plt.show()
 
 def Compute_specgram_signal(data, SampleFrequency, f0=0.1, f1=110, p0=-40):
@@ -4977,7 +5223,8 @@ def compute_sta(self, ptcs_file):
     #if len(img_times)< max_len: max_len=len(img_times)
     #print "len(ontimes): ", len(ontimes), "  len(img_times): ", len(img_times)
 
-def wavelet(data, wname="db4", maxlevel=6):
+#def wavelet(data, wname="db4", maxlevel=4):    #MAXLEVEL 6 has lower distortion. 
+def wavelet(data, wname, maxlevel):
     """Perform wavelet multi-level decomposition and reconstruction (WMLDR) on data.
     See Wiltschko2008. Default to Daubechies(4) wavelet"""
     import pywt
@@ -4987,7 +5234,6 @@ def wavelet(data, wname="db4", maxlevel=6):
     for i in range(len(data)):
         print "Wavelet filtering channel: ", i
         # decompose the signal:
-        
         
         c = pywt.wavedec(data[i], wname, level=maxlevel)
         # destroy the appropriate approximation coefficients:
@@ -5280,10 +5526,17 @@ def plot_rasters(self):
     #print self.animal.recName
     #self.animal.name = self.animal_name.text()
     #self.animal.recName = self.root_dir+self.animal.name+'/rhd_files/'+self.rec_name.text()
-        
+
+    #Load LFP Sort
+    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    #Sort_lfp = PTCS.PTCS(lfp_file) #Auto load flag for Nick's data
+    Sort_lfp = PTCS.PTCS(self.selected_sort_lfp) #Auto load flag for Nick's data
+
+
     #Load SUA Sort
-    sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-    Sort_sua = Ptcs(sua_file) #Auto load flag for Nick's data
+    #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+
+    Sort_sua = PTCS.PTCS(self.selected_sort_sua) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
     n_spikes = []
     for k in range(len(Sort_sua.units)):
@@ -5292,14 +5545,13 @@ def plot_rasters(self):
     indexes = np.argsort(n_spikes)
     print indexes
 
-    #Load LFP Sort
-    lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
-    Sort_lfp = Ptcs(lfp_file) #Auto load flag for Nick's data
 
     ax = plt.subplot(1, 1, 1)
     y = []
     for i in indexes: #range(len(Sort_sua.units)):
-        x = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)/float(Sort_sua.samplerate) #float(Sort1.samplerate)*2.5
+    #for i in indexes[0:5]: #range(len(Sort_sua.units)):
+        #x = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)/float(Sort_sua.samplerate) #float(Sort1.samplerate)*2.5
+        x = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)*1E-6
 
         ymin=np.zeros(len(Sort_sua.units[indexes[i]]))
         ymax=np.zeros(len(Sort_sua.units[indexes[i]]))
@@ -5313,7 +5565,8 @@ def plot_rasters(self):
     #Plot LFP spike
     y = []
     for i in range(len(Sort_lfp.units)):
-        x = np.array(Sort_lfp.units[i],dtype=np.float32)/float(Sort_sua.samplerate)*50#float(Sort1.samplerate)*2.5
+        #x = np.array(Sort_lfp.units[i],dtype=np.float32)/float(Sort_sua.samplerate)*50 #***************************** UNCOMPRESSSING LFP RASTERS
+        x = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
         
         ymin=np.zeros(len(Sort_lfp.units[0]))
         ymax=np.zeros(len(Sort_lfp.units[0]))
@@ -5485,7 +5738,7 @@ def drift_movies(self):
 
     #Find recording length; needed for plotting distributions
     if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
-        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        tsf = TSF.TSF(self.parent.sua_file.replace('.ptcs','.tsf'))
         rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
     else:
         rec_length = 0
@@ -5838,7 +6091,7 @@ def drift_trends(self):
     
     #Find recording length; needed for plotting distributions
     if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
-        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        tsf = TSF.TSF(self.parent.sua_file.replace('.ptcs','.tsf'))
         rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
     else:
         rec_length = 0
@@ -6045,7 +6298,7 @@ def all_cell_msl_stats(self):
 
     #Find recording length; needed for plotting distributions
     if os.path.exists(self.parent.sua_file.replace('.ptcs','.tsf')):
-        tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+        tsf = TSF.TSF(self.parent.sua_file.replace('.ptcs','.tsf'))
         rec_length = tsf.n_vd_samples/float(tsf.SampleFrequency)
     else:
         rec_length = 0
@@ -6615,9 +6868,9 @@ def peth_scatter_plots(self):
         
         #for unit in range(total_units):
         for unit in range(int(self.starting_cell.text()), int(self.ending_cell.text()),1):
+        #for unit in range(2):
 
             locked_spikes = cell_rasters[unit][temp3]       #Vertical stack of rasters during chunk
-            print type(locked_spikes[0])
             
                
             print "... chunk: ", time_chunk, " ...unit: ", unit, " #spikes locked: ", len(np.hstack(locked_spikes)), " / ", len(Sort_sua.units[unit]), \
@@ -6650,7 +6903,7 @@ def peth_scatter_plots(self):
                 x = np.linspace(-1000,1000, 2000000)    #Make an array from -1000ms .. +1000ms with microsecond precision
                 sig_gaussian = np.float32(gaussian(x, 0, sig))
                 for g in range(len(all_spikes)):
-                    print "...spike: ", all_spikes[g]
+                    #print "...spike: ", all_spikes[g]
                     mu = int(all_spikes[g])
                     if g%2==0: fit_sum_even += np.roll(sig_gaussian, mu)
                     else: fit_sum_odd += np.roll(sig_gaussian, mu , axis=0)
@@ -6680,7 +6933,8 @@ def peth_scatter_plots(self):
 
         plt.plot([0,0], [0, n_lfp_spikes*n_units], 'r--', linewidth=3, color='black', alpha=.8)
 
-        plt.xlim(lock_window_start-1,lock_window_end+1)
+        #plt.xlim(lock_window_start-1,lock_window_end+1)
+        plt.xlim(-100,100)
         plt.ylim(0, n_lfp_spikes*n_units)
         
         #old_ylabel = np.linspace(n_lfp_spikes/2.,n_lfp_spikes*n_units-n_lfp_spikes/2.,n_units)
@@ -7051,8 +7305,7 @@ def compute_msl_continuous_multi_unit(self):
     colors = ['blue', 'red', 'green', 'magenta', 'brown', 'orange', 'cyan', 'pink', 'grey', 'indigo']
 
     lfp_cluster = int(self.parent.lfp_cluster.text())
-    
-    
+        
     units = np.int16(self.multiple_units.text().split(","))
     #units = np.arange(int(self.starting_cell.text()), int(self.ending_cell.text()), 1)
     
@@ -7078,10 +7331,11 @@ def compute_msl_continuous_multi_unit(self):
     pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
 
     #Load single unit rasters
-    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
+    Sort_sua = PTCS.PTCS(self.parent.sua_file) #Auto load flag for Nick's data
 
     ##Compute periods of synchrony from si index
-    lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
+    lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','_lfp_250hz_alltrack.tsf'))
+    #lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','.tsf').replace('hp','lp'))
     lfp.read_ec_traces()    #Ok to read all LFP, smaller files
 
     #START PLOTS
@@ -7167,17 +7421,17 @@ def compute_msl_continuous_multi_unit(self):
                         error_array.append([odd_locks[k], odd_locks[k]])
 
 
-            offset_temp =int(self.sliding_window_length.text())/2
+            offset_temp =int(self.sliding_window_length.text())/2   #I guess I was offseting the data by hafl the sliding window length;
             if len(ave_times)>0: 
                 for k in range(len(ave_times)-1):
                     
                     #Plot magenta line average;
                     if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                        plt.plot([ave_times[k][0]+offset_temp, ave_times[k+1][0]+offset_temp] , [ave_times[k][1]-100, ave_times[k+1][1]-100], color=colors[clr_ctr], linewidth = 4, alpha=.85)
+                        plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp] , [ave_times[k][1]-100, ave_times[k+1][1]-100], color=colors[clr_ctr], linewidth = 4, alpha=.85)
                        
                         #Plot error; LUCZAK METHOD: odd vs. even location times.
                         if True: 
-                            x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5+offset_temp
+                            x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
                             y1 = error_array[k][0]-100
                             y2 = error_array[k][1]-100
                             plt.fill_between(x, y1, y2, color=colors[clr_ctr], alpha=0.2)
@@ -7300,7 +7554,9 @@ def compute_msl_continuous_multi_unit(self):
     #plt.title("Unit: "+str(unit) + ",   #spks: "+str(len(Sort_sua.units[unit]))+",    sliding window: "+win_len+" mins.\n Real data: ave(diff): " + str(round(np.mean(diffs),2))+ "   std(diff): " + str(round(np.std(diffs),2))
     #            + "\n Poisson data: ave(diff): " + str(round(np.mean(diffs_poisson),2))+ "   std(diff): " + str(round(np.std(diffs_poisson),2)), fontsize=25)
     ax.tick_params(axis='both', which='both', labelsize=25)
-    plt.ylim(raster_offset-7-clr_ctr*3,20)
+    
+    #plt.ylim(raster_offset-7-clr_ctr*3,20)
+    plt.ylim(raster_offset-7-clr_ctr*3,100)
     plt.xlim(0, lfp.n_vd_samples/lfp.SampleFrequency/60.)
 
     plt.ylabel("Mean-Spike-Latency (ms)\n Single Units   LFP Events", fontsize = 30)
@@ -7313,8 +7569,106 @@ def compute_msl_continuous_multi_unit(self):
         
     plt.show()
     
+
+def msl_continuous_parallel(ctr, chunk_index, self):
     
         
+    for ctr, chunk_ctr in enumerate(chunk_index):
+       
+        time_chunk = time_chunks[chunk_ctr]
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+        print time_chunk
+        
+        locked_spike_array.append([])
+        for unit in range(len(Sort_sua.units)):
+            if (len(temp3)/(win_len*1E-3))<0.01:            #Exclude periods with LFP rates < 0.01 Hz
+                lock_time[unit].append([0,0])
+                lock_time_jittered[unit].append([0,0])
+                lock_time_shifted[unit].append([0,0])
+                lock_time_poisson[unit].append([0,0])
+                lock_time_poisson_singles[unit].append([0,0])
+    
+                locked_spike_array[ctr].append([])
+
+                continue
+
+            locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+
+            if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude cells during periods with firing rates < 0.01 Hz
+                lock_time[unit].append([0,0])
+                lock_time_jittered[unit].append([0,0])
+                lock_time_shifted[unit].append([0,0])
+                lock_time_poisson[unit].append([0,0])
+                lock_time_poisson_singles[unit].append([0,0])
+
+                locked_spike_array[ctr].append([])
+
+                continue
+        
+
+            locked_spike_array[ctr].append(locked_spikes)
+            #locked_spike_array[ctr].append(np.array(cell_rasters[unit])[temp3])
+
+            #***********************************************************
+            #*********** Compute Lock Times ****************************
+            #***********************************************************
+
+            fit_even = np.zeros(2000, dtype=np.float32)
+            fit_odd = np.zeros(2000, dtype=np.float32)
+            x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+            sig_gaussian = np.float32(gaussian(x, 0, sig))
+            for g in range(len(locked_spikes)):
+                mu = int(locked_spikes[g]*1E-3)
+                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+            #Search for peaks in PETH within the locking window
+            if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+                even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+            else:
+                even_lock = 0
+
+            if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+                odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+            else:
+                odd_lock = 0
+
+            lock_time[unit].append([even_lock, odd_lock])
+
+
+            #***********************************************************
+            #************ Compute bursty poisson process Lock Times *******************
+            #***********************************************************
+            #locked_spikes_poisson = np.random.poisson(np.random.randint(200), len(locked_spikes))-100       #NB: THIS IS ALREADY IN MS
+            #locked_spikes_poisson = np.sort(np.random.poisson(10, len(locked_spikes))+(np.random.randint(jitter_time)-jitter_time/2.))  #Make sure spikes are time sorted
+            locked_spikes_poisson = np.hstack(np.array(cell_rasters_poisson[unit])[temp3])
+            #locked_spikes_poisson = np.unique(np.sort(locked_spikes_poisson))
+            
+            fit_even = np.zeros(2000, dtype=np.float32)
+            fit_odd = np.zeros(2000, dtype=np.float32)
+            x = np.linspace(-1000,1000, 2000)                   #Make an array from -1000ms .. +1000ms with microsecond precision
+            sig_gaussian = np.float32(gaussian(x, 0, sig))
+            for g in range(len(locked_spikes_poisson)):
+                mu = int(locked_spikes_poisson[g])                  #Already in ms
+                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+            #Search for peaks in PETH within the locking window
+            if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+                even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+            else:
+                even_lock = 0
+
+            if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+                odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+            else:
+                odd_lock = 0
+
+            lock_time_poisson[unit].append([even_lock, odd_lock])
+            
+        return zip(lock_time, lock_time_poisson, locked_spike_array)
+
+
 def compute_msl_continuous(self):
     
     min_spikes = float(self.min_spikes.text())
@@ -7363,8 +7717,10 @@ def compute_msl_continuous(self):
     
     
     ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
-    lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
-    lfp.read_ec_traces()    #Ok to read all LFP, smaller files
+    #lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
+    #lfp.read_ec_traces()    #Ok to read all LFP, smaller files
+    lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','_lfp_250hz_alltrack.tsf'))
+    lfp.read_ec_traces()
     sync_ch=9
 
     sync_periods_file = self.parent.sua_file.replace('.ptcs','')+"_sync_periods_ch"+str(sync_ch)+'.txt'
@@ -7437,11 +7793,33 @@ def compute_msl_continuous(self):
     if False: 
         lock_time = np.load(file_out+'.npy')
     else:
-        img=[]; lock_time=[]; lock_time_jittered=[]; lock_time_shifted=[]; lock_time_poisson=[]; lock_time_poisson_singles=[]
+        img=[]; 
+        lock_time=[]; 
+        lock_time_jittered=[]; 
+        lock_time_shifted=[]; 
+        lock_time_poisson=[]; 
+        lock_time_poisson_singles=[]
+        
         for k in range(len(Sort_sua.units)): 
-            lock_time.append([]); lock_time_jittered.append([]); lock_time_shifted.append([]); lock_time_poisson.append([]); lock_time_poisson_singles.append([])
+            lock_time.append([]); 
+            lock_time_jittered.append([]); 
+            lock_time_shifted.append([]); 
+            lock_time_poisson.append([]); 
+            lock_time_poisson_singles.append([])
+            
         chunk_index = np.arange(0,len(time_chunks),1)
-    
+        
+        self.chunk_index = chunk_index
+        self.time_chunks = time_chunks
+        
+        #Use parmap
+        import parmap
+        #lock_time, lock_time_poisson, locked_spike_array = parmap.map(do_filter, pixels, b, a, processes=30)
+        
+        data_out = parmap.map(msl_continuous_parallel, zip(ctr, pixels, self, processes=30)
+        
+        msl_continuous_parallel(self)
+        
         for ctr, chunk_ctr in enumerate(chunk_index):
             time_chunk = time_chunks[chunk_ctr]
             temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
@@ -7462,7 +7840,7 @@ def compute_msl_continuous(self):
 
                 locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
 
-                if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
+                if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude cells during periods with firing rates < 0.01 Hz
                     lock_time[unit].append([0,0])
                     lock_time_jittered[unit].append([0,0])
                     lock_time_shifted[unit].append([0,0])
@@ -7533,7 +7911,9 @@ def compute_msl_continuous(self):
                     odd_lock = 0
 
                 lock_time_poisson[unit].append([even_lock, odd_lock])
-                
+        
+        
+        
         np.save(file_out, lock_time)
         #np.save(file_out_jittered, lock_time_jittered)
         np.save(file_out_poisson, lock_time_poisson)
@@ -7605,7 +7985,7 @@ def compute_msl_single_lfpevent(self):
 
     lfp_cluster = int(self.parent.lfp_cluster.text())
 
-    tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+    tsf = TSF.TSF(self.parent.sua_file.replace('.ptcs','.tsf'))
 
 
     sig = float(self.sigma_width.text())
@@ -7771,7 +8151,7 @@ def compute_msl_single_lfpevent(self):
         
         
         
-def msl_plots(self):
+def Compute_MSL_chunks(self):
     '''Align msl latencies by lfp cluster 
     '''
     
@@ -7924,7 +8304,7 @@ def msl_plots(self):
             for j in range(len(pop_spikes)):
                 #Skip pop spikes that occur w/in 100ms of each other
                 if j<(len(pop_spikes)-1):
-                    if (pop_spikes[j+1]-pop_spikes[j])<100000: 
+                    if (pop_spikes[j+1]-pop_spikes[j])<100000:  #microsecond timing.
                         locked_spikes.append([])                    #*************************NB: ADDING NO LOCKING FOR CLOSE LFP CLUSTERS; OVERDOING IT
                         print "... lfp events too close, skipping..."
                         continue
@@ -7946,8 +8326,7 @@ def msl_plots(self):
     else:
         cell_rasters = np.load(cell_rasters_filename+".npy")
 
-
-    
+    #********************************************* START OVER LOADING DATA FROM DISK *****************************************
 
     chunk_index = []
     for chk in self.chunks_to_plot.text().split(','):
@@ -8900,7 +9279,7 @@ def sua_lock_percentage(self):
     lock_window = int(self.parent.lock_window.text())
     
     #Loading low pass LFP; read just header and then required channel for sync index computation below
-    tsf = Tsf_file(self.parent.sua_file.replace('_hp.ptcs','_lp.tsf')) 
+    tsf = TSF.TSF(self.parent.sua_file.replace('_hp.ptcs','_lp.tsf')) 
     tsf.read_trace(int(self.specgram_ch.text()))
     print tsf.header
     print tsf.iformat
@@ -10252,6 +10631,20 @@ def butter_highpass(cutoff, fs, order=5):
     normal_cutoff = cutoff/nyq
     b, a = butter(order, normal_cutoff, btype='high', analog=False)
     return b, a
+
+
+      
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff/nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+    
+    
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y
 
 
 def butter_highpass_filter(data, cutoff, fs, order=5):

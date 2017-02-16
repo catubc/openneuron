@@ -14,10 +14,10 @@ class LFP(QtGui.QWidget):
         
         self.parent = parent
         
-        self.selected_recording = '/media/cat/All.Data.3TB/Dropbox/phd_exam/cihr_grant/4_data/ptc21_alltrack/tr5c_alltrack_lp.tsf'
-        #self.selected_sort_sua = '/media/cat/All.Data.3TB/Dropbox/phd_exam/cihr_grant/4_data/ptc21_alltrack/tr5c_alltrack_hp.ptcs'
-        self.selected_sort_sua = '/media/cat/All.Data.3TB/Dropbox/phd_exam/cihr_grant/4_data/ptc21_alltrack/tr5c_alltrack_hp_mua.ptcs'
-        self.selected_sort_lfp = '/media/cat/All.Data.3TB/Dropbox/phd_exam/cihr_grant/4_data/ptc21_alltrack/tr5c_alltrack_lp_50compression.ptcs'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.selected_recording = self.parent.root_dir
+        self.selected_sort_sua = self.parent.root_dir
+        self.selected_sort_lfp = self.parent.root_dir
         
         row_index = 0
         #***********************************************************************************
@@ -103,7 +103,7 @@ class LFP(QtGui.QWidget):
         self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.selected_recording,"TSF (*.tsf)") 
         path_name, file_name = os.path.split(self.selected_recording)
         self.select_recording_lbl.setText(file_name)
-
+        self.recName = self.selected_recording
         #self.tsf = Tsf_file(self.selected_recording)
         #self.tsf.read_ec_traces()
   
@@ -119,12 +119,14 @@ class LFP(QtGui.QWidget):
         
         
     def view_lfp_raster(self):
-        self.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+        #self.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+        self.ptcsName = self.selected_sort_lfp
         plot_rasters(self)
 
     def view_Specgram(self):
-        Specgram_syncindex(self, 0) #Use regular specgram
+        #Specgram_syncindex(self, 0) #Use regular specgram
+        Specgram_syncindex(self) #Use regular specgram
         
     def view_Specgram_tfr(self):
-        Specgram_syncindex(self, 1)     #Use TFR specgram
+        Specgram_syncindex(self)     #Use TFR specgram
             
