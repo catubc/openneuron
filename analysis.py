@@ -3866,9 +3866,9 @@ def compress_lfp(self):
     #    traces_out.append(tsf.ec_traces[k])
     #tsf.ec_traces = np.array(traces_out)
 
-    tsf.SampleFrequency = compression_factor*1000     
+    tsf.SampleFrequency = compression_factor*tsf.SampleFrequency     
     tsf.subsample = 1.0
-    tsf.n_vd_samples = len(tsf.ec_traces[0])
+    #tsf.n_vd_samples = len(tsf.ec_traces[0])
     tsf.save_tsf(file_out)
     
     
@@ -7039,7 +7039,7 @@ def compute_isi_histograms(self):
         plt.ylabel(len(Sort_sua.units[u]), fontsize=10, labelpad=-2)
     plt.show()
 
-def compute_msl_continuous_single(self):
+def plot_msl_continuous_single(self):
 
     lfp_cluster = int(self.parent.lfp_cluster.text())
 
@@ -7300,29 +7300,29 @@ def compute_msl_continuous_single(self):
     plt.show()
 
 
-def compute_msl_continuous_multi_unit(self):
+def plot_msl_continuous_multi_unit(self):
 
     colors = ['blue', 'red', 'green', 'magenta', 'brown', 'orange', 'cyan', 'pink', 'grey', 'indigo']
 
     lfp_cluster = int(self.parent.lfp_cluster.text())
         
     units = np.int16(self.multiple_units.text().split(","))
-    #units = np.arange(int(self.starting_cell.text()), int(self.ending_cell.text()), 1)
-    
-    #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
-    #file_out_poisson_singles = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_poisson_singles"
-    
+
     #Load lock times
     file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
     lock_time = np.load(file_out+'.npy')
 
     jitter_time = 50 #Time to jitter spiketrian
-    file_out_poisson = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_window_poisson"
+    file_out_poisson = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
     lock_time_poisson = np.load(file_out_poisson+'.npy')
 
     file_out_locked_spikes = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_locked_spikes"
     locked_spike_array = np.load(file_out_locked_spikes+'.npy') #This is al ist of all spikes locking to each 30min window; used for non-Luczak type studies;
 
+
+    file_spikerates = file_out+"_spikerates"
+
+    spikerates = np.load(file_spikerates+".npy")
 
     #Load lfp event rasters
     compress_factor = 50
@@ -7338,8 +7338,13 @@ def compute_msl_continuous_multi_unit(self):
     #lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','.tsf').replace('hp','lp'))
     lfp.read_ec_traces()    #Ok to read all LFP, smaller files
 
-    #START PLOTS
+
+    #*************************** PLOT RASTERS ***********************
     ax = plt.subplot(1, 1, 1)
+
+    # define the colormap
+    cmap = plt.cm.get_cmap('viridis', Sort_sua.n_units)
+    plt.set_cmap('viridis')
 
     #Plot Unit Rasters
     raster_offset = -40
@@ -7349,7 +7354,7 @@ def compute_msl_continuous_multi_unit(self):
         ymax=np.zeros(len(spikes))
         ymin+=raster_offset-clr_ctr*3 
         ymax+=raster_offset-2-clr_ctr*3
-        plt.vlines(spikes, ymin, ymax, linewidth=1, color=colors[clr_ctr],alpha=0.5) #colors[mod(counter,7)])
+        plt.vlines(spikes, ymin, ymax, linewidth=1, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.5) #colors[mod(counter,7)])
     
     #Plot LFP Events
     spikes = pop_spikes*1E-6/60.
@@ -7360,17 +7365,20 @@ def compute_msl_continuous_multi_unit(self):
     plt.vlines(spikes, ymin, ymax, linewidth=1, color='black',alpha=.5) #colors[mod(counter,7)])
 
 
+    #*************************** PLOT MSL DRIFT DATA ***********************
     Luczak_method = True
     std_method = False
     poisson_method = False
+    
     
     #Make plots for single cell raster
     if Luczak_method: 
         #clr_ctr=0
         for clr_ctr, unit in enumerate(units):
             
-            if (len(Sort_sua.units[unit])/float(lfp.n_vd_samples/lfp.SampleFrequency))<0.01: continue
-            print "...unit: ", unit, "  fire rate: ", len(Sort_sua.units[unit])/float(lfp.n_vd_samples/lfp.SampleFrequency), " color: ", colors[clr_ctr]
+            #if (len(Sort_sua.units[unit])/float(lfp.n_vd_samples/lfp.SampleFrequency))<0.01: continue  #OLD WAY OF COMPUTING FIRE RATE OVER ALL RECORDING
+            
+            print "...unit: ", unit, "  overall fire rate: ", len(Sort_sua.units[unit])/float(lfp.n_vd_samples/lfp.SampleFrequency), " color: ", int(float(unit)/Sort_sua.n_units*256)
 
             #unit = int(self.starting_cell.text())
 
@@ -7378,9 +7386,18 @@ def compute_msl_continuous_multi_unit(self):
             #************** Plot locked times rasters *********************
             even_locks=[]; odd_locks=[]
             for k in range(len(lock_time[unit])): 
-                even_locks.append(lock_time[unit][k][0])       #MUST SUBTRACT 100 to offset for the -100ms. to +100ms window of saved data.
-                odd_locks.append(lock_time[unit][k][1])
-            
+                
+                if spikerates[k][unit] > float(self.min_fire_rate.text()):       #************NEW WAY COMPUTE FIRE RATE IN EACH EPOCH COMPUTED
+                    even_locks.append(lock_time[unit][k][0])       #MUST SUBTRACT 100 to offset for the -100ms. to +100ms window of saved data.
+                    odd_locks.append(lock_time[unit][k][1])
+                else:
+                    even_locks.append(0.0)
+                    odd_locks.append(0.0)
+
+                #even_locks.append(lock_time[unit][k][0])       #MUST SUBTRACT 100 to offset for the -100ms. to +100ms window of saved data.
+                #odd_locks.append(lock_time[unit][k][1])
+
+           
             
             #Plot event times scatter
             even_times = []
@@ -7427,27 +7444,29 @@ def compute_msl_continuous_multi_unit(self):
                     
                     #Plot magenta line average;
                     if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                        plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp] , [ave_times[k][1]-100, ave_times[k+1][1]-100], color=colors[clr_ctr], linewidth = 4, alpha=.85)
+                        plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
+                                 [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
+                                 color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 1, alpha=.85)
                        
                         #Plot error; LUCZAK METHOD: odd vs. even location times.
                         if True: 
                             x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
                             y1 = error_array[k][0]-100
                             y2 = error_array[k][1]-100
-                            plt.fill_between(x, y1, y2, color=colors[clr_ctr], alpha=0.2)
+                            plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.1)
 
                    
-            #Track stats on original data
-            if False:
-                diffs = []
-                for k in range(len(even_locks)):
-                    if (even_locks[k]!=0) and (odd_locks[k]!=0):
-                        diff = abs(even_locks[k]-odd_locks[k])
-                        #if diff < 50: 
-                        diffs.append(diff)    #Only 
+            ##Track stats on original data
+            #if False:
+                #diffs = []
+                #for k in range(len(even_locks)):
+                    #if (even_locks[k]!=0) and (odd_locks[k]!=0):
+                        #diff = abs(even_locks[k]-odd_locks[k])
+                        ##if diff < 50: 
+                        #diffs.append(diff)    #Only 
         
-            #if clr_ctr==10: break
-            #clr_ctr+=1
+            ##if clr_ctr==10: break
+            ##clr_ctr+=1
 
 
     #COMPUTE MEAN AND STD OF DISTRIBUTION DIRECTLY  
@@ -7465,8 +7484,8 @@ def compute_msl_continuous_multi_unit(self):
                         spikes = spikes[indexes]
                         temp_ave = np.mean(spikes, axis=0)
                         temp_std = np.std(spikes, axis=0)
-                        plt.scatter(k, temp_ave, color=colors[clr_ctr], s = 30, alpha=.85)
-                        plt.plot([k,k], [temp_ave-temp_std,temp_ave+temp_std], color=colors[clr_ctr], linewidth=2, alpha=0.3)
+                        plt.scatter(k, temp_ave, color=colors[clr_ctr%10], s = 30, alpha=.85)
+                        plt.plot([k,k], [temp_ave-temp_std,temp_ave+temp_std], color=colors[clr_ctr%10], linewidth=2, alpha=0.3)
 
     
     if poisson_method:
@@ -7570,106 +7589,106 @@ def compute_msl_continuous_multi_unit(self):
     plt.show()
     
 
-def msl_continuous_parallel(ctr, chunk_index, self):
+def msl_continuous_parallel(chunk_ctr, time_chunks, pop_spikes, locked_spike_array, Sort_sua, win_len, lock_window_start, lock_window_end, cell_rasters, cell_rasters_poisson, sig):
     
-        
-    for ctr, chunk_ctr in enumerate(chunk_index):
-       
-        time_chunk = time_chunks[chunk_ctr]
-        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
-        print time_chunk
-        
+    print "*******************************", chunk_ctr
+    time_chunk = time_chunks[chunk_ctr]
+    temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+    print time_chunk
+    
+    lock_time = []
+    lock_time_poisson = []
+    locked_spike_array = []
+    
+    for k in range(len(Sort_sua.units)):
+        lock_time.append([])
+        lock_time_poisson.append([])
         locked_spike_array.append([])
-        for unit in range(len(Sort_sua.units)):
-            if (len(temp3)/(win_len*1E-3))<0.01:            #Exclude periods with LFP rates < 0.01 Hz
-                lock_time[unit].append([0,0])
-                lock_time_jittered[unit].append([0,0])
-                lock_time_shifted[unit].append([0,0])
-                lock_time_poisson[unit].append([0,0])
-                lock_time_poisson_singles[unit].append([0,0])
     
-                locked_spike_array[ctr].append([])
+    #locked_spike_array.append([])
+    for unit in range(len(Sort_sua.units)):
+        print chunk_ctr, unit
+        if (len(temp3)/(win_len*1E-3))<0.01:            #Exclude periods with LFP rates < 0.01 Hz
+            lock_time[unit].append([0,0])
+            lock_time_poisson[unit].append([0,0])
+            locked_spike_array[chunk_ctr].append([])
 
-                continue
+            continue
 
-            locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+        locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
 
-            if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude cells during periods with firing rates < 0.01 Hz
-                lock_time[unit].append([0,0])
-                lock_time_jittered[unit].append([0,0])
-                lock_time_shifted[unit].append([0,0])
-                lock_time_poisson[unit].append([0,0])
-                lock_time_poisson_singles[unit].append([0,0])
+        if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude cells during periods with firing rates < 0.01 Hz
+            lock_time[unit].append([0,0])
+            lock_time_poisson[unit].append([0,0])
+            locked_spike_array[chunk_ctr].append([])
 
-                locked_spike_array[ctr].append([])
+            continue
+    
 
-                continue
+        locked_spike_array[chunk_ctr].append(locked_spikes)
+        #locked_spike_array[ctr].append(np.array(cell_rasters[unit])[temp3])
+
+        #***********************************************************
+        #*********** Compute Lock Times ****************************
+        #***********************************************************
+
+        fit_even = np.zeros(2000, dtype=np.float32)
+        fit_odd = np.zeros(2000, dtype=np.float32)
+        x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+        sig_gaussian = np.float32(gaussian(x, 0, sig))
+        for g in range(len(locked_spikes)):
+            mu = int(locked_spikes[g]*1E-3)
+            if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+            else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+        #Search for peaks in PETH within the locking window
+        if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+            even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+        else:
+            even_lock = 0
+
+        if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+            odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+        else:
+            odd_lock = 0
+
+        lock_time[unit].append([even_lock, odd_lock])
+
+
+        #***********************************************************
+        #************ Compute bursty poisson process Lock Times *******************
+        #***********************************************************
+        #locked_spikes_poisson = np.random.poisson(np.random.randint(200), len(locked_spikes))-100       #NB: THIS IS ALREADY IN MS
+        #locked_spikes_poisson = np.sort(np.random.poisson(10, len(locked_spikes))+(np.random.randint(jitter_time)-jitter_time/2.))  #Make sure spikes are time sorted
+        locked_spikes_poisson = np.hstack(np.array(cell_rasters_poisson[unit])[temp3])
+        #locked_spikes_poisson = np.unique(np.sort(locked_spikes_poisson))
         
+        fit_even = np.zeros(2000, dtype=np.float32)
+        fit_odd = np.zeros(2000, dtype=np.float32)
+        x = np.linspace(-1000,1000, 2000)                   #Make an array from -1000ms .. +1000ms with microsecond precision
+        sig_gaussian = np.float32(gaussian(x, 0, sig))
+        for g in range(len(locked_spikes_poisson)):
+            mu = int(locked_spikes_poisson[g])                  #Already in ms
+            if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+            else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
 
-            locked_spike_array[ctr].append(locked_spikes)
-            #locked_spike_array[ctr].append(np.array(cell_rasters[unit])[temp3])
+        #Search for peaks in PETH within the locking window
+        if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+            even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+        else:
+            even_lock = 0
 
-            #***********************************************************
-            #*********** Compute Lock Times ****************************
-            #***********************************************************
+        if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+            odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+        else:
+            odd_lock = 0
 
-            fit_even = np.zeros(2000, dtype=np.float32)
-            fit_odd = np.zeros(2000, dtype=np.float32)
-            x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
-            sig_gaussian = np.float32(gaussian(x, 0, sig))
-            for g in range(len(locked_spikes)):
-                mu = int(locked_spikes[g]*1E-3)
-                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
-                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+        lock_time_poisson[unit].append([even_lock, odd_lock])
+        
+    #return zip(lock_time, lock_time_poisson, locked_spike_array)
+    return locked_spike_array
 
-            #Search for peaks in PETH within the locking window
-            if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
-                even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
-            else:
-                even_lock = 0
-
-            if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
-                odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
-            else:
-                odd_lock = 0
-
-            lock_time[unit].append([even_lock, odd_lock])
-
-
-            #***********************************************************
-            #************ Compute bursty poisson process Lock Times *******************
-            #***********************************************************
-            #locked_spikes_poisson = np.random.poisson(np.random.randint(200), len(locked_spikes))-100       #NB: THIS IS ALREADY IN MS
-            #locked_spikes_poisson = np.sort(np.random.poisson(10, len(locked_spikes))+(np.random.randint(jitter_time)-jitter_time/2.))  #Make sure spikes are time sorted
-            locked_spikes_poisson = np.hstack(np.array(cell_rasters_poisson[unit])[temp3])
-            #locked_spikes_poisson = np.unique(np.sort(locked_spikes_poisson))
-            
-            fit_even = np.zeros(2000, dtype=np.float32)
-            fit_odd = np.zeros(2000, dtype=np.float32)
-            x = np.linspace(-1000,1000, 2000)                   #Make an array from -1000ms .. +1000ms with microsecond precision
-            sig_gaussian = np.float32(gaussian(x, 0, sig))
-            for g in range(len(locked_spikes_poisson)):
-                mu = int(locked_spikes_poisson[g])                  #Already in ms
-                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
-                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
-
-            #Search for peaks in PETH within the locking window
-            if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
-                even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
-            else:
-                even_lock = 0
-
-            if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
-                odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
-            else:
-                odd_lock = 0
-
-            lock_time_poisson[unit].append([even_lock, odd_lock])
-            
-        return zip(lock_time, lock_time_poisson, locked_spike_array)
-
-
-def compute_msl_continuous(self):
+def compute_msl_spikerates(self):
     
     min_spikes = float(self.min_spikes.text())
 
@@ -7761,6 +7780,122 @@ def compute_msl_continuous(self):
     #**************************************************************************
 
     file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
+
+    chunk_index = np.arange(0,len(time_chunks),1).tolist()
+    
+    spiking_rate_array = []
+    for chunk_ctr in chunk_index:
+        time_chunk = time_chunks[chunk_ctr]
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]       #indexes of spikes in sliding window, for example 60mins; 
+
+        spiking_rate_array.append([])
+        for unit in range(len(Sort_sua.units)):
+            if (len(temp3)/(win_len*1E-3))< float(self.min_fire_rate.text()):            #Exclude periods with LFP spike rates < 0.01 Hz; NB: win_len is in milliseconds;
+                spiking_rate_array[chunk_ctr].append(0)
+                continue
+
+            locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+
+            spiking_rate_array[chunk_ctr].append(len(locked_spikes)/(win_len*1E-3)) #append spiking rate for each epoch for each cell;
+
+    np.save(file_out+"_spikerates", spiking_rate_array)
+
+
+def compute_msl_continuous(self):
+    
+    min_spikes = float(self.min_spikes.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1000000  # window width in usec
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    #tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+
+    sig = float(self.sigma_width.text())
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+
+    #Load SUA Sort
+    Sort_sua = PTCS.PTCS(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    Sort_lfp = PTCS.PTCS(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardcoded to: ", compress_factor
+
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+      
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+    pop_spikes=np.sort(np.unique(pop_spikes))*1E-3   #Exclude duplicates; convert to milisecond time
+    #pop_spikes=(pop_spikes)*1E-3   #Exclude duplicates; convert to milisecond time
+    
+    print " ... # LFP events: ", len(pop_spikes)
+    
+    #Load saved cell rasters
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+    
+    
+    ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
+    #lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
+    #lfp.read_ec_traces()    #Ok to read all LFP, smaller files
+    lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','_lfp_250hz_alltrack.tsf'))
+    lfp.read_ec_traces()
+    sync_ch=9
+
+
+
+
+    sync_periods_file = self.parent.sua_file.replace('.ptcs','')+"_sync_periods_ch"+str(sync_ch)+'.txt'
+    if os.path.exists(sync_periods_file):
+        sync_periods = np.loadtxt(sync_periods_file)
+    else:
+        si, t, sync_periods = synchrony_index(lfp.ec_traces[sync_ch], lfp.SampleFrequency, si_limit)
+        np.savetxt(sync_periods_file, sync_periods)
+
+    temp_list = []
+    for p in range(len(sync_periods)):
+        indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0]*1E3, pop_spikes<=sync_periods[p][1]*1E3))[0]   #Work in milliseconds
+        temp_list.extend(pop_spikes[indexes])
+    pop_spikes=np.array(temp_list)
+    
+    print "... # LFP events during sync states: ", len(pop_spikes)
+    
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    
+    #OPTION 1: Divide into chunks of recording length
+    win_len = float(self.sliding_window_length.text())*60000.0                          #Work in ms
+    step_len = float(self.sliding_window_step.text())*60000.0                           #Work in ms
+    #rec_len = tsf.n_vd_samples/float(tsf.SampleFrequency)*1E3   #Work in ms
+    rec_len = lfp.n_vd_samples/float(lfp.SampleFrequency)*1E3   #Work in ms         #USE LFP RECORDING IF High-pass not available
+    print "... lfp rec_len: ", rec_len
+    
+    
+    temp_chunks = np.arange(0, rec_len-win_len, step_len)   #set begginings of each chunk up to end of recording (less the window length)
+    time_chunks = []
+    for k in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[k], temp_chunks[k]+win_len])
+    time_chunks.append([temp_chunks[-1], rec_len])
+
+    #**************************************************************************
+    #*************************** LOOP OVER TIME CHUNKS ************************
+    #**************************************************************************
+
+    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step"
     jitter_time = 50 #Time to jitter spiketrian
     #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
     #shift_time = jitter_time
@@ -7793,33 +7928,11 @@ def compute_msl_continuous(self):
     if False: 
         lock_time = np.load(file_out+'.npy')
     else:
-        img=[]; 
-        lock_time=[]; 
-        lock_time_jittered=[]; 
-        lock_time_shifted=[]; 
-        lock_time_poisson=[]; 
-        lock_time_poisson_singles=[]
-        
+        img=[]; lock_time=[]; lock_time_jittered=[]; lock_time_shifted=[]; lock_time_poisson=[]; lock_time_poisson_singles=[]
         for k in range(len(Sort_sua.units)): 
-            lock_time.append([]); 
-            lock_time_jittered.append([]); 
-            lock_time_shifted.append([]); 
-            lock_time_poisson.append([]); 
-            lock_time_poisson_singles.append([])
-            
+            lock_time.append([]); lock_time_jittered.append([]); lock_time_shifted.append([]); lock_time_poisson.append([]); lock_time_poisson_singles.append([])
         chunk_index = np.arange(0,len(time_chunks),1)
-        
-        self.chunk_index = chunk_index
-        self.time_chunks = time_chunks
-        
-        #Use parmap
-        import parmap
-        #lock_time, lock_time_poisson, locked_spike_array = parmap.map(do_filter, pixels, b, a, processes=30)
-        
-        data_out = parmap.map(msl_continuous_parallel, zip(ctr, pixels, self, processes=30)
-        
-        msl_continuous_parallel(self)
-        
+    
         for ctr, chunk_ctr in enumerate(chunk_index):
             time_chunk = time_chunks[chunk_ctr]
             temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
@@ -7840,7 +7953,7 @@ def compute_msl_continuous(self):
 
                 locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
 
-                if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude cells during periods with firing rates < 0.01 Hz
+                if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
                     lock_time[unit].append([0,0])
                     lock_time_jittered[unit].append([0,0])
                     lock_time_shifted[unit].append([0,0])
@@ -7911,15 +8024,14 @@ def compute_msl_continuous(self):
                     odd_lock = 0
 
                 lock_time_poisson[unit].append([even_lock, odd_lock])
-        
-        
-        
+                
         np.save(file_out, lock_time)
         #np.save(file_out_jittered, lock_time_jittered)
         np.save(file_out_poisson, lock_time_poisson)
         #np.save(file_out_poisson_singles, lock_time_poisson_singles)
         
         np.save(file_out_locked_spikes, locked_spike_array)
+    
         
     for unit in range(len(Sort_sua.units)):
         ax = plt.subplot(11, 11, unit+1)

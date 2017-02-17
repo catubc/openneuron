@@ -121,6 +121,13 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_peth, row_index, 0)
         
         
+        self.button_spikerates = QPushButton('Epoch Spike-Rates')
+        self.button_spikerates.setMaximumWidth(200)
+        self.button_spikerates.clicked.connect(self.msl_spikerates)
+        layout.addWidget(self.button_spikerates, row_index, 1)
+        
+       
+        
         self.starting_cell = QLineEdit('0');               
         self.starting_cell.setMaximumWidth(50)
         self.starting_cell_lbl = QLabel('start cell:', self)
@@ -349,10 +356,10 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_isi_perlfp, row_index, 0); row_index+=1
 
 
-        #****************************************************************************
         self.setLayout(layout)
 
-
+    
+    #**************************** LOAD FILE ROUTINES *******************************
     def set_sua_file(self):
         self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs)")
         self.button_set_sua_file_lbl.setText(self.parent.sua_file.replace(os.path.dirname(self.parent.sua_file),''))
@@ -387,9 +394,13 @@ class MSL(QtGui.QWidget):
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
         
 
+    #***************************** COMPUTE MSL ************************************
     def view_peth(self):
         peth_scatter_plots(self)
-        
+    
+    def msl_spikerates(self):
+        compute_msl_spikerates(self)
+
         
     def compute_msl_chunks(self, main_widget):
         Compute_MSL_chunks(self)
@@ -399,18 +410,20 @@ class MSL(QtGui.QWidget):
         compute_msl_single_lfpevent(self)
 
     
-    def view_msl_continuous(self):                  #Plot MSL drift for all cells
+    def view_msl_continuous(self):                  #Compute sliding window msl  **********
         compute_msl_continuous(self)
         
     
+    #***************************** PLOT MSL ************************************
     def view_msl_continuous_single(self):           #Plot MSL drift for a single cell
-        compute_msl_continuous_single(self)
+        plot_msl_continuous_single(self)
     
     
     def view_msl_continuous_multi(self):            #Plot MSL drift for multiple cells
-        compute_msl_continuous_multi_unit(self)
+        plot_msl_continuous_multi_unit(self)
     
-    
+
+    #***************************** PLOT MSL STATS ************************************
     def view_msl_drift(self):
         cell_msl_drift(self)
 
@@ -439,6 +452,7 @@ class MSL(QtGui.QWidget):
         view_msl_pval(self)                     #View P-Values
 
 
+    #************************* CSD ANALYSYS AND OTHER STIMULI *************************
     def view_csd_rasters(self):
         compute_csd_rasters(self)
 
@@ -459,6 +473,7 @@ class MSL(QtGui.QWidget):
         compute_isi_histograms(self)
 
 
+    #********************** NAT SCENE ANALYSIS ************************
     def view_natscene_rasters(self):
         compute_natscene_rasters(self)
 
