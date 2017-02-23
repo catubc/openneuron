@@ -16,8 +16,15 @@ class MSL(QtGui.QWidget):
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
-        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_hp.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/all_track/tr5c_alltrack_lp_50compression.ptcs'
+
+        #2017-02_03 experiment
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+
+        #2017-02_03 experiment
+        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_lfp_250hz_alltrack_50compressed.ptcs'
+
 
 
         layout = QtGui.QGridLayout()
@@ -40,9 +47,9 @@ class MSL(QtGui.QWidget):
         self.button_set_sua_file.clicked.connect(self.set_sua_file)
         layout.addWidget(self.button_set_sua_file, row_index, 0)
         
-        self.parent.button_set_sua_file  = os.getcwd()
-        self.button_set_sua_file_lbl = QLabel(self.parent.button_set_sua_file, self)
-        layout.addWidget(self.button_set_sua_file_lbl, row_index,1); row_index+=1
+        #self.parent.button_set_sua_file  = os.getcwd()
+        self.button_set_sua_file_lbl = QLabel(os.path.split(self.parent.sua_file)[1], self)
+        layout.addWidget(self.button_set_sua_file_lbl, row_index, row_index, 1, 5); row_index+=1
 
         #Set LFP event file
         self.button_set_lfp_event_file = QPushButton('LPF Event File')
@@ -50,9 +57,9 @@ class MSL(QtGui.QWidget):
         self.button_set_lfp_event_file.clicked.connect(self.set_lfp_event_file)
         layout.addWidget(self.button_set_lfp_event_file, row_index, 0)
         
-        self.parent.set_lfp_event_file = ''
-        self.button_set_lfp_event_file_lbl = QLabel(self.parent.set_lfp_event_file, self)
-        layout.addWidget(self.button_set_lfp_event_file_lbl, row_index,1); row_index+=1
+        #self.parent.set_lfp_event_file = os.getcwd()
+        self.button_set_lfp_event_file_lbl = QLabel(os.path.split(self.parent.lfp_event_file)[1], self)
+        layout.addWidget(self.button_set_lfp_event_file_lbl, row_index, row_index, 1, 5); row_index+=1
 
 
 
@@ -114,17 +121,30 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.min_fire_rate_lbl,row_index,12)
         layout.addWidget(self.min_fire_rate,row_index,13); row_index+=1
         
-        #MAKE BUTTONS             
+        #************* PREPROCESSING: Rasters and Histograms ****************************
+        self.button_lfp_rasters = QPushButton('Cell LFP Rasters')
+        self.button_lfp_rasters.setMaximumWidth(200)
+        self.button_lfp_rasters.clicked.connect(self.compute_lfp_rasters)
+        layout.addWidget(self.button_lfp_rasters, row_index, 0)
+        
+        
+        self.button_lfp_histograms = QPushButton('Cell LFP Histograms')
+        self.button_lfp_histograms.setMaximumWidth(200)
+        self.button_lfp_histograms.clicked.connect(self.compute_lfp_histograms)
+        layout.addWidget(self.button_lfp_histograms, row_index, 1)
+        
+
+        
         self.button_peth = QPushButton('PETH & Rasters')
         self.button_peth.setMaximumWidth(200)
         self.button_peth.clicked.connect(self.view_peth)
-        layout.addWidget(self.button_peth, row_index, 0)
+        layout.addWidget(self.button_peth, row_index, 2)
         
         
         self.button_spikerates = QPushButton('Epoch Spike-Rates')
         self.button_spikerates.setMaximumWidth(200)
         self.button_spikerates.clicked.connect(self.msl_spikerates)
-        layout.addWidget(self.button_spikerates, row_index, 1)
+        layout.addWidget(self.button_spikerates, row_index, 3)
         
        
         
@@ -206,7 +226,15 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.multiple_units,row_index,8); row_index+=1
 
 
-        self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')
+        self.button_msl_state_space = QPushButton('MSL - State Space')     #WHAT DOES THIS DO AGAIN? 
+        self.button_msl_state_space.setMaximumWidth(200)
+        self.button_msl_state_space.clicked.connect(self.view_msl_state_space)
+        layout.addWidget(self.button_msl_state_space, row_index, 0); row_index+=1
+
+
+        #************************** STATE SPACE ANALYSIS ****************************
+
+        self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')     
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
         layout.addWidget(self.button_msl_single_lfpevent, row_index, 0); row_index+=1
@@ -395,6 +423,16 @@ class MSL(QtGui.QWidget):
         
 
     #***************************** COMPUTE MSL ************************************
+    def compute_lfp_rasters(self):          #This should be the first function called, it computes each cell rasters for each LFP event 
+        Compute_LFP_rasters(self)
+        
+    
+    def compute_lfp_histograms(self):
+        Compute_LFP_histograms(self)
+    
+    
+    #************************** VIEWING FUCNTIONS?!
+    
     def view_peth(self):
         peth_scatter_plots(self)
     
@@ -421,6 +459,12 @@ class MSL(QtGui.QWidget):
     
     def view_msl_continuous_multi(self):            #Plot MSL drift for multiple cells
         plot_msl_continuous_multi_unit(self)
+    
+    
+    #****************************** STATE SPACE ANALYSIS **********************************
+    
+    def view_msl_state_space(self):
+        compute_msl_state_space(self)
     
 
     #***************************** PLOT MSL STATS ************************************

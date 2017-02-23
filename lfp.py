@@ -54,7 +54,7 @@ class LFP(QtGui.QWidget):
         #************************** VIEW SPECGRAM AND RASTERS ******************************
         #***********************************************************************************
         
-        self.specgram_ch = QLineEdit('9');                #parent.start_time = self.start_time
+        self.specgram_ch = QLineEdit('63');                #parent.start_time = self.start_time
         self.specgram_ch.setMaximumWidth(50)
         specgram_ch_lbl = QLabel('specgram_ch:', self)
         specgram_ch_lbl.setMaximumWidth(100)
@@ -75,7 +75,7 @@ class LFP(QtGui.QWidget):
         layout.addWidget(time_end_lbl, row_index,4)
         layout.addWidget(self.time_end, row_index,5)
               
-        self.specgram_db_clip = QLineEdit('-40');                #parent.start_time = self.start_time
+        self.specgram_db_clip = QLineEdit('-60');                #parent.start_time = self.start_time
         self.specgram_db_clip.setMaximumWidth(50)
         specgram_db_clip_lbl = QLabel('db_clip:', self)
         specgram_db_clip_lbl.setMaximumWidth(100)

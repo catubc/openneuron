@@ -1,3 +1,4 @@
+
 import glob, os
 
 from PyQt4 import QtGui, QtCore
@@ -13,28 +14,32 @@ class TemplateTools(QtGui.QWidget):
         layout = QtGui.QGridLayout()
 
         self.parent = parent
-        self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
-
+        #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
+        self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        
+            
         row_index = 0
         #Select recording
-        self.button_select_recording = QPushButton('Select Recording')
+        self.button_select_recording = QPushButton('LFP Recording (uncompressed)')
         self.button_select_recording.setMaximumWidth(200)
         self.button_select_recording.clicked.connect(self.slct_recording)
         layout.addWidget(self.button_select_recording, row_index, 0)
         
         #self.parent.selected_recording  = os.getcwd()
-        self.selected_recording  = self.parent.root_dir
-        self.select_recording_lbl = QLabel(self.selected_recording, self)
+        #self.selected_recording  = self.parent.root_dir
+        self.select_recording_lbl = QLabel(os.path.split(self.selected_recording)[1], self)
         layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
 
         #Select recording
-        self.button_select_sort = QPushButton('Select Sort')
+        self.button_select_sort = QPushButton('Select LFP Sort')
         self.button_select_sort.setMaximumWidth(200)
         self.button_select_sort.clicked.connect(self.slct_sort)
         layout.addWidget(self.button_select_sort, row_index, 0)
         
-        self.parent.selected_sort  = self.parent.root_dir
-        self.select_sort_lbl = QLabel(self.parent.selected_sort, self)
+        #self.selected_sort  = self.parent.root_dir
+        self.select_sort_lbl = QLabel(os.path.split(self.selected_sort)[1], self)
         layout.addWidget(self.select_sort_lbl, row_index,1)
         
         #Color picker
@@ -109,7 +114,7 @@ class TemplateTools(QtGui.QWidget):
         layout.addWidget(self.start_ch, row_index, 2)
         
         
-        self.end_ch = QLineEdit('32');                
+        self.end_ch = QLineEdit('64');                
         self.end_ch.setMaximumWidth(50)
         self.end_ch_lbl = QLabel('Ending ch:', self)
         self.end_ch_lbl.setMaximumWidth(100)
@@ -137,10 +142,16 @@ class TemplateTools(QtGui.QWidget):
         self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.selected_recording,"TSF (*.tsf)") 
         path_name, file_name = os.path.split(self.selected_recording)
         self.select_recording_lbl.setText(file_name)
+        
+        self.selected_sort=self.selected_recording[:-4]+'_50compressed.ptcs'
+        self.select_sort_lbl.setText(os.path.split(self.selected_sort)[1])
+
+        
+        
 
   
     def slct_sort(self):
-        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_recording,"PTCS (*.ptcs)")
+        self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_sort,"PTCS (*.ptcs)")
         path_name, file_name = os.path.split(self.selected_sort)
         self.select_sort_lbl.setText(file_name)
    
