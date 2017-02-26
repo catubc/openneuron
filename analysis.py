@@ -3717,32 +3717,89 @@ def concatenate_tsf(self):
     
     print "...concatenate multiple .tsf..."
     
-    tsf = TSF.TSF('')
+    tsf = TSF.TSF('')       #Initialize empty object; 
     
     total_n_vd_samples = 0
     temp_names = []
     temp_n_samples = []
     temp_n_digital_chs = []
     temp_digital_chs = []
-    for k in range(len(self.tsf_files)):  
-        temp_tsf = TSF.TSF(self.tsf_files[k])
-        total_n_vd_samples += temp_tsf.n_vd_samples
-        print "...len loaded data: ", temp_tsf.n_vd_samples
+    for k in range(len(self.tsf_files)):
         
-        temp_tsf.read_footer()                      #Reads the footer and original file_name if available;
-        temp_names.extend(temp_tsf.file_names)
-        temp_n_samples.extend(temp_tsf.n_samples)
-        
-        temp_n_digital_chs.extend(temp_tsf.n_digital_chs)
-        temp_digital_chs.extend(temp_tsf.digital_chs)
-        
+        if '.tsf' in self.tsf_files[k]:                    #Concatenate standard .tsf files
+            temp_tsf = TSF.TSF(self.tsf_files[k])
+
+            print temp_tsf.Readloc
+            
+            print ">>>>>>>>> SITELOC ORDER CHANGED FOR NICK'S FILES: Make sure they match up properly for other data .tsfs"
+            ordered_indexes = np.argsort(temp_tsf.Siteloc[1::2])        #Is this ok for non cat data? ************************
+            print ordered_indexes
+            temp_tsf.Readloc = np.arange(1, temp_tsf.n_electrodes+1, 1)
+            print temp_tsf.Readloc
+
+            print temp_tsf.Siteloc
+            
+            temp_siteloc = []
+            for p in ordered_indexes:
+                print temp_tsf.Siteloc[p*2], temp_tsf.Siteloc[p*2+1]
+                temp_siteloc.append(temp_tsf.Siteloc[p*2])
+                temp_siteloc.append(temp_tsf.Siteloc[p*2+1])
+            
+            temp_tsf.Siteloc = temp_siteloc
+            #print temp_tsf.Siteloc
+            
+            total_n_vd_samples += temp_tsf.n_vd_samples
+            print "...len loaded data: ", temp_tsf.n_vd_samples
+            
+            temp_tsf.read_footer()                      #Reads the footer and original file_name if available;
+            temp_names.extend(temp_tsf.file_names)
+            temp_n_samples.extend(temp_tsf.n_samples)
+            
+            temp_n_digital_chs.extend(temp_tsf.n_digital_chs)   #I think this is a list also
+            temp_digital_chs.extend(temp_tsf.digital_chs)
+
+
+        elif ".lfp.zip" in self.tsf_files[k]:                #Concatenate martin's .lfp.zip files
+            
+            
+            temp_tsf = TSF.TSF('')
+            temp_tsf.header = ''
+            temp_tsf.iformat = 1002
+            
+            #Load .lfp data from Martin's files
+            data = np.load(self.tsf_files[k])
+            keys = ['t0', 't1', 'chanpos', 'uVperAD', 'chans', 'tres', 'data']
+            
+            print "... uVperAD: ", data['uVperAD']
+
+            total_n_vd_samples += data['t1']*1E-3
+
+            temp_names.append(self.tsf_files[k])
+            temp_n_samples.append(int(data['t1']*1E-3))
+            
+            temp_n_digital_chs.extend([0])
+            temp_digital_chs.extend([])
+
+            print len(data['data'][0])
+            print data['data'].shape
+
+            temp_tsf.SampleFrequency = data['tres']
+            temp_tsf.vscale_HP = data['uVperAD']
+            temp_tsf.n_electrodes = len(data['chans'])
+            temp_tsf.Siteloc = data['chanpos'][data['chans']].ravel()
+            print temp_tsf.Siteloc
+            ordered_indexes = np.argsort(temp_tsf.Siteloc[1::2])        #Get indexes for vertical ordering
+            print ordered_indexes
+            
+            temp_tsf.Readloc = np.arange(1, temp_tsf.n_electrodes+1, 1)
+            
     
     #Header
     tsf.header = temp_tsf.header
     tsf.iformat = temp_tsf.iformat
     tsf.SampleFrequency = temp_tsf.SampleFrequency
     tsf.vscale_HP = temp_tsf.vscale_HP
-    tsf.n_vd_samples = total_n_vd_samples
+    tsf.n_vd_samples = int(total_n_vd_samples)
     tsf.Siteloc = temp_tsf.Siteloc
     tsf.n_electrodes = temp_tsf.n_electrodes
     tsf.n_cell_spikes = 0
@@ -3758,18 +3815,34 @@ def concatenate_tsf(self):
     print "... channel order layout: ", tsf.layout
     
     #Initialize ec_traces total
-    tsf.ec_traces = np.zeros((tsf.n_electrodes, total_n_vd_samples), dtype=np.int16)
-    print tsf.ec_traces.shape
+    tsf.ec_traces = np.zeros((tsf.n_electrodes,  tsf.n_vd_samples), dtype=np.int16)
+    print "... total rec length: ", tsf.ec_traces.shape
     
     #Load each tsf data file 
     tsf_index = 0
     for ctr, file_name in enumerate(self.tsf_files):
-        print "... loading: ", file_name
-        temp_tsf = TSF.TSF(file_name)
-        temp_tsf.read_ec_traces()
         
-        for ch in range(len(temp_tsf.ec_traces)):
-            tsf.ec_traces[ch,tsf_index:tsf_index+len(temp_tsf.ec_traces[ch])] = temp_tsf.ec_traces[ch]
+        print "... loading: ", file_name
+        
+        if ".tsf" in file_name: 
+            temp_tsf = TSF.TSF(file_name)
+            temp_tsf.read_ec_traces()
+        
+        elif ".lfp.zip" in file_name:                #Concatenate martin's .lfp.zip files
+            
+            data = np.load(self.tsf_files[k])
+            keys = ['t0', 't1', 'chanpos', 'uVperAD', 'chans', 'tres', 'data']
+                   
+            temp_tsf = TSF.TSF('')  #Make empty file
+            #temp_tsf.ec_traces = np.zeros((tsf.n_electrodes, int(data['t1']*1E-3)), dtype=np.int16)     #Make empty file; convert from usec to ms which is sample rate timeing.
+
+            temp_tsf.ec_traces=[]
+            for p in range(len(data['data'])):
+                temp_tsf.ec_traces.append([data['data'][p][0]])     #This data is packed oddly, so need to pick the [0] element of the array            
+            
+        #for ch in range(len(temp_tsf.ec_traces)):
+        for ch, index in enumerate(ordered_indexes):        #Use original order and reorder top down.
+            tsf.ec_traces[ch,tsf_index:tsf_index+len(temp_tsf.ec_traces[ch])] = temp_tsf.ec_traces[index]
         
         tsf_index+=len(temp_tsf.ec_traces[ch])
         
@@ -3790,46 +3863,58 @@ def concatenate_lfp_zip(self):
     print "...concatenate lfp.zip files..."
     
     #This is only for Nick, Martin cat data; for intan data, can make lfp files from raw .tsf files directly
-    for ctr, dir_name in enumerate(self.parent.animal.tsf_files):
+    files_in = np.loadtxt(self.tsf_files[0], dtype=str)
+
+    tsf = TSF.TSF('')       #Initialize empty tsf
+
+    tsf.file_names = []
+    tsf.n_samples = []
+    tsf.n_digital_chs = []
+    tsf.digital_chs = []
+    tsf.n_vd_samples = 0
+
+    tsf.ec_traces = [[]]*10
+    for ctr, file_name in enumerate(files_in):
+        tsf.file_names.append(file_name)
         
-        file_name = dir_name+dir_name[dir_name.rfind('/'):]+'.lfp.zip'
-        print file_name
-        if ctr==0:
-            self.parent.animal.load_lfp_all(file_name)
-            tsf = self.parent.animal.tsf
-            tsf.iformat = 1002
-            tsf.header = 'Test spike file '
-        else:
-            self.parent.animal.load_lfp_all(file_name)
-            tsf_temp = self.parent.animal.tsf
-            
-            temp_ec_traces=[]
-            for ch in range(tsf.n_electrodes):
-                temp_ec_traces.append(np.append(tsf.ec_traces[ch],tsf_temp.ec_traces[ch]))
-            
-            tsf.ec_traces=np.int16(temp_ec_traces)
-            tsf.n_vd_samples += tsf_temp.n_vd_samples
-    
+        tsf_temp = load_lfp_all(file_name)
+
+        temp_ec_traces=[]
+        for ch in range(tsf_temp.n_electrodes):
+            temp_ec_traces.append(np.append(tsf.ec_traces[ch],tsf_temp.ec_traces[ch]))
+        
+        tsf.ec_traces=np.int16(temp_ec_traces)
+        tsf.n_vd_samples += tsf_temp.n_vd_samples
+
+        tsf.n_samples.append(tsf_temp.n_vd_samples)
+        tsf.n_digital_chs.append(0)
+        tsf.digital_chs.append([])
+
+    tsf.iformat = tsf_temp.iformat
+    tsf.header = tsf_temp.header    
     tsf.n_cell_spikes = 0
-    tsf.Siteloc=np.ravel(tsf.Siteloc[tsf.chans])        #Channel locations saved as flattened x,y coords
+    tsf.Siteloc=np.ravel(tsf_temp.Siteloc)        #Channel locations saved as flattened x,y coords
+    tsf.n_electrodes = tsf_temp.n_electrodes
+    tsf.SampleFrequency = tsf_temp.SampleFrequency
+    tsf.vscale_HP = tsf_temp.vscale_HP
     
     print tsf.iformat
     print tsf.SampleFrequency
     print tsf.n_electrodes
     print tsf.n_vd_samples, tsf.n_vd_samples/float(tsf.SampleFrequency)
     print tsf.vscale_HP
-    print tsf.chans
     print tsf.Siteloc
+    tsf.Readloc = np.arange(1,tsf.n_electrodes+1,1)
+    tsf.layout = tsf.Readloc-1
     
-    print tsf.ec_traces
-
     tsf.ec_traces = np.int16(tsf.ec_traces*tsf.vscale_HP)
     tsf.vscale_HP = 1.0
     
-    print ''; print "...saving alltrack .tsf..."
-    file_name = self.parent.animal.tsf_files[0] + "_alltrack_lp.tsf"
-    save_tsf_single(tsf, file_name)    
     
+    print ''; print "...saving alltrack .tsf..."
+    file_name = files_in[0].replace('.lfp.zip', "_alltrack_lfp.tsf")
+    save_tsf_single(tsf, file_name)    
+    tsf.save_tsf
     print "... done saving..."
 
 def compress_lfp(self):
@@ -9897,6 +9982,8 @@ def load_lfp_all(file_name):     #Nick/Martin data has different LFP structure t
     
     tsf = Object_empty()
     tsf.file_name = file_name
+    tsf.iformat = 1002
+    tsf.header = 'Test spike file '
     
     data_in = np.load(file_name)
     tsf.SampleFrequency = data_in['tres']

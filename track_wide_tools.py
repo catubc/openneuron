@@ -15,7 +15,8 @@ class TrackWideTools(QtGui.QWidget):
         self.parent = parent
         layout = QtGui.QGridLayout()
         #self.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
-        self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering'
 
         row_index= 0
         #*****************************************************************
@@ -109,10 +110,12 @@ class TrackWideTools(QtGui.QWidget):
     
     def multi_lfp_zip(self):
         print "... selecting multiple .lfp.zip recording directories ..."
-        dialog = FileDialog()   #**** SELECT MULTIPLE DIRECTORIES, NOT INDIVIDUAL FIELS
-        dialog.exec_()
-        
-        self.parent.animal.tsf_files = dialog.out_files
+        #dialog = FileDialog()   #**** SELECT MULTIPLE DIRECTORIES, NOT INDIVIDUAL FIELS
+        #dialog.exec_()
+
+        in_files = QtGui.QFileDialog.getOpenFileNames(self, "*", self.root_dir, "*")
+
+        self.tsf_files = in_files
         concatenate_lfp_zip(self) 
             
     

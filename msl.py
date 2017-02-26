@@ -1,3 +1,4 @@
+
 import glob, os
 
 from PyQt4 import QtGui, QtCore
@@ -13,7 +14,7 @@ class MSL(QtGui.QWidget):
         
 
         self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
 
