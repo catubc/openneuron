@@ -14,7 +14,8 @@ class LFP(QtGui.QWidget):
         
         self.parent = parent
         
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
         self.selected_recording = self.parent.root_dir
         self.selected_sort_sua = self.parent.root_dir
         self.selected_sort_lfp = self.parent.root_dir
@@ -82,22 +83,24 @@ class LFP(QtGui.QWidget):
         layout.addWidget(specgram_db_clip_lbl, row_index,6)
         layout.addWidget(self.specgram_db_clip, row_index,7); row_index+=1  
                       
-        self.button3 = QPushButton('LFP Rasters')
-        self.button3.setMaximumWidth(200)
-        layout.addWidget(self.button3, row_index, 0)
-        self.button3.clicked.connect(self.view_lfp_raster); row_index+=1
-
         self.button10 = QPushButton('View Spegram')
         self.button10.setLayoutDirection(QtCore.Qt.RightToLeft)
         layout.addWidget(self.button10, row_index, 0)
-        self.button10.clicked.connect(self.view_Specgram); row_index+=1   
+        self.button10.clicked.connect(self.view_Specgram); row_index+=1  
         
-        self.tfr_spec = QPushButton('View TFR Spegram')
+        self.button3 = QPushButton('Specgram + LFP Rasters')
+        self.button3.setMaximumWidth(200)
+        layout.addWidget(self.button3, row_index, 0)
+        self.button3.clicked.connect(self.view_lfp_raster); row_index+=1
+ 
+        
+        self.tfr_spec = QPushButton('TFR Spegram + Rasters')
         self.tfr_spec.setLayoutDirection(QtCore.Qt.RightToLeft)
         layout.addWidget(self.tfr_spec, row_index, 0)
         self.tfr_spec.clicked.connect(self.view_Specgram_tfr)    
         
         self.setLayout(layout)
+
 
     def slct_recording(self):
         self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.selected_recording,"TSF (*.tsf)") 
@@ -106,11 +109,13 @@ class LFP(QtGui.QWidget):
         self.recName = self.selected_recording
         #self.tsf = Tsf_file(self.selected_recording)
         #self.tsf.read_ec_traces()
+
   
     def slct_sort_lfp(self):
         self.selected_sort_lfp =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_recording,"PTCS (*.ptcs)")
         path_name, file_name = os.path.split(self.selected_sort_lfp)
         self.select_sort_lfp_lbl.setText(file_name)
+
         
     def slct_sort_sua(self):
         self.selected_sort_sua =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_recording,"PTCS (*.ptcs)")
@@ -118,15 +123,18 @@ class LFP(QtGui.QWidget):
         self.selected_sort_sua_lbl.setText(file_name)
         
         
-    def view_lfp_raster(self):
-        #self.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
-        self.ptcsName = self.selected_sort_lfp
-        plot_rasters(self)
 
     def view_Specgram(self):
         #Specgram_syncindex(self, 0) #Use regular specgram
         Specgram_syncindex(self) #Use regular specgram
         
+        
+    def view_lfp_raster(self):
+        #self.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+        self.ptcsName = self.selected_sort_lfp
+        plot_rasters(self)
+
+        
     def view_Specgram_tfr(self):
-        Specgram_syncindex(self)     #Use TFR specgram
+        Specgram_syncindex_tfr(self)     #Use TFR specgram
             
