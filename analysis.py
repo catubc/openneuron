@@ -3881,6 +3881,8 @@ def concatenate_lfp_zip(self):
         
         tsf_temp = load_lfp_all(file_name)
 
+        print tsf_temp.chans
+
         temp_ec_traces=[]
         for ch in range(tsf_temp.n_electrodes):
             temp_ec_traces.append(np.append(tsf.ec_traces[ch],tsf_temp.ec_traces[ch]))
@@ -3895,7 +3897,7 @@ def concatenate_lfp_zip(self):
     tsf.iformat = tsf_temp.iformat
     tsf.header = tsf_temp.header    
     tsf.n_cell_spikes = 0
-    tsf.Siteloc=np.ravel(tsf_temp.Siteloc)        #Channel locations saved as flattened x,y coords
+    tsf.Siteloc=np.ravel(tsf_temp.Siteloc[tsf_temp.chans])        #Channel locations saved as flattened x,y coords
     tsf.n_electrodes = tsf_temp.n_electrodes
     tsf.SampleFrequency = tsf_temp.SampleFrequency
     tsf.vscale_HP = tsf_temp.vscale_HP
@@ -4524,8 +4526,17 @@ def Notch_Filter(data, fs=1000, band=1., freq=60., ripple=10, order=4, filter_ty
     
     return filtered_data
 
+
 def view_templates(self):
     print "..."
+
+    top_channel = int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1)      #Load top channel for track; convert to 0-based ichannel values.
+    
+    bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/electrode_mask.txt", dtype=np.int32)
+    
+    if 0 in bad_channels:
+        bad_channels = []
+       
 
     font_size = 20
     n_samples = int(self.n_sample_pts.text())
@@ -4558,52 +4569,68 @@ def view_templates(self):
     """
     spikes = Sort.units[int(self.selected_unit.text())]*1E-6 * Sort.samplerate
     
-    maxchan_trough = []
-    for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
-        print "...plotting ch: ", k
+    print self.tsf.Siteloc
+    
+
+    max_chan_traces = []
+    for k in range(top_channel, self.tsf.n_electrodes, electrode_rarifier):
+        print "...plotting ch: ", k, "  depth: ", -self.tsf.Siteloc[k*2+1]
         
-        if k !=maxchan: continue
+        ch_offset = 0
+        if k in bad_channels:   #SKIP BAD CHANNELS AND SELECT NEXT CHANNEL
+            ch_offset=1
+        
+        if k !=maxchan:continue
+        
+        self.tsf.ec_traces[k+ch_offset] = butter_highpass_filter (self.tsf.ec_traces[k+ch_offset], 4.0, 1000., 5)
+
         traces = []
         for spike in spikes:
             #print spike
-            trace_out = self.tsf.ec_traces[k][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP
+            trace_out = self.tsf.ec_traces[k+ch_offset][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP*voltage_scaling
             
             if len(trace_out)!=(n_samples*2+1):     #If end/begining of potentials;
                 continue
             
             traces.append(trace_out)
-            
-            #Plot every mod X trace
-            #if (int(spike)%10==0): 
-            #    plt.plot(t, trace_out-voltage_scaling*self.tsf.Siteloc[k*2+1], color=self.selected_colour, linewidth=1, alpha=.04)
-        
-            if k==maxchan: 
+
+            if (k+ch_offset) == maxchan:     #LFP STABILITY METRICS
+                max_chan_traces.append(trace_out)
+                
+                #maxchan_peak.append(np.argmin(trace_out[n_samples-40:n_samples+40]))
                 #maxchan_trough.append(np.argmin(trace_out[n_samples-40:n_samples+40]))
                 #maxchan_trough.append(np.argmin(trace_out[n_samples:n_samples+60]))
-                maxchan_trough.append(np.argmin(trace_out[n_samples-100:n_samples]))
+                #maxchan_trough.append(np.argmin(trace_out[n_samples-100:n_samples]))
         
         print len(traces)
         
         trace_ave = np.average(traces, axis=0)
         trace_std = np.std(traces, axis=0)
        
-        offset = -voltage_scaling*self.tsf.Siteloc[k*2+1]
-        plt.plot(t, trace_ave+offset, color='black', linewidth=2)
+        #offset = -voltage_scaling*self.tsf.Siteloc[k*2+1]
+        offset = -self.tsf.Siteloc[k*2+1]
+        
+        if k == maxchan:
+            plt.plot(t, trace_ave+offset, color='black', linewidth=5, alpha=1)
+        else: 
+            plt.plot(t, trace_ave+offset, color='black', linewidth=3, alpha=0.25)
+        
         ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.2)
 
         plt.plot([-n_samples,n_samples], [offset, offset], color='black', linewidth=2, alpha=.35)
 
-    maxchan_troughs = np.array(maxchan_trough)+20 #Centre data on exported times
-    print maxchan_troughs
+    #maxchan_troughs = np.array(maxchan_trough)+20 #Centre data on exported times
+    #print maxchan_troughs
     
-    plt.plot([t[-1]+10,t[-1]+10], [-220, 20], color='black', linewidth=3)
+    plt.plot([t[-1]+50,t[-1]+50], [-500, -400], color='black', linewidth=4)
     plt.plot([0,0], [150, -5000], 'r--', color='black', linewidth=2, alpha=.5)
 
     #Set ylabel
-    old_ylabel = -voltage_scaling*np.arange(0, np.max(self.tsf.Siteloc)+1, 100)
-    new_ylabel = np.int16(np.arange(0, np.max(self.tsf.Siteloc)+1, 100))
-    plt.locator_params(axis='y',nbins=5)
-    plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    #old_ylabel = -voltage_scaling*np.arange(0, np.max(self.tsf.Siteloc)+1, 100)
+    #new_ylabel = np.int16(np.arange(0, np.max(self.tsf.Siteloc)+1, 100))
+    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    #plt.locator_params(axis='y',nbins=5)
+    
     plt.ylabel("Depth (um)", fontsize=font_size)
 
     #Set xlabel
@@ -4615,27 +4642,135 @@ def view_templates(self):
     plt.tick_params(axis='both', which='both', labelsize=font_size)
     plt.locator_params(axis='x',nbins=10)
 
-    plt.ylim(old_ylabel[-1]*1.15,old_ylabel[0]+150)
+    plt.ylim(-2400, 150)
     plt.xlim(old_xlabel[0], old_xlabel[-1]*5)
     
-    plt.title("# Events: "+ str(len(spikes)), fontsize = font_size)
+    plt.title("#: "+ str(len(spikes)), fontsize = font_size)
     
+    
+    #***************************************************************************************************
     #************************************* PLOT LFP SHAPE STABILITY HISTOGRAMS ****************************
+    #***************************************************************************************************
+
+
     #Plot trough histogram
     ax = plt.subplot(1,2,2)
-    plt.title("STD: "+ str(np.round(np.std(maxchan_troughs),2))+"ms.", fontsize = font_size)
+    #plt.title("STD: "+ str(np.round(np.std(maxchan_troughs),2))+"ms.", fontsize = font_size)
 
-    bin_width = 1   # histogram bin width in usec
-    print "...std troughs: ", np.std(maxchan_troughs)
-    y = np.histogram(maxchan_troughs, bins = np.arange(-50,100,bin_width))
-    #plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
-    plt.bar(y[1][:-1], y[0], bin_width, color=self.selected_colour)
-    plt.xlabel("Time (ms)", fontsize = font_size*1.5)
-    plt.tick_params(axis='both', which='both', labelsize=font_size*1.5)
+    if True: 
+        
+        trace_ave = np.mean(max_chan_traces, axis=0)
+        trough_loc = np.argmin(trace_ave)
+        peak_loc = np.argmax(trace_ave)
+        trough_time = []
+        peak_time = []
+        ptp_amplitude = []
+       
+        for k in range(len(max_chan_traces)): 
+            trough_temp = np.argmin(max_chan_traces[k][trough_loc-25:trough_loc+25])+trough_loc-25
+            trough_time.append(n_samples - trough_temp)
+            
+            peak_temp = np.argmax(max_chan_traces[k][peak_loc-25:peak_loc+25])+peak_loc-25
+            peak_time.append(n_samples - peak_temp)
+            
+            ptp_amplitude.append(max_chan_traces[k][peak_temp]-max_chan_traces[k][trough_temp])
+                
+        bin_width = 5   # histogram bin width in usec
+        print "...std time trough: ", np.std(trough_time)
+        std_trough = np.std(trough_time)
+        std_peak = np.std(peak_time)
+        if std_trough<std_peak: 
+            y = np.histogram(trough_time, bins = np.arange(-n_samples,n_samples,bin_width))
+            plt.bar(y[1][:-1], y[0], bin_width, color=self.selected_colour, alpha=1)
 
-    plt.xlim(-40,80)
+        else: 
+            print "...std time peak: ", np.std(peak_time)
+            y = np.histogram(peak_time, bins = np.arange(-n_samples,n_samples,bin_width))
+            plt.bar(y[1][:-1], y[0], bin_width, color=self.selected_colour, alpha=1)
+        
+        std_overall = np.round(min(np.std(trough_time),np.std(peak_time)),1)
+        
+
+        #if False: 
+            #trough_time = []
+            #peak_time = []
+            #fwhm_trough = []
+            #fwhm_peak = []
+            
+            #for k in range(len(max_chan_traces)): 
+                #trough_temp = np.argmin(max_chan_traces[k][trough_loc-25:trough_loc+25])
+                #trough_time.append(trough_temp)
+                
+                #peak_temp = np.argmax(max_chan_traces[k][peak_loc-25:peak_loc+25])
+                #peak_time.append(peak_temp)
+                
+                ##FIND TROUGH FWHM
+                #fwhm = []
+                #for p in range(trough_temp, 0, -1):
+                    #if (max_chan_traces[k][p]< max_chan_traces[k][trough_temp]/2.) and (max_chan_traces[k][p-1]> max_chan_traces[k][trough_temp]/2.):
+                        #fwhm.append(p)
+                        #break
+                
+                #for p in range(trough_temp, n_samples*2, 1):
+                    #if (max_chan_traces[k][p]< max_chan_traces[k][trough_temp]/2.) and (max_chan_traces[k][p-1]> max_chan_traces[k][trough_temp]/2.):
+                        #fwhm.append(p)
+                        #break
+                #print fwhm
+                #if len(fwhm)>1:
+                    #fwhm_trough.append(fwhm[1]-fwhm[0])
+                
+                ##FIND PEAK FWHM
+                #fwhm = []
+                #for p in range(peak_temp, 0, -1):
+                    #if (max_chan_traces[k][p]> max_chan_traces[k][peak_temp]/2.) and (max_chan_traces[k][p-1]< max_chan_traces[k][peak_temp]/2.):
+                        #fwhm.append(p)
+                        #break
+                
+                #for p in range(peak_temp, n_samples*2, 1):
+                    #if (max_chan_traces[k][p]> max_chan_traces[k][peak_temp]/2.) and (max_chan_traces[k][p+1]< max_chan_traces[k][peak_temp]/2.):
+                        #fwhm.append(p)
+                        #break
+                #print fwhm
+                
+                #if len(fwhm)>1: 
+                    #fwhm_peak.append(fwhm[1]-fwhm[0])
+            
+            #fwhm_trough = np.float32(fwhm_trough)
+            #fwhm_peak = np.float32(fwhm_peak)
+            
+            #bin_width = 2   # histogram bin width in usec
+            #print "...fwhm_peak std: ", np.std(fwhm_peak)
+            #y = np.histogram(fwhm_peak, bins = np.arange(0,n_samples*2,bin_width))
+            ##plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
+            #plt.bar(y[1][:-1], y[0], bin_width, color='green', alpha=.5)
+
+
+            #bin_width = 2   # histogram bin width in usec
+            #print "...fwhm_trough std: ", np.std(fwhm_trough)
+            #y = np.histogram(fwhm_trough, bins = np.arange(0,n_samples*2,bin_width))
+            ##plt.bar(y[1][:-1]*1E-3, np.float32(y[0])/np.max(y[0])*len(locked_spikes), bin_width*1E-3, color='blue', alpha=0.2)
+            #plt.bar(y[1][:-1], y[0], bin_width, color='magenta', alpha=.5)
+
+
+
+
+        plt.xlabel("Time (ms)", fontsize = font_size*1.5)
+        plt.tick_params(axis='both', which='both', labelsize=font_size*1.5)
+        plt.title("Unit: "+self.selected_unit.text()+ "  STD: " + str(std_overall)+ 'ms \n'+os.path.split(self.selected_recording)[1], fontsize=font_size)
+        plt.yticks([])
+        
+        plt.xlim(-0,100)
 
     plt.show()
+    
+    return
+    #PLOT 
+    
+    plt.plot(peak_time, color='red')
+    plt.plot(trough_time, color='blue')
+    plt.plot(ptp_amplitude, color='green', linewidth=3)
+    plt.show()
+    
 
 def view_traces(self):
     """ Display raw traces
@@ -5258,31 +5393,385 @@ def view_all_csd(self):
     print "... done..."
     return
 
-   
-def Specgram_syncindex_tfr(self):
 
-    #********** PLOT MTSpecgram ************
-    #Find deepest channel by parsing sorted units:
+def Multitaper_specgram(time_series, sampfreq):
     
-    channel = 9  #max(Sorts_sua[rec_index].maxchan)
-    print "deepest ch: ", channel
-    file_name = glob.glob(sim_dir+rec+"*")[0]
-    file_name = file_name.replace(sim_dir, '')
+    from libtfr import * #hermf, dpss, trf_spec <- these are some of the fucntions; for som reason last one can't be explicitly imported
+
     
-    fname = sim_dir+file_name+'/'+"specgram_ch_"+str(channel)+"_start_"+str(start_traces)+"_end_"+str(end_traces)
+    plotting=False
+    if plotting:
+        ax2 = plt.subplot(1,1,1)
+        ax2.autoscale(enable=True, tight=True)
+    
+    #**************************************
+    
+    s = time_series
+    print "Length of recording: ", len(s)
+
+    #******************************************************
+    #Plot multi taper specgram
+
+    #General parametrs
+    f0=0.1
+    f1=100
+    sampfreq=1000
+
+    #time parameters
+    t0 = None
+    t1 = None
+    ts = np.arange(0,len(s),1.0)/sampfreq
+
+    if t0 == None:
+        t0, t1 = ts[0], ts[-1] # full duration
+    if t1 == None:
+        t1 = t0 + 10 # 10 sec window
+            
+    #Multi taper function parameters
+    N = 512     #Number of tapers 
+    NW = 40     #
+    step = 10   #shift
+    k = 6       #
+    tm = 6.0    #time support of the 
+    Np = 201    #
+
+    w = np.hamming(N)
+
+    h,Dh,Th = hermf(N, k, tm)
+    E,V   = dpss(N, NW, k)
+    
+    print "Computing trf_specgram..."
+    spec = tfr_spec(s, N, step, Np, k, tm)
+    print "..."
+    #OTHER TYPES OF FUNCTIONS... Did not check in detail
+    #mpsd  = mtm_psd(s, NW)
+    #J     = mtfft(s, NW)
+    #spec  = stft(s, w, step)
+    #mspec = mtm_spec(s, N, step, NW)
+    #tspec_zoom = tfr_spec(s, N, step, Np, k, tm, fgrid=np.linspace(0.1,0.475,512))
+    #tspec_log = tfr_spec(s, N, step, Np, k, tm, fgrid=log_fgrid(0.1, 0.45, 256))
+    
+
+    extent = t0, t1, f0, f1
+
+    lo = 0
+    hi = int(float(N)/1000. * f1)
+    print lo, hi
+
+    spec = spec[lo:hi]
+
+    zis = np.where(spec == 0.0) # row and column indices where P has zero power
+    if len(zis[0]) > 0: # at least one hit
+        spec[zis] = np.finfo(np.float64).max # temporarily replace zeros with max float
+        minnzval = spec.min() # get minimum nonzero value
+        spec[zis] = minnzval # replace with min nonzero values
+    spec = 10. * np.log10(spec) # convert power to dB wrt 1 mV^2?
+
+    p0=-40
+    p1=None
+    if p0 != None:
+        spec[spec < p0] = p0
+    if p1 != None:
+        spec[spec > p1] = p1
+
+    if plotting:
+        im = ax2.imshow(spec[::-1], extent=extent, aspect='auto', cmap=None) #, vmin=0, vmax=1e2)
+        plt.show()
+
+    return spec[::-1], extent
+
+
+def plot_all_rasters(self):
+    """ Function doc """
+    
+
+    colors=['blue','red', 'green', 'violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
+
+    channel=int(self.specgram_ch.text())
+    top_channel = np.loadtxt(os.path.split(os.path.split(self.selected_sort_sua)[0])[0]+"/top_channel.txt") - 1      #Load top channel for track; convert to 0-based ichannel values.
+
+    tsf = TSF.TSF(self.selected_recording)
+    tsf.read_ec_traces()
+    print "... len of rec: ", tsf.n_vd_samples/tsf.SampleFrequency
         
-    if (os.path.exists(fname+".npy")==False):
-        img, extent = Multitaper_specgram(lfp.data[rec_index][channel][start_traces*1E6:end_traces*1E6], 1E3)
-        np.save(fname, img)
-        np.save(fname+'_extent', extent)
-    else: 
-        img = np.load(fname+'.npy')
-        extent = np.load(fname+'_extent.npy')
+    #Find deepest channel by parsing sorted units:
+    ax = plt.subplot(111)
+       
+    sync_0 = 0
+    sync_1 = -10
+    sync_scale = 20
+    font_size = 30
+    
+    #******************* PLOT SUA RASTERS ***************************
+    #Load SUA Sort
 
-    extent = extent[0]+start_traces, extent[1]+start_traces, extent[2], extent[3]
-    im = ax_image.imshow(img, extent=extent, aspect='auto') #, extent=tsf.extent, cmap=tsf.cm)
+    Sort_sua = PTCS.PTCS(self.selected_sort_sua) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
     
+    if False: 
+        n_spikes = []
+        for k in range(len(Sort_sua.units)):
+            n_spikes.append(len(Sort_sua.units[k]))
+        n_spikes = np.array(n_spikes)
+        indexes = np.argsort(n_spikes)
+        print indexes
+    else:
+        indexes = np.arange(Sort_sua.n_units)
+
+    offset = sync_0-10
     
+    y = []
+    mua = []
+    for i in indexes: #range(len(Sort_sua.units)):
+        print "... unit: ", i
+    #for i in indexes[0:5]: #range(len(Sort_sua.units)):
+        #x = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)/float(Sort_sua.samplerate) #float(Sort1.samplerate)*2.5
+        spikes = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)*1E-6
+
+        x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
+
+        ymin=np.zeros(len(x))
+        ymax=np.zeros(len(x))
+        ymin+=offset+0.2
+        ymax+=offset-0.2
+
+        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=.5, color='black') #colors[mod(counter,7)])
+
+        y.append(x)
+        
+        offset=offset-0.5
+
+        mua.extend(x-float(self.time_start.text()))
+        
+    #******************** PLOT MUA HISTOGRAM *********************************
+    if False: 
+        #mua=[]
+        #for i in range(len(Sort_sua.units)):
+        #    mua.extend(np.array(Sort_sua.units[i])*1E-6)
+        offset = offset - 15
+        
+        mua_bin_width = 0.020
+        mua = np.array(mua)
+
+        mua_plot=np.histogram(mua, bins = np.arange(0, float(self.time_end.text()) - float(self.time_start.text()),mua_bin_width))
+        plt.plot(mua_plot[1][0:-1],mua_plot[0]*.5+offset-40, linewidth=3, color='blue', alpha=1)
+    
+
+    #**************************** PLOT LFP RASTERS *************************
+    #Load LFP Sort
+    print "...loading lfp sort..."
+    Sort_lfp = PTCS.PTCS(self.selected_sort_lfp) #Auto load flag for Nick's data
+
+    offset = offset - 2.
+    y = []
+
+        
+    for i in range(len(Sort_lfp.units)):
+        spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
+        print "... unit: ", i, " colour: ", colors[i%9], "  # events: ", len(spikes)
+        if len(spikes)<100: continue
+
+        x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
+
+        ymin=np.zeros(len(x))
+        ymax=np.zeros(len(x))
+
+        ymin+=offset
+        ymax+=offset-5
+
+        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=2, color=colors[i%9]) #colors[mod(counter,7)])
+    
+        offset=offset-5
+        
+    
+    #******************** LABELING ********************
+
+   
+    #old_ylabel = [sync_0, sync_0/2, sync_1, 0, f1/2, f1]
+    #new_ylabel = [0, 0.7, 1, 0, f1/2, f1]
+    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    
+
+    old_xlabel = np.linspace(0, float(self.time_end.text()) - float(self.time_start.text()), 9)
+    #new_xlabel = np.round(np.linspace(float(self.time_start.text()), float(self.time_end.text()), 9), 1)
+    new_xlabel = np.round(np.linspace(float(self.time_start.text())/60., float(self.time_end.text())/60., 9), 1)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+
+    plt.xlim(0, float(self.time_end.text()) - float(self.time_start.text()))
+    ax.tick_params(axis='both', which='both', labelsize=font_size)
+
+    #plt.xlabel("Time (sec)", fontsize = font_size , weight = 'bold')        
+    plt.xlabel("Time (min)", fontsize = font_size , weight = 'bold')        
+
+
+    plt.ylabel(' Multi-Laminar LFP   ', fontsize=font_size, weight = 'bold')           
+
+    plt.ylim(-70, -10)
+
+    plt.show()
+    
+
+
+    
+
+def Specgram_syncindex_tfr(self):
+    '''PLOT TFR Specgram + MUA histograms + LFP traces + SUA Rasters
+    '''
+    
+    colors=['blue','red', 'green', 'violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
+
+    channel=int(self.specgram_ch.text())
+    top_channel = np.loadtxt(os.path.split(os.path.split(self.selected_sort_sua)[0])[0]+"/top_channel.txt") - 1      #Load top channel for track; convert to 0-based ichannel values.
+
+    tsf = TSF.TSF(self.selected_recording)
+    tsf.read_ec_traces()
+        
+    #Find deepest channel by parsing sorted units:
+    ax = plt.subplot(111)
+   
+    #******************* PLOT TRF SPECGRAM ***************************
+    if False: 
+        data_in = tsf.ec_traces[channel][int(float(self.time_start.text())*tsf.SampleFrequency):int(float(self.time_end.text())*tsf.SampleFrequency)]
+
+        #if (os.path.exists(fname+".npy")==False):
+        img, extent = Multitaper_specgram(data_in, 1000)    #
+        #    np.save(fname, img)
+        #    np.save(fname+'_extent', extent)
+        #else: 
+        #    img = np.load(fname+'.npy')
+        #    extent = np.load(fname+'_extent.npy')
+
+        #extent = extent[0]+start_traces, extent[1]+start_traces, extent[2], extent[3]
+        im = ax.imshow(img, extent=extent, aspect='auto') #, extent=tsf.extent, cmap=tsf.cm)
+    
+    sync_0 = 0
+    sync_1 = -10
+    sync_scale = 20
+    font_size = 30
+    
+    #******************* PLOT SUA RASTERS ***************************
+    #Load SUA Sort
+
+    Sort_sua = PTCS.PTCS(self.selected_sort_sua) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+    
+    if False: 
+        n_spikes = []
+        for k in range(len(Sort_sua.units)):
+            n_spikes.append(len(Sort_sua.units[k]))
+        n_spikes = np.array(n_spikes)
+        indexes = np.argsort(n_spikes)
+        print indexes
+    else:
+        indexes = np.arange(Sort_sua.n_units)
+
+    offset = sync_0-10
+    
+    y = []
+    mua = []
+    for i in indexes: #range(len(Sort_sua.units)):
+        print "... unit: ", i
+    #for i in indexes[0:5]: #range(len(Sort_sua.units)):
+        #x = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)/float(Sort_sua.samplerate) #float(Sort1.samplerate)*2.5
+        spikes = np.array(Sort_sua.units[indexes[i]],dtype=np.float32)*1E-6
+
+        x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
+
+        ymin=np.zeros(len(x))
+        ymax=np.zeros(len(x))
+        ymin+=offset+0.8
+        ymax+=offset-0.8
+
+        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=3, color='black') #colors[mod(counter,7)])
+
+        y.append(x)
+        
+        offset=offset-1.0
+
+        mua.extend(x-float(self.time_start.text()))
+    #******************** PLOT MUA HISTOGRAM *********************************
+    
+    #mua=[]
+    #for i in range(len(Sort_sua.units)):
+    #    mua.extend(np.array(Sort_sua.units[i])*1E-6)
+    offset = offset - 30
+    
+    mua_bin_width = 0.020
+    mua = np.array(mua)
+
+    mua_plot=np.histogram(mua, bins = np.arange(0, float(self.time_end.text()) - float(self.time_start.text()),mua_bin_width))
+    plt.plot(mua_plot[1][0:-1],mua_plot[0]*.5+offset-40, linewidth=3, color='blue', alpha=1)
+    
+
+    #******************** PLOT LFP TRACES ******************************
+    offset = offset - 100
+    t = np.arange(0, float(self.time_end.text())-float(self.time_start.text()), 1./tsf.SampleFrequency)
+    for ch in range(0, tsf.n_electrodes, 4):
+        if ch<top_channel: continue
+        trace_temp = tsf.ec_traces[ch][int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
+        
+        trace_temp = butter_highpass_filter(trace_temp, 1.0, 1000, 5)
+        trace_temp = butter_lowpass_filter(trace_temp, 50.0, 1000, 5)
+        
+        plt.plot(t,trace_temp/150.-1+offset, color='black')
+        
+        offset=offset-50
+
+
+    #**************************** PLOT LFP RASTERS *************************
+    #Load LFP Sort
+    print "...loading lfp sort..."
+    Sort_lfp = PTCS.PTCS(self.selected_sort_lfp) #Auto load flag for Nick's data
+
+    offset = offset - 50.
+    y = []
+    for i in range(len(Sort_lfp.units)):
+        spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
+
+        x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
+
+        ymin=np.zeros(len(x))
+        ymax=np.zeros(len(x))
+
+        ymin+=offset
+        ymax+=offset-50
+
+        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=3, color=colors[i%9]) #colors[mod(counter,7)])
+    
+        #offset=offset-50
+        
+    
+    #******************** LABELING ********************
+
+   
+    #old_ylabel = [sync_0, sync_0/2, sync_1, 0, f1/2, f1]
+    #new_ylabel = [0, 0.7, 1, 0, f1/2, f1]
+    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    
+
+    old_xlabel = np.linspace(0, float(self.time_end.text()) - float(self.time_start.text()), 9)
+    new_xlabel = np.round(np.linspace(float(self.time_start.text()), float(self.time_end.text()), 9), 1)
+    plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
+
+    plt.xlim(0, float(self.time_end.text()) - float(self.time_start.text()))
+    ax.tick_params(axis='both', which='both', labelsize=font_size)
+
+    plt.xlabel("Time (sec)", fontsize = font_size , weight = 'bold')        
+
+
+    plt.ylabel(' Multi-Laminar LFP   ', fontsize=font_size, weight = 'bold')           
+
+
+
+    plt.show()
+    
+
+
+
+
+
+
+
 
 def Specgram_syncindex(self):
     
@@ -5290,14 +5779,14 @@ def Specgram_syncindex(self):
     
     colors=['blue','green','violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
 
-    if '.tsf' in self.recName:
-        tsf = TSF.TSF(self.recName)
+    if '.tsf' in self.selected_recording:
+        tsf = TSF.TSF(self.selected_recording)
         tsf.read_ec_traces()
         #for k in range(0, len(tsf.Siteloc),2):
         #    print k, tsf.Siteloc[k], tsf.Siteloc[k+1]
             
-    elif '.lfp.zip' in self.recName:
-        tsf = load_lfpzip(self.recName)
+    elif '.lfp.zip' in self.selected_recording:
+        tsf = load_lfpzip(self.selected_recording)
         #for k in range(len(tsf.Siteloc)):
         #    print k, tsf.Siteloc[k]
 
@@ -5317,7 +5806,7 @@ def Specgram_syncindex(self):
     
     f0 = 0.1; f1 = 100
     p0 = float(self.specgram_db_clip.text())
-    temp_file = self.recName[:-4]+"_ch"+str(channel)+"specgram"
+    temp_file = self.selected_recording[:-4]+"_ch"+str(channel)+"specgram"
     #if os.path.exists(temp_file+'.npz'):
     #    data = np.load(temp_file+'.npz')
     #    P, extent = data['P'], data['extent']
@@ -5872,16 +6361,18 @@ def plot_rasters(self):
 
     channel=int(self.specgram_ch.text())
     
-    colors=['blue','green','violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
+    top_channel = np.loadtxt(os.path.split(os.path.split(self.selected_sort_sua)[0])[0]+"/top_channel.txt") - 1      #Load top channel for track; convert to 0-based ichannel values.
+    
+    colors=['blue','red', 'green', 'violet','lightseagreen','lightsalmon','dodgerblue','mediumvioletred','indianred','lightsalmon','pink','darkolivegreen']
 
-    if '.tsf' in self.recName:
-        tsf = TSF.TSF(self.recName)
+    if '.tsf' in self.selected_recording:
+        tsf = TSF.TSF(self.selected_recording)
         tsf.read_ec_traces()
         #for k in range(0, len(tsf.Siteloc),2):
         #    print k, tsf.Siteloc[k], tsf.Siteloc[k+1]
             
-    elif '.lfp.zip' in self.recName:
-        tsf = load_lfpzip(self.recName)
+    elif '.lfp.zip' in self.selected_recording:
+        tsf = load_lfpzip(self.selected_recording)
         #for k in range(len(tsf.Siteloc)):
         #    print k, tsf.Siteloc[k]
 
@@ -5901,7 +6392,7 @@ def plot_rasters(self):
     
     f0 = 0.1; f1 = 100
     p0 = float(self.specgram_db_clip.text())
-    temp_file = self.recName[:-4]+"_ch"+str(channel)+"specgram"
+    temp_file = self.selected_recording[:-4]+"_ch"+str(channel)+"specgram"
     #if os.path.exists(temp_file+'.npz'):
     #    data = np.load(temp_file+'.npz')
     #    P, extent = data['P'], data['extent']
@@ -5976,35 +6467,57 @@ def plot_rasters(self):
         
         offset=offset-1.0
 
-    #Plot LFP spike
-    offset = offset -10.
-    y = []
-    for i in range(len(Sort_lfp.units)):
-        #x = np.array(Sort_lfp.units[i],dtype=np.float32)/float(Sort_sua.samplerate)*50 #***************************** UNCOMPRESSSING LFP RASTERS
-        spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
+    ##Plot LFP spike
+    #offset = offset -10.
+    #y = []
+    #for i in range(len(Sort_lfp.units)):
+        ##x = np.array(Sort_lfp.units[i],dtype=np.float32)/float(Sort_sua.samplerate)*50 #***************************** UNCOMPRESSSING LFP RASTERS
+        #spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
 
-        x = spikes[np.where(np.logical_and(spikes>=int(self.time_start.text()), spikes<=int(self.time_end.text())))[0]]
+        #x = spikes[np.where(np.logical_and(spikes>=int(self.time_start.text()), spikes<=int(self.time_end.text())))[0]]
 
-        ymin=np.zeros(len(x))
-        ymax=np.zeros(len(x))
+        #ymin=np.zeros(len(x))
+        #ymax=np.zeros(len(x))
         
-        ymin+=offset-5
-        ymax+=offset-7
+        #ymin+=offset-5
+        #ymax+=offset-7
         
-        plt.vlines(x-int(self.time_start.text()), ymin, ymax, linewidth=3, color=colors[i%9]) #colors[mod(counter,7)])
+        #plt.vlines(x-int(self.time_start.text()), ymin, ymax, linewidth=3, color=colors[i%9]) #colors[mod(counter,7)])
     
-        offset=offset-2
-    
-    
+        #offset=offset-2
+
+
+    #********************************************************************************
+    #******************** PLOT LFP TRACES ******************************
+    #********************************************************************************
+    offset = offset - 100
+    t = np.arange(0, float(self.time_end.text())-float(self.time_start.text()), 1./tsf.SampleFrequency)
+    ch_skip = 1
+    if tsf.n_electrodes>10: ch_skip = 4
+    for ch in range(0, tsf.n_electrodes, ch_skip):
+        if ch<top_channel: continue
+        trace_temp = tsf.ec_traces[ch][int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
+        
+        trace_temp = butter_highpass_filter(trace_temp, 4.0, 1000, 5)
+        trace_temp = butter_lowpass_filter(trace_temp, 100.0, 1000, 5)
+        
+        plt.plot(t,trace_temp/5.-1+offset, color='black')
+        
+        offset=offset-50
+
+
+
+    #********************************************************************************
     #******************** LABELING ********************
+    #********************************************************************************
     
     old_ylabel = [sync_0, sync_0/2, sync_1, 0, f1/2, f1]
     new_ylabel = [0, 0.7, 1, 0, f1/2, f1]
     plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
     
 
-    old_xlabel = np.linspace(0, int(self.time_end.text()) - int(self.time_start.text()), 9)
-    new_xlabel = np.int32(np.linspace(int(self.time_start.text()), int(self.time_end.text()), 9))
+    old_xlabel = np.linspace(0, float(self.time_end.text()) - float(self.time_start.text()), 5)
+    new_xlabel = np.round(np.linspace(float(self.time_start.text()), float(self.time_end.text()), 5), 1)
     plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
 
 
@@ -6018,7 +6531,9 @@ def plot_rasters(self):
 
     #ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
-    plt.ylabel('Single Unit Rasters     Synchrony Index   Specgram Frequency (Hz)', fontsize=font_size, weight = 'bold')           
+    #plt.ylabel('Single Unit Rasters     Synchrony Index   Specgram Frequency (Hz)', fontsize=font_size, weight = 'bold')           
+    
+    plt.ylabel('LFP   Thresholded Events      Clustered Events', fontsize=font_size, weight = 'bold')           
     #plt.ylabel('LFP Cluster Raster         Single Unit IDs',multialignment='center', fontsize=35, weight='bold')
     
     plt.xlim(0, int(self.time_end.text())-int(self.time_start.text()))

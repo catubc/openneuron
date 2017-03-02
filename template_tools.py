@@ -14,12 +14,26 @@ class TemplateTools(QtGui.QWidget):
         layout = QtGui.QGridLayout()
 
         self.parent = parent
-        #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
-        self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         
-            
+        #CAT VISUAL
+        #self.selected_recording = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
+        #self.selected_sort ='/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+
+        #MOUSE VISUAL
+        #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
+        #self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        
+        #MOUSE BARREL 
+        #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_lfp_100hz_alltrack.tsf'
+        #self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_lfp_100hz_alltrack_50compressed.ptcs'
+        
+        #MOUSE AUDITORY
+        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack.tsf'
+        self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
+        
+        
         row_index = 0
         #Select recording
         self.button_select_recording = QPushButton('LFP Recording (uncompressed)')
@@ -147,19 +161,21 @@ class TemplateTools(QtGui.QWidget):
         self.select_sort_lbl.setText(os.path.split(self.selected_sort)[1])
 
         
-        
-
   
     def slct_sort(self):
         self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.selected_sort,"PTCS (*.ptcs)")
         path_name, file_name = os.path.split(self.selected_sort)
         self.select_sort_lbl.setText(file_name)
    
+   
+   
     def vw_templates(self):
         view_templates(self)
     
+    
     def vw_csd(self):
         view_csd(self)
+
 
     def vw_all_csd(self):
         view_all_csd(self)
@@ -167,3 +183,5 @@ class TemplateTools(QtGui.QWidget):
 
     def slct_colour(self, text):
         self.selected_colour = text
+        
+        
