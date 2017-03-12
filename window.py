@@ -21,7 +21,9 @@ from seamans import Seamans
 from template_tools import TemplateTools
 from traces_tools import TracesTools
 from lfp import LFP
-         
+from rasters import Rasters
+from filter import Filter
+
 class Window(QtGui.QMainWindow):
 
     def __init__(self):
@@ -177,6 +179,12 @@ class Window(QtGui.QMainWindow):
         MSL_Analysis.setStatusTip('MSL')
         MSL_Analysis.triggered.connect(self.msl_analysis)
 
+
+        Rasters_Analysis = QtGui.QAction("&Rasters", self)
+        Rasters_Analysis.setStatusTip('Raster Analysis')
+        Rasters_Analysis.triggered.connect(self.rasters_analysis)
+        
+        
         Count_Matrix = QtGui.QAction("&Count Matrix", self)
         Count_Matrix.setStatusTip('Count Matrix')
         Count_Matrix.triggered.connect(self.view_count_matrix)
@@ -216,9 +224,10 @@ class Window(QtGui.QMainWindow):
         fileMenu = mainMenu.addMenu('Ephys Tools')
         fileMenu.addAction(View_Traces)
         fileMenu.addAction(View_Templates)
-
         fileMenu.addAction(LFP_Analysis)
         fileMenu.addAction(MSL_Analysis)
+        fileMenu.addAction(Rasters_Analysis)
+
         fileMenu.addAction(Count_Matrix)
 
     #************* LOAD FILE MENUS *****************
@@ -346,6 +355,13 @@ class Window(QtGui.QMainWindow):
         msl_widget = MSL(self)
         self.central_widget.addWidget(msl_widget)  
         self.central_widget.setCurrentWidget(msl_widget)
+
+
+    def rasters_analysis(self):
+        rasters_widget = Rasters(self)
+        self.central_widget.addWidget(rasters_widget)  
+        self.central_widget.setCurrentWidget(rasters_widget)
+        
 
     def view_count_matrix(self):
         count_matrix_widget = CountMatrix(self)

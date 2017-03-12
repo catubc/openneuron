@@ -1,9 +1,11 @@
+
 import glob, os
 
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+from analysis import *
 
 class Seamans(QtGui.QWidget):
     def __init__(self, parent):
@@ -36,8 +38,16 @@ class Seamans(QtGui.QWidget):
         self.button1 = QPushButton('Convert .ntt to .tsf')
         self.button1.setMaximumWidth(250)
         self.button1.clicked.connect(self.ntt_convert)
-        layout.addWidget(self.button1, row_index, 0)
+        layout.addWidget(self.button1, row_index, 0);row_index+=1
 
+
+
+        self.subsample_tsf = QPushButton('Subsample .tsf file')
+        self.subsample_tsf.setMaximumWidth(250)
+        self.subsample_tsf.clicked.connect(self.tsf_subs)
+        layout.addWidget(self.subsample_tsf, row_index, 0)
+        
+        
         #self.button1 = QPushButton('Concatenate .lfp.zip files')
         #self.button1.setMaximumWidth(250)
         #self.button1.clicked.connect(self.multi_lfp_zip)
@@ -55,6 +65,8 @@ class Seamans(QtGui.QWidget):
         #self.button1.clicked.connect(self.concatenate_tsf)
         #layout.addWidget(self.button1, 7, 0)
 
+        
+
         self.setLayout(layout)
 
         
@@ -67,3 +79,15 @@ class Seamans(QtGui.QWidget):
         self.parent.root_dir = '/media/cat/12TB/in_vivo/jeremy/' 
         ntt_to_tsf(self, QtGui.QFileDialog.getOpenFileNames(self.parent, 'Load Experiment', self.parent.root_dir, "*.ntt"))
 
+    def tsf_subs(self):
+        
+        self.root_dir = '/media/cat/12TB/in_vivo/jeremy/' 
+        
+        self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)") 
+
+        tsf_subsample(self)
+        
+        
+        
+        
+        

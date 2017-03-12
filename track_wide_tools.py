@@ -1,8 +1,12 @@
-import glob, os
+import glob, os, sys
 
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+
+sys.path.append('/home/cat/code/')
+import TSF.TSF as TSF
+import PTCS.PTCS as PTCS
 
 from analysis import *
 
@@ -15,8 +19,8 @@ class TrackWideTools(QtGui.QWidget):
         self.parent = parent
         layout = QtGui.QGridLayout()
         #self.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
-        #self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering'
+        self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering'
 
         row_index= 0
         #*****************************************************************
@@ -78,7 +82,17 @@ class TrackWideTools(QtGui.QWidget):
         self.compress_factor.setMaximumWidth(50)
         self.compress_factor_lbl = QLabel('Compress Factor (multiples of 25):', self)
         layout.addWidget(self.compress_factor_lbl, row_index, 1)
-        layout.addWidget(self.compress_factor, row_index, 2)
+        layout.addWidget(self.compress_factor, row_index, 2); row_index+=2
+        
+                
+        self.print_footer = QPushButton('Print Footer .tsf')
+        self.print_footer.setMaximumWidth(250)
+        self.print_footer.clicked.connect(self.view_footer)
+        layout.addWidget(self.print_footer, row_index, 0)
+         
+        
+        #***************************************
+        
         
         self.setLayout(layout)
     
@@ -123,4 +137,14 @@ class TrackWideTools(QtGui.QWidget):
         print "... selecting single lfp recording ..."
         self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
+    
+    
+    
+    def view_footer(self):
+        
+        print "... selecting single lfp recording ..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        tsf = TSF.TSF(self.tsf_file)
+        
+        tsf.read_footer()
     
