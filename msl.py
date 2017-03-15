@@ -20,8 +20,8 @@ class MSL(QtGui.QWidget):
 
         #***************************** Cat DATA *************************************
         #ptc21 tr5c 
-        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
-        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
 
 
         #***************************** MOUSE DATA *************************************
@@ -40,8 +40,8 @@ class MSL(QtGui.QWidget):
 
         #************************************************ SUBCORTICAL LFP CLUSTERS **********************************
         #2016_07_26 AUDITORY   - Multiople clusters
-        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
+        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
 
 
         #2016_07_15 VISUAL
@@ -110,11 +110,11 @@ class MSL(QtGui.QWidget):
         layout.addWidget(time_chunks_lbl,row_index,2)
         layout.addWidget(parent.time_chunks,row_index,3)
 
-        self.chunks_to_plot = QLineEdit('0');               
-        self.chunks_to_plot.setMaximumWidth(250)
-        chunks_to_plot_lbl = QLabel('# chunks to plot:', self)
-        layout.addWidget(chunks_to_plot_lbl,row_index,4)
-        layout.addWidget(self.chunks_to_plot,row_index,5)
+        self.cmap = QLineEdit('Reds_r');               
+        self.cmap.setMaximumWidth(250)
+        cmap_lbl = QLabel('Colour Map', self)
+        layout.addWidget(cmap_lbl,row_index,4)
+        layout.addWidget(self.cmap,row_index,5)
                 
         parent.lock_window_start = QLineEdit('-100');               
         parent.lock_window_start.setMaximumWidth(50)
@@ -284,7 +284,7 @@ class MSL(QtGui.QWidget):
         self.button_msl_state_space = QPushButton('MSL - State Space')     #WHAT DOES THIS DO AGAIN? 
         self.button_msl_state_space.setMaximumWidth(200)
         self.button_msl_state_space.clicked.connect(self.view_msl_state_space)
-        layout.addWidget(self.button_msl_state_space, row_index, 0)
+        layout.addWidget(self.button_msl_state_space, row_index, 0); row_index+=1
 
         
         

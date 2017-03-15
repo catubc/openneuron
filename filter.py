@@ -41,6 +41,13 @@ class Filter(QtGui.QWidget):
         self.button1.clicked.connect(self.fltr_ephys)
         layout.addWidget(self.button1, 5, 0)
 
+        #MAKE BUTTONS             
+        self.notch_button = QPushButton('60Hz Notch - Ephys (.tsf)')
+        self.notch_button.setMaximumWidth(200)
+        self.notch_button.clicked.connect(self.ntch_button)
+        layout.addWidget(self.notch_button, 5, 1)
+
+
         self.button1 = QPushButton('Wavelet - Ephys (.tsf)')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.fltr_ephys)
@@ -67,3 +74,11 @@ class Filter(QtGui.QWidget):
 
         filter_ephys(self)
         
+
+    def ntch_button(self):
+        
+        self.tsf_filename = QtGui.QFileDialog.getOpenFileName(self, "Select tsf file (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        #self.button_set_sua_file_lbl.setText(self.parent.sua_file.replace(os.path.dirname(self.parent.sua_file),''))
+        #self.parent.setWindowTitle(self.parent.sua_file)
+
+        notch_ephys(self)

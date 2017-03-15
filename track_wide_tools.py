@@ -90,7 +90,11 @@ class TrackWideTools(QtGui.QWidget):
         self.print_footer.clicked.connect(self.view_footer)
         layout.addWidget(self.print_footer, row_index, 0)
          
-        
+        self.print_header= QPushButton('Print Header .tsf')
+        self.print_header.setMaximumWidth(250)
+        self.print_header.clicked.connect(self.view_header)
+        layout.addWidget(self.print_header, row_index, 1)
+                
         #***************************************
         
         
@@ -147,4 +151,12 @@ class TrackWideTools(QtGui.QWidget):
         tsf = TSF.TSF(self.tsf_file)
         
         tsf.read_footer()
+    
+    def view_header(self):
+        
+        print "... selecting single lfp recording ..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        tsf = TSF.TSF(self.tsf_file)
+        
+        tsf.print_header()
     
