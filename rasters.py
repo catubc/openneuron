@@ -20,14 +20,14 @@ class Rasters(QtGui.QWidget):
 
         #***************************** Cat DATA *************************************
         #ptc21 tr5c 
-        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
-        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
 
 
         #***************************** MOUSE DATA *************************************
         #2017-02_03 VISUAL
-        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
 
         #2017-01_31 BARREL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
@@ -42,6 +42,15 @@ class Rasters(QtGui.QWidget):
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
 
 
+        #********************************* CHRONIC V1 ************************************
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
+        
+        self.selected_sort_sua = self.parent.sua_file
+
+
+
         layout = QtGui.QGridLayout()
 
         row_index=0
@@ -49,7 +58,7 @@ class Rasters(QtGui.QWidget):
         #**************************************************************************************
         #*********************************** LOAD FILES  **************************************
         #**************************************************************************************
-        self.preprocess_lbl = QLabel('MSL ANALYSIS', self)
+        self.preprocess_lbl = QLabel('LOAD FILES', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
@@ -63,7 +72,7 @@ class Rasters(QtGui.QWidget):
         
         #self.parent.button_set_sua_file  = os.getcwd()
         self.button_set_sua_file_lbl = QLabel(os.path.split(self.parent.sua_file)[1], self)
-        layout.addWidget(self.button_set_sua_file_lbl, row_index, row_index, 1, 9); row_index+=1
+        layout.addWidget(self.button_set_sua_file_lbl, row_index, 1); row_index+=1
 
         #Set LFP event file
         self.button_set_lfp_event_file = QPushButton('LPF Event File')
@@ -73,14 +82,18 @@ class Rasters(QtGui.QWidget):
         
         #self.parent.set_lfp_event_file = os.getcwd()
         self.button_set_lfp_event_file_lbl = QLabel(os.path.split(self.parent.lfp_event_file)[1], self)
-        layout.addWidget(self.button_set_lfp_event_file_lbl, row_index, row_index, 1, 9); row_index+=1
+        layout.addWidget(self.button_set_lfp_event_file_lbl, row_index, 1); row_index+=1
 
         #***************************************************************************
-
+        self.preprocess_lbl = QLabel('RASTERS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+        
         self.button_rasters = QPushButton('Plot Rasters')
         self.button_rasters.setMaximumWidth(200)
         self.button_rasters.clicked.connect(self.plt_rasters)
-        layout.addWidget(self.button_rasters, row_index, 1)
+        layout.addWidget(self.button_rasters, row_index, 0)
         
         #***********************************************************************************************************
         #***********************************************************************************************************

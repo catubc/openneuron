@@ -26,9 +26,9 @@ class LFP(QtGui.QWidget):
         #self.selected_sort_lfp = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
         
         #MOUSE AUDITORY
-        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack.tsf'
-        self.selected_sort_sua = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
-        self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
+        #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack.tsf'
+        #self.selected_sort_sua = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
+        #self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
 
         #MOUSE VISUAL
         #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
@@ -45,11 +45,24 @@ class LFP(QtGui.QWidget):
         #self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_lfp_250hz_alltrack_50compressed.ptcs'
 
 
+        #********************************* CHRONIC V1 ************************************
+        self.selected_sort_sua = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack.ptcs'
+        self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed.ptcs'
+        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
         
+       
+
+
+
         row_index = 0
         #***********************************************************************************
         #******************************* SELECT RECORDING / SORT ***************************
         #***********************************************************************************
+        self.preprocess_lbl = QLabel('LOAD FILES', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+        
         #Select recording
         self.button_select_recording = QPushButton('Recording File')
         self.button_select_recording.setMaximumWidth(200)
@@ -80,7 +93,12 @@ class LFP(QtGui.QWidget):
         #***********************************************************************************
         #************************** VIEW SPECGRAM AND RASTERS ******************************
         #***********************************************************************************
-        
+        self.preprocess_lbl = QLabel('SPECGRAMS AND RASTERS', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+
         self.specgram_ch = QLineEdit('63');                #parent.start_time = self.start_time
         self.specgram_ch.setMaximumWidth(50)
         specgram_ch_lbl = QLabel('specgram_ch:', self)

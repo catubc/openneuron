@@ -22,26 +22,44 @@ class MSL(QtGui.QWidget):
         #ptc21 tr5c 
         #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
-
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
 
         #***************************** MOUSE DATA *************************************
         #2017-02_03 VISUAL
-        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_lfp_100hz_alltrack_50compressed.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_lfp_250hz_alltrack_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_lfp_250hz_alltrack.tsf'
 
         #2017_01_30 AUDITORY - 2 clusters only !?
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_30_auditory_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170130_164612_hp_butter_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_30_auditory_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170130_164612_lfp_250hz_alltrack_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_30_auditory_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170130_164612_lfp_250hz_alltrack.tsf'
+
+        #2017-01_26 BARREL
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_lfp_100hz_alltrack_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_26_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170126_153637_lfp_100hz_alltrack.tsf'
+        
+
+        #************************************************ OLDER DATA **********************************
+    
+        #2016_08_31 VSD VISUAL
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_08_31_vsd_visual/sort_alltrack/track1_spontaneous_1_160831_213746_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_08_31_vsd_visual/sort_alltrack/track1_spontaneous_1_160831_213746_lfp_250hz_alltrack_lowcut0.1_highcut110.0_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2016_08_31_vsd_visual/sort_alltrack/track1_spontaneous_1_160831_213746_lfp_250hz_alltrack.tsf'
+
 
 
         #************************************************ SUBCORTICAL LFP CLUSTERS **********************************
-        #2016_07_26 AUDITORY   - Multiople clusters
-        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
-        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
+        #2016_07_26 AUDITORY   - Multiople clusters - *********** SUBCORTICAL
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'#
 
 
         #2016_07_15 VISUAL
@@ -49,7 +67,13 @@ class MSL(QtGui.QWidget):
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_15_vsd_visual/sort_alltrack_spontaneous/track1_150Hz_1st_spontaneous_10iso_160715_181445_lfp_250hz_alltrack_50compressed.ptcs'
 
 
+        ##********************************* CHRONIC V1 ************************************
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
         
+
+
         
 
         layout = QtGui.QGridLayout()
@@ -141,7 +165,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.sigma_width_lbl,row_index,2)
         layout.addWidget(self.sigma_width,row_index,3)
         
-        self.min_fire_rate = QLineEdit('0.1');               
+        self.min_fire_rate = QLineEdit('0.001');               
         self.min_fire_rate.setMaximumWidth(50)
         self.min_fire_rate_lbl = QLabel('min_rate:', self)
         layout.addWidget(self.min_fire_rate_lbl,row_index,4)
@@ -164,7 +188,7 @@ class MSL(QtGui.QWidget):
         
 
         #**************************************************************************************
-        #*********************************** SET LFP PARAMETERS *******************************
+        #*********************************** MSL PARAMETERS *******************************
         #**************************************************************************************
         layout.addWidget(QLabel('', self), row_index,0); row_index+=1
 
@@ -251,40 +275,47 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.button_drift_movie, row_index, 6); row_index+=1
 
 
+        
+        #************** SINGLE CELL MSL FUNCTIONS ***********
+
         self.button_msl_continuous = QPushButton('MSL Sliding Time Window')
         self.button_msl_continuous.setMaximumWidth(200)
         self.button_msl_continuous.clicked.connect(self.view_msl_continuous)
-        layout.addWidget(self.button_msl_continuous, row_index, 0); row_index+=1
-        
-        
-        #************** SINGLE CELL MSL FUNCTIONS ***********
+        layout.addWidget(self.button_msl_continuous, row_index, 0)
 
         self.button_msl_discrete_single = QPushButton('Single Cell MSL - Discrete')
         self.button_msl_discrete_single.setMaximumWidth(200)
         self.button_msl_discrete_single.clicked.connect(self.view_msl_discrete_single)
-        layout.addWidget(self.button_msl_discrete_single, row_index,0)
-                
+        layout.addWidget(self.button_msl_discrete_single, row_index,1)
+
         self.button_msl_continuous_single = QPushButton('MSL Sliding Win - Single Unit')
         self.button_msl_continuous_single.setMaximumWidth(200)
         self.button_msl_continuous_single.clicked.connect(self.view_msl_continuous_single)
-        layout.addWidget(self.button_msl_continuous_single, row_index, 1)
+        layout.addWidget(self.button_msl_continuous_single, row_index, 2)
+
 
         self.button_msl_continuous_multi = QPushButton('MSL Sliding Win - Multi Unit')
         self.button_msl_continuous_multi.setMaximumWidth(200)
         self.button_msl_continuous_multi.clicked.connect(self.view_msl_continuous_multi)
-        layout.addWidget(self.button_msl_continuous_multi, row_index, 2)
+        layout.addWidget(self.button_msl_continuous_multi, row_index, 3)
         
+
         self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')     
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
-        layout.addWidget(self.button_msl_single_lfpevent, row_index, 3); row_index+=1
-
+        layout.addWidget(self.button_msl_single_lfpevent, row_index, 4); row_index+=1
 
 
         self.button_msl_state_space = QPushButton('MSL - State Space')     #WHAT DOES THIS DO AGAIN? 
         self.button_msl_state_space.setMaximumWidth(200)
         self.button_msl_state_space.clicked.connect(self.view_msl_state_space)
-        layout.addWidget(self.button_msl_state_space, row_index, 0); row_index+=1
+        layout.addWidget(self.button_msl_state_space, row_index, 0)
+        
+        
+        self.button_window_pval = QPushButton('MSL - Windowed P-Val Plots')     #WHAT DOES THIS DO AGAIN? 
+        self.button_window_pval.setMaximumWidth(200)
+        self.button_window_pval.clicked.connect(self.view_window_pval)
+        layout.addWidget(self.button_window_pval, row_index, 2); row_index+=1
 
         
         
@@ -526,7 +557,7 @@ class MSL(QtGui.QWidget):
         compute_msl_single_lfpevent(self)
 
     
-    def view_msl_continuous(self):                  #Compute sliding window msl  **********
+    def view_msl_continuous(self):                  #Compute sliding window msl  ***************************
         compute_msl_continuous(self)
         
     
@@ -535,7 +566,8 @@ class MSL(QtGui.QWidget):
     def view_msl_state_space(self):
         compute_msl_state_space(self)
     
-
+    def view_window_pval(self):
+        compute_window_pval(self)
     
     #***************************** PLOT MSL ************************************
     

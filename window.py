@@ -23,6 +23,7 @@ from traces_tools import TracesTools
 from lfp import LFP
 from rasters import Rasters
 from filter import Filter
+from info import Info
 
 class Window(QtGui.QMainWindow):
 
@@ -132,6 +133,11 @@ class Window(QtGui.QMainWindow):
         filterData.triggered.connect(self.fltr_data)
 
 
+        metaInfo = QtGui.QAction("&File Info", self)
+        metaInfo.setStatusTip('File Info')
+        metaInfo.triggered.connect(self.data_info)
+
+
         #IMAGING TOOLS MENUS
         ophysTools = QtGui.QAction("&Event Triggered Imaging", self)
         ophysTools.setStatusTip('Event Triggered Imaging')
@@ -210,6 +216,7 @@ class Window(QtGui.QMainWindow):
         fileMenu.addAction(trackTools)
         fileMenu.addAction(seamansData)
         fileMenu.addAction(filterData)
+        fileMenu.addAction(metaInfo)
         #fileMenu.addAction(preprocessExperiment)
 
         fileMenu = mainMenu.addMenu('Event Triggered Analysis')
@@ -399,4 +406,11 @@ class Window(QtGui.QMainWindow):
         filter_widget = Filter(self)
         self.central_widget.addWidget(filter_widget)  
         self.central_widget.setCurrentWidget(filter_widget)
+        
+
+    def data_info(self):
+        
+        info_widget = Info(self)
+        self.central_widget.addWidget(info_widget)  
+        self.central_widget.setCurrentWidget(info_widget)
         
