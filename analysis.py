@@ -8737,43 +8737,102 @@ def plt_msl_discrete_single(self):
 
 def plot_msl_continuous_single(self):
 
-    lfp_cluster = int(self.parent.lfp_cluster.text())
+    
+    colors = ['blue', 'red', 'green', 'magenta', 'brown', 'orange', 'cyan', 'pink', 'grey', 'indigo']
 
+    shuffle_test = True
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    
     sig = int(self.sigma_width.text())
 
 
-    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(sig)+'sigma'
-    jitter_time = 50 #Time to jitter spiketrian
-    #file_out_jittered = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_jitter"
-    #file_out_poisson = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(jitter_time)+"ms_window_poisson"
-    #file_out_poisson_singles = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_poisson_singles"
-    
-    #Load lock times
-    lock_time = np.load(file_out+'.npy')
-    #lock_time_jittered = np.load(file_out_jittered+'.npy')
-    #lock_time_poisson = np.load(file_out_poisson+'.npy')
-    #lock_time_poisson_singles = np.load(file_out_poisson_singles+'.npy')
-
+    #Load lfp event rasters
     compress_factor = 50
-
     Sort_lfp = Ptcs(self.parent.lfp_event_file) #Auto load flag for Nick's data
     lfp_cluster = int(self.parent.lfp_cluster.text())
     pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
     print "... # of lfp events; ", len(pop_spikes)
 
-    Sort_sua = Ptcs(self.parent.sua_file) #Auto load flag for Nick's data
-    #tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
 
-    #Make plots for single cell raster
-    unit = int(self.starting_cell.text())
-    f1 = plt.figure()
+    #Load single unit rasters
+    Sort_sua = PTCS.PTCS(self.parent.sua_file) #Auto load flag for Nick's data
+    #Select Singel Units to process
+    if self.multiple_units.text()=='00':
+        units = np.arange(Sort_sua.n_units)
+    else:
+        units = np.int16(self.multiple_units.text().split(","))
+
+    if len(units)!=1:
+        print "...TOO MANY UNITS, use multi-unit function..."
+        return
+    
+    print units
+    
+    unit=units[0]
+
+
+    #Load single unit drift file
+    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+str(sig)+"sigma_cell"+str(unit)
+    lock_time = np.load(file_out+'.npy')
+    print lock_time.shape
+    for k in range(len(lock_time)):
+        print lock_time[k]
+    
+    #Shuffle times for first unit:
+    if shuffle_test: 
+        lock_time_shuffled = np.load(file_out+"_shuffled.npy")
+    
+    print lock_time_shuffled.shape
+    for k in range(len(lock_time_shuffled)):
+        print lock_time_shuffled[k]
+
+
+    ##Compute periods of synchrony from si index
+    lfp = TSF.TSF(self.parent.lfp_tsf_file)
+    #lfp = TSF.TSF(self.parent.sua_file.replace('_hp_butter_alltrack.ptcs','.tsf').replace('hp','lp'))
+    lfp.read_ec_traces()    #Ok to read all LFP, smaller files
+
+
+    #*************************** PLOT RASTERS ***********************
+    ax = plt.subplot(1, 1, 1)
+
+    # define the colormap
+    cmap = plt.cm.get_cmap('viridis', Sort_sua.n_units)
+    plt.set_cmap('viridis')
+
+    #Plot Unit Rasters
+    raster_offset = -40
+    clr_ctr=0
+    #for clr_ctr, unit in enumerate(units):
+        #spikes = Sort_sua.units[unit]*1E-6/60.
+        #ymin=np.zeros(len(spikes))
+        #ymax=np.zeros(len(spikes))
+        #ymin+=raster_offset
+        #ymax+=raster_offset-5
+        #plt.vlines(spikes, ymin, ymax, linewidth=1, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.5) #colors[mod(counter,7)])
+        
+        #raster_offset = raster_offset-clr_ctr*5
+    
+    #Plot LFP Events
+    raster_offset-=3
+    spikes = pop_spikes*1E-6/60.
+    ymin=np.zeros(len(spikes))
+    ymax=np.zeros(len(spikes))
+    ymin+=raster_offset-4-clr_ctr*3
+    ymax+=raster_offset-14-clr_ctr*3
+    plt.vlines(spikes, ymin, ymax, linewidth=1, color='black',alpha=.5) #colors[mod(counter,7)])
+
+
+    #*************************** PLOT MSL DRIFT DATA ***********************
+
+    print "... unit: ", unit
     ax = plt.subplot(1, 1, 1)
 
     #************** Plot locked times rasters *********************
     even_locks=[]; odd_locks=[]
-    for k in range(len(lock_time[unit])): 
-        even_locks.append(lock_time[unit][k][0])
-        odd_locks.append(lock_time[unit][k][1])
+    for k in range(len(lock_time)): 
+        even_locks.append(lock_time[k][0])
+        odd_locks.append(lock_time[k][1])
     
     #Plot event times scatter
     even_times = []
@@ -8797,6 +8856,7 @@ def plot_msl_continuous_single(self):
     #Plot ave times plot; search for locking times; if only an odd or even time exists, set that time; otherwise use average;
     ave_times = []
     error_array = []
+    skip_unit = False
     for k in range(len(even_locks)):
         temp = 0
         if even_locks[k]!=0: 
@@ -8812,189 +8872,131 @@ def plot_msl_continuous_single(self):
             if odd_locks[k]!=0:
                 ave_times.append([k, odd_locks[k]])
                 error_array.append([odd_locks[k], odd_locks[k]])
-
+            else:
+                error_array.append([odd_locks[k], odd_locks[k]])
+           
+        if abs(error_array[k][0]-error_array[k][1])>30: 
+            skip_unit = True
+      
+    offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
+    n_epochs = 310
     if len(ave_times)>0: 
         for k in range(len(ave_times)-1):
             
-            #Plot magenta line average;
+            #Plot line average;
             if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                plt.plot([ave_times[k][0], ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='blue', linewidth = 8, alpha=.85)
-                
-                #Plot error bar at each point 
-                x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5
-                y1 = error_array[k][0]
-                y2 = error_array[k][1]
-                plt.fill_between(x, y1, y2, color='blue', alpha=0.3)
+                plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
+                         [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
+                         #color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
+                         color = cm.magma(int(float(k)/n_epochs*256)), linewidth = 5, alpha=.75)
+               
+                #Plot error; LUCZAK METHOD: odd vs. even location times.
+                if True: 
+                    x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
+                    y1 = error_array[k][0]-100
+                    y2 = error_array[k][1]-100
+                    #plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
+                    plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
 
-           
-    #Track stats on original data
-    diffs = []
+
+    #****************************** SHUFFLE PROCESS*******************************************************
+    even_locks=[]; odd_locks=[]
+    for k in range(len(lock_time)): 
+        even_locks.append(lock_time_shuffled[k][0])
+        odd_locks.append(lock_time_shuffled[k][1])
+    
+    #Plot event times scatter
+    even_times = []
     for k in range(len(even_locks)):
-        if (even_locks[k]!=0) and (odd_locks[k]!=0):
-            diff = abs(even_locks[k]-odd_locks[k])
-            #if diff < 50: 
-            diffs.append(diff)    #Only 
-            
+        if even_locks[k]!=0.0:
+            even_times.append([k, even_locks[k]])
     
-    if False:
-        
-        #************** Plot poisson times rasters *********************
-        lock_time = lock_time_poisson
-        even_locks=[]; odd_locks=[]
-        for k in range(len(lock_time[unit])): 
-            even_locks.append(lock_time[unit][k][0])
-            odd_locks.append(lock_time[unit][k][1])
-        
-        #Plot event times scatter
-        even_times = []
-        for k in range(len(even_locks)):
-            if even_locks[k]!=0.0:
-                even_times.append([k, even_locks[k]])
-        
-        even_times = np.array(even_times).T
-        #if len(even_times)>0: 
-        #    plt.scatter(even_times[0], even_times[1], s = 10, color='green', alpha=.6)
-        
-        #Plot odd times scatter
-        odd_times = []
-        for k in range(len(odd_locks)):
-            if odd_locks[k]!=0.0:
-                odd_times.append([k, odd_locks[k]])
-        odd_times = np.array(odd_times).T
-        #if len(odd_times)>0: 
-        #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='cyan', alpha=.6)
-        
-        #Plot ave times plot
-        ave_times = []
-        error_array = []
-        for k in range(len(even_locks)):
-            temp = 0
-            if even_locks[k]!=0: 
-                temp+=even_locks[k]
-                if odd_locks[k]!=0: 
-                    temp+=odd_locks[k]
-                    ave_times.append([k, temp/2.])
-                    error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
-                else:
-                    ave_times.append([k, temp])
-                    error_array.append([even_locks[k], even_locks[k]])
+    even_times = np.array(even_times).T
 
+    #Plot odd times scatter
+    odd_times = []
+    for k in range(len(odd_locks)):
+        if odd_locks[k]!=0.0:
+            odd_times.append([k, odd_locks[k]])
+    odd_times = np.array(odd_times).T
+    #if len(odd_times)>0: 
+    #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
+    
+    #Plot ave times plot; search for locking times; if only an odd or even time exists, set that time; otherwise use average;
+    ave_times = []
+    error_array = []
+    skip_unit = False
+    for k in range(len(even_locks)):
+        temp = 0
+        if even_locks[k]!=0: 
+            temp+=even_locks[k]
+            if odd_locks[k]!=0: 
+                temp+=odd_locks[k]
+                ave_times.append([k, temp/2.])
+                error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
             else:
-                if odd_locks[k]!=0:
-                    ave_times.append([k, odd_locks[k]])
-                    error_array.append([odd_locks[k], odd_locks[k]])
+                ave_times.append([k, temp])
+                error_array.append([even_locks[k], even_locks[k]])
+        else:
+            if odd_locks[k]!=0:
+                ave_times.append([k, odd_locks[k]])
+                error_array.append([odd_locks[k], odd_locks[k]])
+            else:
+                error_array.append([odd_locks[k], odd_locks[k]])
+           
+        if abs(error_array[k][0]-error_array[k][1])>30: 
+            skip_unit = True
+        
+    offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
+    n_epochs = 310
+    if len(ave_times)>0: 
+        for k in range(len(ave_times)-1):
+            
+            #Plot line average;
+            if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
+                plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
+                         [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
+                         #color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
+                         #color = cm.magma(int(float(k)/n_epochs*256)), linewidth = 5, alpha=.75)
+                         color = 'black', linewidth = 5, alpha = 0.25)
+                #Plot error; LUCZAK METHOD: odd vs. even location times.
+                if False: 
+                    x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
+                    y1 = error_array[k][0]-100
+                    y2 = error_array[k][1]-100
+                    #plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
+                    plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
 
-        ave_times =np.array(ave_times)
-        ave_times[:,1]=ave_times[:,1]+60.0
-        error_array =np.array(error_array)
-        error_array=error_array+60.0
-        if len(ave_times)>0: 
-            for k in range(len(ave_times)-1):
-                if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                    plt.plot([ave_times[k][0], ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='green', linewidth = 8, alpha=.85)
-        
-                    #Plot error bar at each point 
-                    x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5
-                    y1 = error_array[k][0]
-                    y2 = error_array[k][1]
-                    plt.fill_between(x, y1, y2, color='green', alpha=0.3)
-
-
-        #Track stats on poisson data
-        diffs_poisson = []
-        for k in range(len(even_locks)):
-            if (even_locks[k]!=0) and (odd_locks[k]!=0):
-                diff = abs(even_locks[k]-odd_locks[k])
-                #if diff < 50: 
-                diffs_poisson.append(diff)        
-                
-                
-        ##************** Plot poisson times rasters *********************
-        #lock_time = lock_time_poisson_singles
-        #even_locks=[]; odd_locks=[]
-        #for k in range(len(lock_time[unit])): 
-            #even_locks.append(lock_time[unit][k][0])
-            #odd_locks.append(lock_time[unit][k][1])
-        
-        ##Plot event times scatter
-        #even_times = []
-        #for k in range(len(even_locks)):
-            #if even_locks[k]!=0.0:
-                #even_times.append([k, even_locks[k]])
-        
-        #even_times = np.array(even_times).T
-        ##if len(even_times)>0: 
-            ##plt.scatter(even_times[0], even_times[1], s = 10, color='green', alpha=.6)
-        
-        ##Plot odd times scatter
-        #odd_times = []
-        #for k in range(len(odd_locks)):
-            #if odd_locks[k]!=0.0:
-                #odd_times.append([k, odd_locks[k]])
-        #odd_times = np.array(odd_times).T
-        ##if len(odd_times)>0: 
-            ##plt.scatter(odd_times[0], odd_times[1], s = 10, color='cyan', alpha=.6)
-        
-        ##Plot ave times plot
-        #ave_times = []
-        #for k in range(len(even_locks)):
-            #temp = 0
-            #if even_locks[k]!=0: 
-                #temp+=even_locks[k]
-                #if odd_locks[k]!=0: 
-                    #temp+=odd_locks[k]
-                    #ave_times.append([k, temp/2.])
-                #else:
-                    #ave_times.append([k, temp])
-            #else:
-                #if odd_locks[k]!=0:
-                    #ave_times.append([k, odd_locks[k]])
-
-        #if len(ave_times)>0: 
-            #for k in range(len(ave_times)-1):
-                #if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                    #plt.plot([ave_times[k][0],ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color='brown', linewidth = 5, alpha=.3)
-        
-        
     
+        
+                
     #**********Plot labels and additional info
-    old_label = np.arange(50, 170, 10)
-    new_label = [-50,-40,-30,-20,-10,0,-50, -40,-30,-20,-10,0]
-    plt.yticks(old_label,new_label, fontsize=25)
+    #old_label = np.arange(50, 170, 10)
+    #new_label = [-50,-40,-30,-20,-10,0,-50, -40,-30,-20,-10,0]
+    #plt.yticks(old_label,new_label, fontsize=25)
     
     #plt.plot([0, tsf.n_vd_samples/tsf.SampleFrequency/60.], [100,100], 'r--', color='black', linewidth=4, alpha=.5)
     #plt.plot([0, tsf.n_vd_samples/tsf.SampleFrequency/60.], [160,160], 'r--', color='black', linewidth=4, alpha=.5)
     
     win_len = self.sliding_window_length.text()      #Work in ms
-    plt.title("Unit: "+str(unit) + ",   #spks: "+str(len(Sort_sua.units[unit]))+",    sliding window: "+win_len+" mins.\n Real data: ave(diff): " + str(round(np.mean(diffs),2))+ "   std(diff): " + str(round(np.std(diffs),2))
-                ,      fontsize=25)
     ax.tick_params(axis='both', which='both', labelsize=25)
-    plt.ylim(40,170)
-    #plt.xlim(0, tsf.n_vd_samples/tsf.SampleFrequency/60.)
-
-    plt.ylabel("Locking Latency (ms)\n Real Data           Poisson Data", fontsize = 30)
-    plt.xlabel("Recording time (mins)", fontsize = 25)
     
-    #Plot LFP Events
-    spikes = pop_spikes*1E-6/60.
-    ymin=np.zeros(len(spikes))
-    ymax=np.zeros(len(spikes))
-    ymin+=40
-    ymax+=44
-    plt.vlines(spikes, ymin, ymax, linewidth=1, color='brown',alpha=.5) #colors[mod(counter,7)])
+    #plt.ylim(raster_offset-7-clr_ctr*3,20)
+    #plt.ylim(raster_offset-7-clr_ctr*3,100)
+    plt.ylim(-30, 50)
+    
+    #plt.xlim(0, lfp.n_vd_samples/lfp.SampleFrequency/60.)
+    plt.xlim(0, 320.)
 
-    #Plot Single Spike Events
-    spikes = Sort_sua.units[unit]*1E-6/60.
-    ymin=np.zeros(len(spikes))
-    ymax=np.zeros(len(spikes))
-    ymin+=45    
-    ymax+=49
-    plt.vlines(spikes, ymin, ymax, linewidth=1, color='blue',alpha=.5) #colors[mod(counter,7)])
+    plt.ylabel("Mean-Spike-Latency (ms)\n Single Units   LFP Events", fontsize = 30)
+    plt.xlabel("Recording time (mins)", fontsize = 25)
 
     
     #ax.set_xticklabels([])
     #ax.set_yticklabels([])
         
+        
+    plt.suptitle(os.path.split(self.parent.sua_file)[1], fontsize=25)
     plt.show()
     
 
@@ -9002,7 +9004,7 @@ def plot_msl_continuous_multi_unit(self):
 
     colors = ['blue', 'red', 'green', 'magenta', 'brown', 'orange', 'cyan', 'pink', 'grey', 'indigo']
 
-   
+    shuffle_test = True
     lfp_cluster = int(self.parent.lfp_cluster.text())
     
     
@@ -9012,11 +9014,12 @@ def plot_msl_continuous_multi_unit(self):
     
     #Load lock times
     lock_time = np.load(file_out+'.npy')
+    print lock_time.shape
     
+
 
     #file_out_locked_spikes = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_locked_spikes"
     #locked_spike_array = np.load(file_out_locked_spikes+'.npy') #This is al ist of all spikes locking to each 30min window; used for non-Luczak type studies;
-
 
     file_spikerates = file_out+"_spikerates"
 
@@ -9038,6 +9041,16 @@ def plot_msl_continuous_multi_unit(self):
     else:
         units = np.int16(self.multiple_units.text().split(","))
 
+
+    #Shuffle times for first unit:
+    if shuffle_test: 
+        shuffled_indexes = np.arange(len(lock_time[units[0]]))
+        
+        np.random.shuffle(shuffled_indexes)
+        print shuffled_indexes
+        
+        lock_time_shuffled = lock_time[units[0]][shuffled_indexes]
+        
 
     ##Compute periods of synchrony from si index
     lfp = TSF.TSF(self.parent.lfp_tsf_file)
@@ -9142,7 +9155,7 @@ def plot_msl_continuous_multi_unit(self):
             if skip_unit: continue
                 
             offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
-               
+            n_epochs = 310
             if len(ave_times)>0: 
                 for k in range(len(ave_times)-1):
                     
@@ -9150,43 +9163,22 @@ def plot_msl_continuous_multi_unit(self):
                     if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
                         plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
                                  [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
-                                 color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
+                                 #color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
+                                 color = cm.magma(int(float(k)/n_epochs*256)), linewidth = 5, alpha=.75)
                        
                         #Plot error; LUCZAK METHOD: odd vs. even location times.
                         if True: 
                             x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
                             y1 = error_array[k][0]-100
                             y2 = error_array[k][1]-100
-                            plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
+                            #plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
+                            plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
 
-                   
-
-        #if len(ave_times)>0: 
-            #for k in range(len(ave_times)-1):
-                
-                ##Plot magenta line average;
-                #if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                    #plt.plot([ave_times[k][0], ave_times[k+1][0]] , [ave_times[k][1], ave_times[k+1][1]], color=colors[unit%8], linewidth = 8, alpha=.85)
-                    
-                    ##Plot error bar at each point 
-                    #x = np.arange(ave_times[k][0], ave_times[k+1][0],0.1)-0.5
-                    #y1 = error_array[k][0]
-                    #y2 = error_array[k][1]
-                    #plt.fill_between(x, y1, y2, color='blue', alpha=0.3)
-
-               
-               
-                           ##Track stats on original data
-            #if False:
-                #diffs = []
-                #for k in range(len(even_locks)):
-                    #if (even_locks[k]!=0) and (odd_locks[k]!=0):
-                        #diff = abs(even_locks[k]-odd_locks[k])
-                        ##if diff < 50: 
-                        #diffs.append(diff)    #Only 
-        
-            ##if clr_ctr==10: break
-            ##clr_ctr+=1
+            
+            
+            
+            
+            
 
 
     #COMPUTE MEAN AND STD OF DISTRIBUTION DIRECTLY  
@@ -9525,13 +9517,17 @@ def compute_msl_spikerates(self):
     np.save(file_out+"_spikerates", spiking_rate_array)
 
     print "... done saving spikerates matrix..."
+
+
+def compute_msl_continuous_single_cell(self):
     
-def compute_msl_continuous(self):
-    
+
     min_spikes = float(self.min_spikes.text())
 
     print self.parent.sua_file 
     print self.parent.lfp_event_file
+
+    shuffle_test = True
 
     colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
     #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
@@ -9571,7 +9567,238 @@ def compute_msl_continuous(self):
     #Load saved cell rasters
     cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
     cell_rasters = np.load(cell_rasters_filename+".npy")
+    print cell_rasters.shape
+
+    #Shuffle times for first unit:
+    if shuffle_test: 
+        shuffled_indexes = np.arange(len(cell_rasters[starting_cell]))
+        
+        np.random.shuffle(shuffled_indexes)
+        print shuffled_indexes
+        
+        cell_rasters_shuffled = cell_rasters[starting_cell][shuffled_indexes]
     
+    ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
+    #lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
+    #lfp.read_ec_traces()    #Ok to read all LFP, smaller files
+    lfp_filename = self.parent.lfp_tsf_file
+    lfp = TSF.TSF(lfp_filename)
+    lfp.read_ec_traces()
+    sync_ch=9
+
+
+    sync_periods_file = self.parent.sua_file.replace('.ptcs','')+"_sync_periods_ch"+str(sync_ch)+'.txt'
+    if os.path.exists(sync_periods_file):
+        sync_periods = np.loadtxt(sync_periods_file)
+    else:
+        si, t, sync_periods = synchrony_index(lfp.ec_traces[sync_ch], lfp.SampleFrequency, si_limit)
+        np.savetxt(sync_periods_file, sync_periods)
+
+    temp_list = []
+    for p in range(len(sync_periods)):
+        indexes = np.where(np.logical_and(pop_spikes>=sync_periods[p][0]*1E3, pop_spikes<=sync_periods[p][1]*1E3))[0]   #Work in milliseconds
+        temp_list.extend(pop_spikes[indexes])
+    pop_spikes=np.array(temp_list)
+    
+    print "... # LFP events during sync states: ", len(pop_spikes)
+    
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    
+    #OPTION 1: Divide into chunks of recording length
+    win_len = float(self.sliding_window_length.text())*60000.0                          #Work in ms
+    step_len = float(self.sliding_window_step.text())*60000.0                           #Work in ms
+    #rec_len = tsf.n_vd_samples/float(tsf.SampleFrequency)*1E3   #Work in ms
+    rec_len = lfp.n_vd_samples/float(lfp.SampleFrequency)*1E3   #Work in ms         #USE LFP RECORDING IF High-pass not available
+    print "... lfp rec_len: ", rec_len
+    
+    
+    temp_chunks = np.arange(0, rec_len-win_len, step_len)   #set begginings of each chunk up to end of recording (less the window length)
+    time_chunks = []
+    for k in range(len(temp_chunks)-1):
+        time_chunks.append([temp_chunks[k], temp_chunks[k]+win_len])
+    time_chunks.append([temp_chunks[-1], rec_len])
+
+    #**************************************************************************
+    #*************************** LOOP OVER TIME CHUNKS ************************
+    #**************************************************************************
+
+    file_out = self.parent.sua_file.replace('.ptcs','')+"_"+str(lfp_cluster)+"lfpcluster_"+self.sliding_window_length.text()+"window_"+self.sliding_window_step.text()+"step_"+ self.sigma_width.text()+"sigma"
+    lock_time=[]
+    chunk_index = np.arange(0,len(time_chunks),1)
+    for ctr, chunk_ctr in enumerate(chunk_index):
+        time_chunk = time_chunks[chunk_ctr]
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+        print time_chunk
+        
+        #for unit in range(len(Sort_sua.units)):
+        unit = starting_cell                        #SELECT A SINGLE CELL FOR THIS
+        
+        print "... cell: ", unit, "  chunk: ", ctr
+        
+        if (len(temp3)/(win_len*1E-3))<0.01:            #Exclude periods with LFP rates < 0.01 Hz
+            lock_time.append([0,0])
+            continue
+
+        locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])
+
+        if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
+            lock_time.append([0,0])
+            continue
+    
+
+        #***********************************************************
+        #*********** Compute Lock Times ****************************
+        #***********************************************************
+
+        fit_even = np.zeros(2000, dtype=np.float32)
+        fit_odd = np.zeros(2000, dtype=np.float32)
+        x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+        sig_gaussian = np.float32(gaussian(x, 0, sig))
+        for g in range(len(locked_spikes)):
+            mu = int(locked_spikes[g]*1E-3)
+            if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+            else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+        #Search for peaks in PETH within the locking window
+        if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+            even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+        else:
+            even_lock = 0
+
+        if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+            odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+        else:
+            odd_lock = 0
+
+        lock_time.append([even_lock, odd_lock])
+
+    print lock_time
+    np.save(file_out+"_cell"+str(unit), lock_time)
+
+    
+    #******************************** COMPUTE SAME RESULTS FOR SHUFFLED DATA *************************************
+    lock_time=[]
+
+    if shuffle_test:
+        
+        for ctr, chunk_ctr in enumerate(chunk_index):
+            time_chunk = time_chunks[chunk_ctr]
+            temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]
+            print time_chunk
+            
+            unit = starting_cell                        #SELECT A SINGLE CELL FOR THIS
+            
+            print "... cell: ", unit, "  chunk: ", ctr
+            
+            if (len(temp3)/(win_len*1E-3))<0.01:            #Exclude periods with LFP rates < 0.01 Hz
+                lock_time.append([0,0])
+                continue
+
+            locked_spikes = np.hstack(np.array(cell_rasters_shuffled)[temp3])
+
+            if (len(locked_spikes)/(win_len*1E-3))<0.01:    #Exclude periods with firing rates < 0.01 Hz
+                lock_time.append([0,0])
+                continue
+        
+            #***********************************************************
+            #*********** Compute Lock Times ****************************
+            #***********************************************************
+
+            fit_even = np.zeros(2000, dtype=np.float32)
+            fit_odd = np.zeros(2000, dtype=np.float32)
+            x = np.linspace(-1000,1000, 2000)    #Make an array from -1000ms .. +1000ms with microsecond precision
+            sig_gaussian = np.float32(gaussian(x, 0, sig))
+            for g in range(len(locked_spikes)):
+                mu = int(locked_spikes[g]*1E-3)
+                if g%2==0: fit_even += np.roll(sig_gaussian, mu)
+                else: fit_odd += np.roll(sig_gaussian, mu , axis=0)
+
+            #Search for peaks in PETH within the locking window
+            if np.max(fit_even[1000+lock_window_start:1000+lock_window_end])>0:
+                even_lock = np.argmax(fit_even[1000+lock_window_start:1000+lock_window_end])
+            else:
+                even_lock = 0
+
+            if np.max(fit_odd[1000+lock_window_start:1000+lock_window_end])>0:
+                odd_lock = np.argmax(fit_odd[1000+lock_window_start:1000+lock_window_end])
+            else:
+                odd_lock = 0
+
+            lock_time.append([even_lock, odd_lock])
+
+            
+        np.save(file_out+"_cell"+str(unit)+"_shuffled", lock_time)
+
+        #np.save(file_out_jittered, lock_time_jittered)
+        #np.save(file_out_poisson, lock_time_poisson)
+        #np.save(file_out_poisson_singles, lock_time_poisson_singles)
+        #np.save(file_out_locked_spikes, locked_spike_array)
+    
+    print lock_time
+
+
+def compute_msl_continuous(self):
+    
+    min_spikes = float(self.min_spikes.text())
+
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    shuffle_test = True
+
+    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+
+    si_limit = 0.7
+    window=1000000  # window width in usec
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    #tsf = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf'))
+
+    sig = float(self.sigma_width.text())
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+
+    #Load SUA Sort
+    Sort_sua = PTCS.PTCS(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+
+    #Load LFP Sort
+    Sort_lfp = PTCS.PTCS(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardcoded to: ", compress_factor
+
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+      
+    #Load LFP Cluster events                                     #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+    pop_spikes=np.sort(np.unique(pop_spikes))*1E-3   #Exclude duplicates; convert to milisecond time
+    #pop_spikes=(pop_spikes)*1E-3   #Exclude duplicates; convert to milisecond time
+    
+    print " ... # LFP events: ", len(pop_spikes)
+    
+    #Load saved cell rasters
+    cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+
+
+
+    #Shuffle times for first unit:
+    if shuffle_test: 
+        shuffled_indexes = np.arange(len(lock_time[units[0]]))
+        
+        np.random.shuffle(shuffled_indexes)
+        print shuffled_indexes
+        
+        lock_time_shuffled = lock_time[units[0]][shuffled_indexes]
+        
+        
     
     ##Compute periods of synchrony from si index                    #***********************************REIMPLEMENT ASAP
     #lfp = Tsf_file(self.parent.sua_file.replace('.ptcs','.tsf').replace('hp','lp'))
@@ -9849,7 +10076,8 @@ def compute_window_pval(self):
     #COMPUTE KS P-VALUES FOR CURRENT LFP CLUSTER
     n_epochs = 320
     cell_pval_filename = cell_rasters_filename+"_unit"+self.starting_cell.text()+"_"+str(n_epochs)+"epochs_pvals.npy"
-
+    print cell_pval_filename
+    
     empty_row = np.zeros(len(locked_spike_array),dtype=np.float32)+1.0
     if os.path.exists(cell_pval_filename)==False:
         kstest_array = []
@@ -9913,15 +10141,22 @@ def compute_window_pval(self):
     else:
         kstest_array = np.load(cell_pval_filename)
 
-    print kstest_array
-    print kstest_array[0]
+    if True:
+        for k in range(len(kstest_array)):
+            print len(kstest_array[k])
+            
+        kstest_array=kstest_array[:317]
+        kstest_array=kstest_array.T[:317]
+        kstest_array=kstest_array.T
     
-    kstest_array += 1E-20
+    pval_cutoff = -6
+    
+    kstest_array += 1E-20               #Add small values so that Log(0) can be computed.
     #Compute log of P-value array
     kstest_array = np.vstack(kstest_array)[::-1]        #Invert array 
     kstest_array = np.log10(kstest_array)
     vmin_value = np.min(kstest_array)
-    if vmin_value < -6: vmin_value = -6
+    if vmin_value < pval_cutoff: vmin_value = pval_cutoff
     vmax_value = max(0,np.max(kstest_array))
 
     f2 = plt.figure()
@@ -10793,7 +11028,10 @@ def Compute_MSL_chunks(self):
         #ORDER MSL IMG BY LOCK TIME OF FIRST EPOCH
         if (ctr ==0): 
             inds = np.array(lock_time).argsort()
-        print "Order: ", inds
+            print "Epoch 0 order: ", inds
+        else:
+            inds_temp = np.array(lock_time).argsort()
+            print "Epoch ", ctr, " order: ", inds_temp
 
         
         img=np.array(img)[inds]

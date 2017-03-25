@@ -28,7 +28,7 @@ class MSL(QtGui.QWidget):
         #2017-02_03 VISUAL
         self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
         self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        ##self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
         self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
@@ -282,28 +282,34 @@ class MSL(QtGui.QWidget):
         self.button_msl_continuous.setMaximumWidth(200)
         self.button_msl_continuous.clicked.connect(self.view_msl_continuous)
         layout.addWidget(self.button_msl_continuous, row_index, 0)
+        
+        self.button_msl_continuous_single = QPushButton('MSL Sliding Single Cell')
+        self.button_msl_continuous_single.setMaximumWidth(200)
+        self.button_msl_continuous_single.clicked.connect(self.compute_msl_continuous_single)
+        layout.addWidget(self.button_msl_continuous_single, row_index, 1); row_index+=1
+        
 
         self.button_msl_discrete_single = QPushButton('Single Cell MSL - Discrete')
         self.button_msl_discrete_single.setMaximumWidth(200)
         self.button_msl_discrete_single.clicked.connect(self.view_msl_discrete_single)
-        layout.addWidget(self.button_msl_discrete_single, row_index,1)
+        layout.addWidget(self.button_msl_discrete_single, row_index,0)
 
         self.button_msl_continuous_single = QPushButton('MSL Sliding Win - Single Unit')
         self.button_msl_continuous_single.setMaximumWidth(200)
         self.button_msl_continuous_single.clicked.connect(self.view_msl_continuous_single)
-        layout.addWidget(self.button_msl_continuous_single, row_index, 2)
+        layout.addWidget(self.button_msl_continuous_single, row_index, 1)
 
 
         self.button_msl_continuous_multi = QPushButton('MSL Sliding Win - Multi Unit')
         self.button_msl_continuous_multi.setMaximumWidth(200)
         self.button_msl_continuous_multi.clicked.connect(self.view_msl_continuous_multi)
-        layout.addWidget(self.button_msl_continuous_multi, row_index, 3)
+        layout.addWidget(self.button_msl_continuous_multi, row_index, 2)
         
 
         self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')     
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
-        layout.addWidget(self.button_msl_single_lfpevent, row_index, 4); row_index+=1
+        layout.addWidget(self.button_msl_single_lfpevent, row_index, 3); row_index+=1
 
 
         self.button_msl_state_space = QPushButton('MSL - State Space')     #WHAT DOES THIS DO AGAIN? 
@@ -559,8 +565,13 @@ class MSL(QtGui.QWidget):
     
     def view_msl_continuous(self):                  #Compute sliding window msl  ***************************
         compute_msl_continuous(self)
+
+
+    def compute_msl_continuous_single(self):
+        compute_msl_continuous_single_cell(self)
         
-    
+
+
     #****************************** STATE SPACE ANALYSIS **********************************
     
     def view_msl_state_space(self):
