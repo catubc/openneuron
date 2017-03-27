@@ -55,6 +55,15 @@ class Info(QtGui.QWidget):
         self.print_header_ptcs.clicked.connect(self.view_header_ptcs)
         layout.addWidget(self.print_header_ptcs, row_index, 0); row_index+=1
                 
+
+        self.split_ptcs= QPushButton('Split .ptcs file by epochs')
+        self.split_ptcs.setMaximumWidth(250)
+        self.split_ptcs.clicked.connect(self.split_ptcs_file)
+        layout.addWidget(self.split_ptcs, row_index, 0); row_index+=1
+        
+        
+        
+        #***********************************************************************
         
         self.setLayout(layout)
     
@@ -121,8 +130,25 @@ class Info(QtGui.QWidget):
     def view_header_ptcs(self):
         
         print "... selecting single lfp recording ..."
-        self.ptcs_file = QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.root_dir,"PTCS (*.ptcs)")
+        self.ptcs_file = QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.root_dir,"PTCS (*.ptcs; *.npz)")
         sort = PTCS.PTCS(self.ptcs_file)
         
         sort.print_header()
+        
+    def split_ptcs_file(self):
+        
+        print "... selecting single lfp recording ..."
+        self.ptcs_file = QtGui.QFileDialog.getOpenFileName(self, "Select .ptcs file to split", self.root_dir,"PTCS (*.ptcs)")
+        self.sort = PTCS.PTCS(self.ptcs_file)
+        
+        print "... selecting single TSF recording ..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "Select .tsf file for epoch info", self.root_dir,"TSF (*.tsf)")
+        self.tsf = TSF.TSF(self.tsf_file)
+        
+        split_ptcs_tsf(self)
+        
+        
+        
+        
+        
     
