@@ -33,16 +33,17 @@ class Info(QtGui.QWidget):
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
 
-        self.print_footer = QPushButton('Print Footer .tsf')
-        self.print_footer.setMaximumWidth(250)
-        self.print_footer.clicked.connect(self.view_footer)
-        layout.addWidget(self.print_footer, row_index, 0)
-         
         self.print_header= QPushButton('Print Header .tsf')
         self.print_header.setMaximumWidth(250)
         self.print_header.clicked.connect(self.view_header)
-        layout.addWidget(self.print_header, row_index, 1); row_index+=1
+        layout.addWidget(self.print_header, row_index, 0); row_index+=1
                 
+
+        self.print_footer = QPushButton('Print Footer .tsf')
+        self.print_footer.setMaximumWidth(250)
+        self.print_footer.clicked.connect(self.view_footer)
+        layout.addWidget(self.print_footer, row_index, 0); row_index+=1
+         
         #***************************************
         
         self.preprocess_lbl = QLabel('PTCS FILE INFO', self)
@@ -95,7 +96,7 @@ class Info(QtGui.QWidget):
     
     def multi_lfp_zip(self):
         print "... selecting multiple .lfp.zip recording directories ..."
-        #dialog = FileDialog()   #**** SELECT MULTIPLE DIRECTORIES, NOT INDIVIDUAL FIELS
+        #dialog = FileDialog()   #**** SELECT MULTIPLE DIRECTORIES, NOT INDIVIDUAL FILES
         #dialog.exec_()
 
         in_files = QtGui.QFileDialog.getOpenFileNames(self, "*", self.root_dir, "*")
@@ -109,8 +110,7 @@ class Info(QtGui.QWidget):
         self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         compress_lfp(self) 
     
-    
-    
+        
     def view_footer(self):
         
         print "... selecting single lfp recording ..."
@@ -118,6 +118,7 @@ class Info(QtGui.QWidget):
         tsf = TSF.TSF(self.tsf_file)
         
         tsf.read_footer()
+    
     
     def view_header(self):
         
@@ -127,6 +128,7 @@ class Info(QtGui.QWidget):
         
         tsf.print_header()
     
+    
     def view_header_ptcs(self):
         
         print "... selecting single lfp recording ..."
@@ -134,6 +136,7 @@ class Info(QtGui.QWidget):
         sort = PTCS.PTCS(self.ptcs_file)
         
         sort.print_header()
+        
         
     def split_ptcs_file(self):
         
@@ -146,9 +149,4 @@ class Info(QtGui.QWidget):
         self.tsf = TSF.TSF(self.tsf_file)
         
         split_ptcs_tsf(self)
-        
-        
-        
-        
-        
     

@@ -22,6 +22,7 @@ class MouseLeverTools(QtGui.QWidget):
         self.parent.exp_type = 'mouse_lever'
         
         row_index = 0   #Keep track of button/box row
+        self.video_rate = 15.        #Video rate in Hz.
 
 
         #**************************************************************************************
@@ -235,7 +236,7 @@ class MouseLeverTools(QtGui.QWidget):
         #**************************************************************************************
 
         
-        self.button31 = QPushButton('Static STM')
+        self.button31 = QPushButton('Static STM - Single')
         self.button31.setMaximumWidth(200)
         self.button31.clicked.connect(self.static_stm_mouse_lever)
         layout.addWidget(self.button31, row_index, 0)
@@ -280,27 +281,25 @@ class MouseLeverTools(QtGui.QWidget):
         self.stm_end_time_lbl = QLabel('End time:', self)
         layout.addWidget(self.stm_end_time_lbl, row_index,10)
         layout.addWidget(self.stm_end_time, row_index,11); row_index+=1
+        
+        self.static_stm_all = QPushButton('Static STM - All')
+        self.static_stm_all.setMaximumWidth(200)
+        self.static_stm_all.clicked.connect(self.static_stm_all_lever)
+        layout.addWidget(self.static_stm_all, row_index, 0)
+
+        
+        self.vid_stm_all = QPushButton('Video STM - All')
+        self.vid_stm_all.setMaximumWidth(200)
+        self.vid_stm_all.clicked.connect(self.video_stm_all)
+        layout.addWidget(self.vid_stm_all, row_index, 1)
 
 
-        #************************************ FILTERING ***************************************
+        #************************************ EVENT TRIGGERED OPTIONS ***************************************
 
         #self.stm_activity = QPushButton('Activity Triggered STM')
         #self.stm_activity.setMaximumWidth(200)
         #self.stm_activity.clicked.connect(self.view_stm_activity)
         #layout.addWidget(self.stm_activity, row_index, 0)
-        
-        
-        self.mask_start_frame = QLineEdit('0')
-        self.mask_start_frame.setMaximumWidth(50)
-        self.mask_start_frame_lbl = QLabel('Mask start frame:', self)
-        layout.addWidget(self.mask_start_frame_lbl, row_index,1)
-        layout.addWidget(self.mask_start_frame, row_index,2)
-        
-        self.mask_end_frame = QLineEdit('6')
-        self.mask_end_frame.setMaximumWidth(50)
-        self.mask_end_frame_lbl = QLabel('End time:', self)
-        layout.addWidget(self.mask_end_frame_lbl, row_index,3)
-        layout.addWidget(self.mask_end_frame, row_index,4)        
         
         self.mask_width = QLineEdit('12')
         self.mask_width.setMaximumWidth(50)
@@ -320,6 +319,18 @@ class MouseLeverTools(QtGui.QWidget):
         layout.addWidget(self.mask_power_lbl, row_index,9)
         layout.addWidget(self.mask_power, row_index,10); row_index+=1
         
+        self.mask_start_frame = QLineEdit('0')
+        self.mask_start_frame.setMaximumWidth(50)
+        self.mask_start_frame_lbl = QLabel('Mask start frame:', self)
+        layout.addWidget(self.mask_start_frame_lbl, row_index,5)
+        layout.addWidget(self.mask_start_frame, row_index,6)
+        
+        self.mask_end_frame = QLineEdit('6')
+        self.mask_end_frame.setMaximumWidth(50)
+        self.mask_end_frame_lbl = QLabel('End time:', self)
+        layout.addWidget(self.mask_end_frame_lbl, row_index,7)
+        layout.addWidget(self.mask_end_frame, row_index,8)        
+                
         row_index+=1
 
 
@@ -651,7 +662,7 @@ class MouseLeverTools(QtGui.QWidget):
             self.n_codes = np.count_nonzero(self.code_44threshold == self.selected_code)         
             self.n_codes_lbl.setText(str(self.n_codes))
 
-        #Load Times for specific 
+        #Load Times for specific behaviours using video annotation
         else: 
             load_behavioural_annotation_data(self)
             self.n_codes = len(self.code_44threshold_selected)         
@@ -676,17 +687,17 @@ class MouseLeverTools(QtGui.QWidget):
 
     def view_trial_locations(self):
         print "... displaying trial locations..."
-        show_trial_locations(self)
+        show_trial_locations(self)        
         
-        
-    def make_annotated_movies(self):
-        print "... making annotated movies..."
-        annotate_movies(self)
-
 
     def find_isolated_behaviours(self):
         print "... finding isolated behaviours..."
         find_isolated(self)
+
+
+    def make_annotated_movies(self):
+        print "... making annotated movies..."
+        annotate_movies(self)
 
     #*****************************************************************************************************
     #************************************* PREPROCESS ALL DATA ******************************************
@@ -838,7 +849,7 @@ class MouseLeverTools(QtGui.QWidget):
             data = np.load(filenames[k])
             
             for cluster in data['cluster_names']:
-                if "no_" in cluster: pass
+                if "no_" in cluster: pass                       #Ignore the non-behaviour labels containing string "no_" in them.
                 else: self.annotated_clusters.append(cluster)
 
         return self.annotated_clusters            
@@ -846,6 +857,9 @@ class MouseLeverTools(QtGui.QWidget):
     def static_stm_mouse_lever(self):
         view_static_stm(self)
 
+
+    def static_stm_all_lever(self):
+        make_static_stm_all(self)
 
     #def view_stm_activity(self):
     #    make_stm_motion_mask(self)  #NOT USED ANYMORE; WAS DEVELOPED TO TEST OUT MASKING
@@ -855,6 +869,8 @@ class MouseLeverTools(QtGui.QWidget):
     def video_stm_mouse_lever(self):
         view_video_stm(self)
 
+    def video_stm_all(self):
+        view_video_stm_all(self)
 
     def style_choice2(self, text):
         self.choice2 = text

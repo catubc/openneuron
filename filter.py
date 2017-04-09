@@ -14,7 +14,8 @@ class Filter(QtGui.QWidget):
         layout = QtGui.QGridLayout()
 
         self.parent = parent
-        self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
         row_index = 0
         
         self.low_cutoff = QLineEdit('0.1');                #parent.start_time = self.start_time

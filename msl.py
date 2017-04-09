@@ -12,23 +12,121 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
-
         self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
 
-        #***************************** Cat DATA *************************************
-        #ptc21 tr5c 
-        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
-        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
+        '''
+        #************************************************************************************************************************************************************
+        #************************************************************************************************************************************************************
+        #*************************************************** Cat DATA ************************************************************************
+        #************************************************************************************************************************************************************
+        #************************************************************************************************************************************************************
+        '''
+        
+        #**************************** PTC17 ***********************
+        #ptc17 tr1 - 1202um electrode
+        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_alltrack_sync.ptcs2.npz'
+        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed_50compressed.ptcs'
+        self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed.tsf'
+        
+        #ptc17 tr2 - 1202um electrode
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr2b/sort_all_track/44-tr2b-blankscreen_alltrack_sync.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr2b/sort_all_track/44-tr2b-blankscreen_lp_alltrack_desynch_zeroed_0.7si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr2b/sort_all_track/44-tr2b-blankscreen_lp_alltrack_desynch_zeroed_0.7si.tsf'
+        
+        #**************************** PTC18 ***********************
+        ##ptc18 tr1 - 1325um electrode
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr1/sort_alltrack/01-tr1-driftbar_longbar_alltrack.ptcs' #IS THIS SYNC PERIOD ONLY?!??!?!
+        #MUA
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr1/sort_alltrack/01-tr1-driftbar_longbar_alltrack_MUA_5x.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr1/sort_alltrack/01-tr1-driftbar_longbar_lp_alltrack_desynch_zeroed_0.5si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr1/sort_alltrack/01-tr1-driftbar_longbar_lp_alltrack_desynch_zeroed_0.5si_50compressed.tsf'
 
-        #***************************** MOUSE DATA *************************************
+        ##ptc18 tr2 - 1325um electrode
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr2c/sort_alltrack/47-tr2c-csd_alltrack.ptcs' #IS THIS SYNC PERIOD ONLY !?!??!?!
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr2c/sort_alltrack/47-tr2c-csd_lp_alltrack_notch_desynch_zeroed_0.7si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc18/tr2c/sort_alltrack/47-tr2c-csd_lp_alltrack_notch_desynch_zeroed_0.7si.tsf'
+
+        
+        #***************** PTC20 *************************
+        #ptc20 tr1 - 1325um electrode
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr1/sort_alltrack/01-tr1-csd_alltrack_sync.ptcs2.npz'  #HAS THIS BEEN DESCYNCHED!??!?!
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_desynch_zeroed_0.4si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_desynch_zeroed_0.4si.tsf'
+    
+        #ptc20 tr2 - NOT GOOD TRACK; 1325um electrode **********************************
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr2/sort_alltrack/34-tr2-blankscreen_alltrack.ptcs'    #HAS THIS BEEN DESCYNCHED!??!?!
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr2/sort_alltrack/34-tr2-blankscreen_lp_alltrack_notch_desynch_zeroed_0.5si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr2/sort_alltrack/34-tr2-blankscreen_lp_alltrack_notch_desynch_zeroed_0.5si_50compressed.tsf'
+    
+        #ptc20 tr3  - 1700um electrode
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr3/sort_alltrack/58-tr3-spontaneous_alltrack.ptcs'    #HAS THIS BEEN DESCYNCHED!??!?!
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr3/sort_alltrack/58-tr3-spontaneous_lp_alltrack_notch_desynch_zeroed_0.5si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc20/tr3/sort_alltrack/58-tr3-spontaneous_lp_alltrack_notch_desynch_zeroed_0.5si_50compressed.tsf'
+
+
+        #*************** PTC21 *******************
+        #ptc21 tr1 - 1755um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_50compressed.tsf'
+
+        #ptc21 tr2 - 1755um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr2/sort_alltrack/13-tr2-spontaneous_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr2/sort_alltrack/13-tr2-spontaneous_lp_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr2/sort_alltrack/13-tr2-spontaneous_lp_alltrack_notch_50compressed.tsf'
+
+        #ptc21 tr5c  - 1755um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.tsf'
+
+        #ptc21 tr6b - 1755um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr6b/sort_alltrack/80-t6b-csd_binocular_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr6b/sort_alltrack/80-t6b-csd_binocular_lp_alltrack_notch_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr6b/sort_alltrack/80-t6b-csd_binocular_lp_alltrack_notch_50compressed.tsf'
+    
+
+        #****************** PTC22 **********************
+        #tr1 - 1202um electrode 
+
+
+        #tr2 - 1202um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr2/sort_alltrack/23-tr2-csd_alltrack.ptcs'
+        #SYNC SUA
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr2/sort_alltrack/23-tr2-csd_alltrack_0.7si_sync.ptcs2.npz'
+        #SYNC MUA:
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr2/sort_alltrack/23-tr2-csd_alltrack_MUA_5x_0.7si_sync.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr2/sort_alltrack/23-tr2-csd_lp_alltrack_notch_desynch_zeroed_0.6si_50compressed.ptcs'
+        #elf.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr2/sort_alltrack/23-tr2-csd_lp_alltrack_notch_desynch_zeroed_0.6si_50compressed.tsf'
+        
+                
+        #tr4b - 1202um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_alltrack_0.8si_sync.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_lp_alltrack_notch_desynch_zeroed_0.7si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_lp_alltrack_notch_desynch_zeroed_0.7si.tsf'
+    
+
+        #tr5b - 1202um electrode 
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_alltrack_0.8si_sync.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_lp_alltrack_notch_desynch_zeroed_0.7si_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc22/tr4b/sort_alltrack/40-tr4b-csd_lp_alltrack_notch_desynch_zeroed_0.7si.tsf'
+    
+    
+        '''
+        #************************************************************************************************************************************************************
+        #************************************************************************************************************************************************************
+        #***************************************************************** MOUSE DATA ***********************************************************
+        #************************************************************************************************************************************************************
+        #************************************************************************************************************************************************************
+        '''
+        
         #2017-02_03 VISUAL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
-        ##self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
+        ###self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
         #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
@@ -54,20 +152,23 @@ class MSL(QtGui.QWidget):
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_08_31_vsd_visual/sort_alltrack/track1_spontaneous_1_160831_213746_lfp_250hz_alltrack_lowcut0.1_highcut110.0_50compressed.ptcs'
         #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2016_08_31_vsd_visual/sort_alltrack/track1_spontaneous_1_160831_213746_lfp_250hz_alltrack.tsf'
 
-
-
         #************************************************ SUBCORTICAL LFP CLUSTERS **********************************
         #2016_07_26 AUDITORY   - Multiople clusters - *********** SUBCORTICAL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'#
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.tsf'
+
+
+        #2016_07_20 BARREL  
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_20_vsd_barrel/sort_track2/track2_iso75_spontaneous_160720_220333_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_20_vsd_barrel/sort_track2/track2_iso75_spontaneous_160720_220333_lfp_250hz_alltrack_50compressed.ptcs' 
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_20_vsd_barrel/sort_track2/track2_iso75_spontaneous_160720_220333_lfp_250hz_alltrack_50compressed.tsf'
 
 
         #2016_07_15 VISUAL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_15_vsd_visual/sort_alltrack_spontaneous/track1_150Hz_1st_spontaneous_10iso_160715_181445_hp_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_15_vsd_visual/sort_alltrack_spontaneous/track1_150Hz_1st_spontaneous_10iso_160715_181445_lfp_250hz_alltrack_50compressed.ptcs'
-
-
-
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2016_07_15_vsd_visual/sort_alltrack_spontaneous/track1_150Hz_1st_spontaneous_10iso_160715_181445_lfp_250hz_alltrack_50compressed.tsf'
 
         ##********************************* CHRONIC V1 ************************************
         #ALL EPOCHS
@@ -76,9 +177,9 @@ class MSL(QtGui.QWidget):
         #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
         
         #EPOCH #0
-        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack_epoch_0.ptcs2.npz'
-        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed_epoch_0.ptcs2.npz'
-        self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack_epoch_0.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed_epoch_0.ptcs2.npz'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
 
         #EPOCH #1
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack_epoch_1.ptcs2.npz'
@@ -145,7 +246,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(time_chunks_lbl,row_index,2)
         layout.addWidget(parent.time_chunks,row_index,3)
 
-        self.cmap = QLineEdit('Reds_r');               
+        self.cmap = QLineEdit('viridis');               
         self.cmap.setMaximumWidth(250)
         cmap_lbl = QLabel('Colour Map', self)
         layout.addWidget(cmap_lbl,row_index,4)
@@ -395,7 +496,7 @@ class MSL(QtGui.QWidget):
         self.specgram_ch.setMaximumWidth(50)
         self.specgram_ch_lbl = QLabel('Specgram Ch', self)
         layout.addWidget(self.specgram_ch_lbl,row_index,8)
-        layout.addWidget(self.specgram_ch,row_index,9); row_index+=1
+        layout.addWidget(self.specgram_ch,row_index,9); 
 
 
         #**************************************************************************************

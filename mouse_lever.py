@@ -888,7 +888,7 @@ class Session(object):
 
         return temp
             
-    def find_nearest(self, array, value):
+    def find_nearest_2(self, array, value):
         return (np.abs(array-value)).argmin()
 
     def find_previous(self, array,value):
