@@ -15,6 +15,7 @@ from scipy.signal import butter, filtfilt, cheby1
 from scipy import stats
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
+from libtfr import * #hermf, dpss, trf_spec <- these are some of the fucntions; for som reason last one can't be explicitly imported
 
 from sklearn import decomposition
 from mpl_toolkits.mplot3d import Axes3D
@@ -26,8 +27,9 @@ import multiprocessing
 import cv2
 import scipy
 import scipy.ndimage
+import sys
 
-from load_intan_rhd_format import *
+import load_intan_rhd_format 
 
 sys.path.append('/home/cat/code/')
 import TSF.TSF as TSF
@@ -46,335 +48,6 @@ class Object_empty(object):
         pass
             
 
-
-
-#class Ptcs(object):
-    #"""Polytrode clustered spikes file neuron record"""
-    #def __init__(self, file_name):
-        
-        #f = open(file_name, "rb")
-        #self.sorted_file = file_name
-        #self.name = file_name
-        #self.full_path =file_name
-        ## call the appropriate method:
-        #self.VER2FUNC = {1: self.readHeader, 2: self.readHeader, 3: self.readHeader}
-
-        #self.readHeader(f)
-        
-        #self.nid = []  #Make unique unit id list for loading later.
-        
-        #self.loadData(self.nsamplebytes, f)
-        
-        #f.close()
-
-    #def __getstate__(self):
-        #"""Instance methods must be excluded when pickling"""
-        #d = self.__dict__.copy()
-        #try: del d['VER2FUNC']
-        #except KeyError: pass
-        #return d
-
-    #def readHeader(self, f):
-        #"""Read in neuron record of .ptcs file version 3. 'zpos' field was replaced
-        #by 'sigma' field.
-        #nid: int64 (signed neuron id, could be -ve, could be non-contiguous with previous)
-        #ndescrbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment, defaults to 0)
-        #descr: ndescrbytes of ASCII text
-        #(padded with null bytes if needed for 8 byte alignment)
-        #clusterscore: float64
-        #xpos: float64 (um)
-        #ypos: float64 (um)
-        #sigma: float64 (um) (Gaussian spatial sigma)
-        #nchans: uint64 (num chans in template waveforms)
-        #chanids: nchans * uint64 (0 based IDs of channels in template waveforms)
-        #maxchanid: uint64 (0 based ID of max channel in template waveforms)
-        #nt: uint64 (num timepoints per template waveform channel)
-        #nwavedatabytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
-        #wavedata: nwavedatabytes of nsamplebytes sized floats
-        #(template waveform data, laid out as nchans * nt, in uV,
-        #padded with null bytes if needed for 8 byte alignment)
-        #nwavestdbytes: uint64 (nbytes, keep as multiple of 8 for nice alignment)
-        #wavestd: nwavestdbytes of nsamplebytes sized floats
-        #(template waveform standard deviation, laid out as nchans * nt, in uV,
-        #padded with null bytes if needed for 8 byte alignment)
-        #nspikes: uint64 (number of spikes in this neuron)
-        #spike timestamps: nspikes * uint64 (us, should be sorted)
-        #"""
-
-        #self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
-        #self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
-        #self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
-
-        #if self.descr:
-            #try:
-                #self.descr = eval(self.descr) # might be a dict
-            #except: pass
-
-        #self.nneurons = int(np.fromfile(f, dtype=np.uint64, count=1)) # nneurons
-        #self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
-        #self.nsamplebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsamplebytes
-        #self.samplerate = int(np.fromfile(f, dtype=np.uint64, count=1)) # samplerate
-        #self.npttypebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # npttypebytes
-
-        #self.pttype = f.read(self.npttypebytes).rstrip('\0 ') # pttype
-
-        #self.nptchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nptchans
-        #self.chanpos = np.fromfile(f, dtype=np.float64, count=self.nptchans*2) # chanpos
-        #self.chanpos.shape = self.nptchans, 2 # reshape into rows of (x, y) coords
-        #self.nsrcfnamebytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nsrcfnamebytes
-        #self.srcfname = f.read(self.nsrcfnamebytes).rstrip('\0 ') # srcfname
-        ## maybe convert this to a proper Python datetime object in the Neuron:
-        #self.datetime = float(np.fromfile(f, dtype=np.float64, count=1)) # datetime (days)
-        #self.ndatetimestrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndatetimestrbytes
-        #self.datetimestr = f.read(self.ndatetimestrbytes).rstrip('\0 ') # datetimestr
-
-
-    #def loadData(self, n_bytes, f):
-        ##call the appropriate method:
-        ##self.VER2FUNC = {1: self.read_ver_1, 2:self.read_ver_2, 3:self.read_ver_3}
-        #self.nsamplebytes = n_bytes
-        #self.wavedtype = {2: np.float16, 4: np.float32, 8: np.float64}[self.nsamplebytes]
-
-        #self.n_units=self.nneurons
-        #self.units=[None]*self.n_units
-        #self.uid = [None]*self.n_units  #Unique id for full track sorts
-        #self.n_sorted_spikes = [None]*self.n_units
-        #self.ptp=np.zeros((self.n_units), dtype=np.float32)
-        #self.size = []
-        #self.maxchan = []
-        #self.sigma = []
-        #self.xpos = []
-        #self.ypos = []
-        #self.wavedata = []
-
-        #for k in range(self.n_units):
-            #self.readUnit(f)
-            #self.units[k]= self.spikes
-
-            #if 'martin' in self.full_path:
-                #self.uid[k]= self.nid
-            #else: #All other sorts are from Nick's SS so should be the same
-                #self.uid[k]= self.nid-1
-               
-            ##print "SAMPLERATE: ", self.samplerate
-            ##if ptcs_flag: #Martin's data has wrong flag for saves
-            
-            ##CONVERT UNITS TO TIMESTEPS
-            ##self.units[k]=[x*self.samplerate/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
-            ##else:
-            ##    self.units[k]=[x*self.samplerate/2/1E+6 for x in self.units[k]] #Converts spiketimes from usec to timesteps
-
-            #self.n_sorted_spikes[k] = len(self.units[k])
-            #self.size.append(self.nspikes)
-            #self.maxchan.append(self.maxchanu)
-            #self.sigma.append(self.zps)
-            #self.xpos.append(self.xps)
-            #self.ypos.append(self.yps)
-            #self.wavedata.append(self.wvdata)
-
-            ##self.ptp[k]=max(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) - \
-            ##            min(self.wavedata[np.where(self.chans==self.maxchanu)[0][0]]) #compute PTP of template;
-
-
-        #f.close()
-
-
-    #def readUnit(self,f):
-        #self.nid = int(np.fromfile(f, dtype=np.int64, count=1)) # nid
-        #self.ndescrbytes = int(np.fromfile(f, dtype=np.uint64, count=1)) # ndescrbytes
-        #self.descr = f.read(self.ndescrbytes).rstrip('\0 ') # descr
-
-        #if self.descr:
-            #try:
-                #self.descr = eval(self.descr) # might be a dict
-            #except: pass
-
-        #self.clusterscore = float(np.fromfile(f, dtype=np.float64, count=1)) # clusterscore
-        #self.xps = float(np.fromfile(f, dtype=np.float64, count=1)) # xpos (um)
-        #self.yps = float(np.fromfile(f, dtype=np.float64, count=1)) # ypos (um)
-        #self.zps = float(np.fromfile(f, dtype=np.float64, count=1)) # zpos (um) #Replaced by spatial sigma
-        #self.nchans = int(np.fromfile(f, dtype=np.uint64, count=1)) # nchans
-        #self.chans = np.fromfile(f, dtype=np.uint64, count=self.nchans) #NB: Some errors here from older .ptcs formats
-        #self.maxchanu = int(np.fromfile(f, dtype=np.uint64, count=1)) # maxchanid
-
-        #self.nt = int(np.fromfile(f, dtype=np.uint64, count=1)) # nt: number of time points in template
-
-        #self.nwavedatabytes, self.wvdata = self.read_wave(f) #TEMPLATE
-
-        #self.nwavestdbytes, self.wavestd = self.read_wave(f) #STANDARD DEVIATION
-        #self.nspikes = int(np.fromfile(f, dtype=np.uint64, count=1)) # nspikes
-
-        #self.spikes = np.fromfile(f, dtype=np.uint64, count=self.nspikes) # spike timestamps (us):
-
-        ## convert from unsigned to signed int for calculating intervals:
-        ##self.spikes = np.asarray(self.spikes, dtype=np.float64)
-
-            
-    #def read_wave(self, f):
-        #"""Read wavedata/wavestd bytes"""
-        ## nwavedata/nwavestd bytes, padded:
-        #nbytes = int(np.fromfile(f, dtype=np.uint64, count=1))
-        #fp = f.tell()
-        #count = nbytes // self.nsamplebytes # trunc to ignore any pad bytes
-        #X = np.fromfile(f, dtype=self.wavedtype, count=count) # wavedata/wavestd (uV)
-        #if nbytes != 0:
-            #X.shape = self.nchans, self.nt # reshape
-        #f.seek(fp + nbytes) # skip any pad bytes
-        #return nbytes, X
-
-    #def rstrip(s, strip):
-        #"""What I think str.rstrip should really do"""
-        #if s.endswith(strip):
-            #return s[:-len(strip)] # strip it
-        #else:
-            #return s
-
-    #def read(self):
-        #self.nid = self.parse_id()
-        #with open(self.fname, 'rb') as f:
-            #self.spikes = np.fromfile(f, dtype=np.int64) # spike timestamps (us)
-        #self.nspikes = len(self.spikes)
-
-
-#class Tsf_file(object):
-
-    #def __init__(self, file_name):
-        
-        #self.read_header(file_name)
-        
-    #def read_header(self, file_name):
-        
-        #self.fin = open(file_name, "rb")
-        
-        #self.header = self.fin.read(16)
-        #self.iformat = struct.unpack('i',self.fin.read(4))[0] 
-        #self.SampleFrequency = struct.unpack('i',self.fin.read(4))[0] 
-        #self.n_electrodes = struct.unpack('i',self.fin.read(4))[0] 
-        #self.n_vd_samples = struct.unpack('i',self.fin.read(4))[0] 
-        #self.vscale_HP = struct.unpack('f',self.fin.read(4))[0] 
-
-        #if self.iformat==1001:
-            #self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
-            #self.Siteloc = struct.unpack(str(2*self.n_electrodes)+'h', self.fin.read(2*self.n_electrodes*2))
-        #if self.iformat==1002:
-            #self.Siteloc = np.zeros((2*self.n_electrodes), dtype=np.int16)
-            #self.Readloc = np.zeros((self.n_electrodes), dtype=np.int32)
-            #for i in range(self.n_electrodes):
-                #self.Siteloc[i*2] = struct.unpack('h', self.fin.read(2))[0]
-                #self.Siteloc[i*2+1] = struct.unpack('h', self.fin.read(2))[0]
-                #self.Readloc[i] = struct.unpack('i', self.fin.read(4))[0]
-
-    #def read_ec_traces(self):
-        #print " ... reading data, #chs: ", self.n_electrodes, " nsamples: ", self.n_vd_samples, " len: ", float(self.n_vd_samples)/float(self.SampleFrequency), " sec."
-        #self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_electrodes*self.n_vd_samples)
-        #self.ec_traces.shape = self.n_electrodes, self.n_vd_samples
-
-        #self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
-        
-        ##print "No. ground truth cell spikes: ", self.n_cell_spikes
-        #if (self.n_cell_spikes>0):
-            #if (self.iformat==1001):
-                #self.vertical_site_spacing = struct.unpack('i',self.fin.read(4))[0] 
-                #self.n_cell_spikes = struct.unpack('i',self.fin.read(4))[0] 
-
-            #self.fake_spike_times =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            #self.fake_spike_assignment =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            #self.fake_spike_channels =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-        
-        #self.fin.close()
-
-    #def read_trace(self, channel):
-        ##Load single channel 
-
-        #indent = 16+20+self.n_electrodes*8
-
-        #self.fin.seek(indent+channel*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
-        #self.ec_traces =  np.fromfile(self.fin, dtype=np.int16, count=self.n_vd_samples)
-        #self.fin.close()
-    
-    #def save_tsf(self, file_name):
-        
-        #fout = open(file_name, 'wb')
-        #print "...saving: ",  file_name
-        #fout.write(self.header)
-        #fout.write(struct.pack('i', self.iformat))
-        #fout.write(struct.pack('i', self.SampleFrequency))
-        #fout.write(struct.pack('i', self.n_electrodes))
-        #fout.write(struct.pack('i', self.n_vd_samples))
-        #fout.write(struct.pack('f', self.vscale_HP))
-        #for i in range (self.n_electrodes):
-            #fout.write(struct.pack('h', self.Siteloc[i*2]))
-            #fout.write(struct.pack('h', self.Siteloc[i*2+1]))
-            #fout.write(struct.pack('i', i+1))                 #CAREFUL, SOME FILES MAY USE ReadLoc values..
-
-        #self.ec_traces.tofile(fout)
-
-        #fout.write(struct.pack('i', self.n_cell_spikes))
-
-        ##try:
-            ##self.subsample
-        ##except NameError:
-            ##self.subsample = 1.0
-
-        ##fout.write(struct.pack('i', self.subsample))
-
-        #fout.close()
-
-
-    #def read_footer(self):
-        
-        ##Header indent
-        #indent = 16+20+self.n_electrodes*8
-
-        ##Voltage indent
-        #self.fin.seek(indent+self.n_electrodes*2*self.n_vd_samples, os.SEEK_SET)         #Not 100% sure this indent is correct.
-        
-        ##Read last record
-        #self.n_cell_spikes =  np.fromfile(self.fin, dtype=np.int32, count=1)
-        #print "... n spikes: ", self.n_cell_spikes
-        
-
-        ##print "No. ground truth cell spikes: ", self.n_cell_spikes
-        #if (self.n_cell_spikes>0):
-            #self.fake_spike_times =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            #self.fake_spike_assignment =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-            #self.fake_spike_channels =  np.fromfile(self.fin, dtype=np.int32, count=self.n_cell_spikes)
-        
-        ##Save meta data into files.
-        
-        ##CHECK TO SEE IF 
-        #self.n_files =  np.fromfile(self.fin, dtype=np.int32, count=1)
-        #if len(self.n_files)==0:
-            #print "... reached end of file ... older version of .tsf does not contain original file names or original # of samples.."
-            #return
-
-        #self.file_names = []
-        #self.n_samples = []
-        #self.n_digital_chs = []
-        #self.digital_channels = []
-        
-        #print "... n files: ", self.n_files                                 #THIS IS FOR GENERAL CASE where > 1 .tsf file saved.
-        #for k in range(len(self.n_files)):
-            #self.file_names.append(self.fin.read(256))
-            #print "... original file name: ", self.file_names[k]
-
-            #self.n_samples.append(np.fromfile(self.fin, dtype=np.int32, count=1))
-            #print "... original n_samples: ", self.n_samples[k]
-            
-            ##Load digital channels
-            #self.n_digital_chs.append(np.fromfile(self.fin, dtype=np.int32, count=1))
-
-            #if len(self.n_digital_chs[0])==0:
-                #print "... reached end of file ... older version of .tsf does not contain digital channel information..."
-                #return
-
-            #print "... # of digital chs: ", self.n_digital_chs
-            
-            #temp_chs = []
-            #for ch in range(self.n_digital_chs[k]):
-                #temp_chs.append(np.fromfile(self.fin, dtype=bool, count=self.n_samples[k]))         #Load the original #samples saved to disk, NOT n_vd_samples
-
-            #self.digital_channels.append(temp_chs)
 
 
 class Probe(object):      
@@ -449,7 +122,7 @@ class Probe(object):
 
 #DUPLICATE FUNCTION WITH TSF CLASS FUNCTION; May still need it for stand alone functions; but LIKELY OBSOLETE... ERASE!!!!!!!!!!!!
 def save_tsf_single(tsf, file_name):
-    
+    print "... SAVING single .tsf: ", file_name
     fout = open(file_name, 'wb')
 
     fout.write(tsf.header)
@@ -1650,7 +1323,7 @@ def filter_data(self):
         print " # pixels filtered: ", n_pixels_in
     print "...total filter time: ", time.time()-start_time
 
-    plt.imshow(filtered_array[1000]); plt.show()        #Check the 1000th frame see what it looks like
+    #plt.imshow(filtered_array[1000]); plt.show()        #Check the 1000th frame see what it looks like
 
     print "... saving filtered data...", filtered_array.shape
     np.save(images_file[:-4]+'_'+filter_type+'_'+str(lowcut)+'hz_'+str(highcut)+'hz', filtered_array+np.float16(images_aligned_mean))
@@ -3167,6 +2840,10 @@ def make_static_stm_all(self):
     #Average all activity for behaviour class
     all_data = np.mean(data, axis=0)
     print all_data.shape
+
+    #Smooth data before processing
+    for v in range(len(all_data)):
+        all_data[v]= ndimage.gaussian_filter(np.float64(all_data[v]), int(self.sigma_smooth.text()))
     
     #Mask data
     temp_array = quick_mask(self, all_data)
@@ -3228,7 +2905,8 @@ def make_static_stm_all(self):
 
     img_out = []
     img_out_original = []
-    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    for i in range(int(img_rate*(float(self.n_sec_window.text())+start_time)),int(img_rate*(float(self.n_sec_window.text())+end_time)), block_save):
     #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
         print i
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0)*motion_mask)
@@ -3307,12 +2985,17 @@ def view_static_stm(self):
     print "...stm_name: ", filename
     filename_motion_mask = filename[:-4]+"_motion_mask.npy"
 
-    data = np.load(filename)
+    data = np.load(filename,  mmap_mode='c')
     print data.shape
+    
+    temp_array = data[int(self.selected_trial)]
+    #Smooth data before processing
+    for v in range(len(temp_array)):
+        temp_array[v]= ndimage.gaussian_filter(np.float64(temp_array[v]), int(self.sigma_smooth.text()))
     
     #Mask data
     print "...selected trial for stm: ", self.selected_trial
-    temp_array = quick_mask(self, data[int(self.selected_trial)])
+    temp_array = quick_mask(self, temp_array)
 
 
     #Load motion mask
@@ -3365,10 +3048,11 @@ def view_static_stm(self):
     #start_time = -self.parent.n_sec; end_time = self.parent.n_sec
     start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
 
+    #Average blocks of frames for display
     img_out = []
     img_out_original = []
-    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
+    #for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
+    for i in range(int(img_rate*(float(self.n_sec_window.text())+start_time)),int(img_rate*(float(self.n_sec_window.text())+end_time)), block_save):
         print i
         img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0)*motion_mask)
         img_out_original.append(np.ma.average(temp_array[i:i+block_save], axis=0))
@@ -3382,6 +3066,7 @@ def view_static_stm(self):
 
 
     ax = plt.subplot(3,1,2)
+
     plt.imshow(img_out)
 
     plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
@@ -3406,6 +3091,7 @@ def view_static_stm(self):
     
     ax = plt.subplot(3,1,3)
 
+    #Smooth image data:
     plt.imshow(img_out)
 
     plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
@@ -3419,148 +3105,15 @@ def view_static_stm(self):
     plt.xticks(old_xlabel, new_xlabel, fontsize=18)
 
     plt.title(self.traces_filename)
-    #plt.suptitle(animal.ptcsName)
+    
+    
+    plt.suptitle(self.selected_animal+"  "+self.selected_session+"   "+self.selected_code, fontsize=20)
 
 
     plt.show()
 
     
     
-def make_stm_motion_mask(self):
-    ''' Average all/some STMs together to see if midline and other artifacts are substantial
-    '''
-    
-    self.parent.n_sec = float(self.n_sec_window.text())
-
-    block_save = int(self.block_save.text())
-
-    if self.selected_dff_filter == 'nofilter':
-        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
-            str(self.parent.n_sec)+"sec_"+ self.selected_dff_filter+'_' +self.dff_method+'_'+str(self.selected_code)+"code_traces.npy"
-    else:
-        self.traces_filename = self.parent.animal.home_dir+self.parent.animal.name+'/tif_files/'+self.selected_session+'/'+self.selected_session+"_"+ \
-            str(self.parent.n_sec)+"sec_" + self.selected_dff_filter + "_"+self.dff_method+'_'+self.parent.filter_low.text()+"hz_"+self.parent.filter_high.text()+"hz_"+str(self.selected_code)+"code_traces.npy"
-
-    filename = self.traces_filename.replace('_traces.npy','')+'_stm.npy'
-    print "...stm_name: ", filename                                         #Filename containing STMs for all trials for that particular code 
-
-    #print "...resetting stm_name to: ", filename
-
-    if os.path.exists(filename)==True: 
-        data = np.load(filename,  mmap_mode='c')
-    else:
-        print "...data not yet processed ******************"
-        return
-    
-    data_array = np.zeros(data.shape[1:], dtype=np.float32)
-    for trial in range(len(data)): 
-        data_array+= data[trial]
-   
-    data = data_array/len(data)
-    
-    #Mask data
-    temp_array = quick_mask(self, data)
-    
-    block_save = 1
-
-    plt.close()
-    ax = plt.subplot(2,1,1)
-    img_rate = self.parent.animal.img_rate
-    #start_time = -self.parent.n_sec; end_time = self.parent.n_sec
-    start_time = float(self.stm_start_time.text()); end_time = float(self.stm_end_time.text())
-
-    img_temp = []
-    for i in range(int(img_rate*(3+start_time)),int(img_rate*(3+end_time)), block_save):
-    #for i in range(0,int(2*img_rate*self.parent.n_sec), block_save):
-        print i
-        #img_out.append(np.ma.average(temp_array[i:i+block_save], axis=0))
-        img_temp.append(np.ma.average(temp_array[i:i+block_save], axis=0))
-
-    img_out = np.ma.hstack((img_temp))
-    
-    #v_abs = max(np.nanmax(img_out),-np.nanmin(img_out))
-    #plt.imshow(img_out, vmin = -v_abs, vmax=v_abs)
-    v_abs = np.max(img_out)
-    plt.imshow(img_out)
-
-    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
-    ax.yaxis.set_ticks([])
-    ax.xaxis.set_ticks([])
-
-    #if ctr==(len(select_units)-1): 
-    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
-    old_xlabel = np.linspace(0,img_out.shape[1], 11)
-    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
-    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
-
-    plt.title(self.traces_filename)
-    #plt.suptitle(animal.ptcsName)
-
-    #***************************************************************************************
-    #PLOT PIXELS OVER 95 PERCENTILE
-    ax = plt.subplot(2,1,2)
-    
-    x_shape = img_out.shape[0]
-    y_shape = img_out.shape[1]
-    
-    data_1d = img_out.reshape(x_shape*y_shape)
-    val999 = np.percentile(data_1d, 98)               #Mark stroke as the 97.5 percentile and higher values; 
-    print val999
-    maxval = np.max(data_1d)
-    
-    print maxval
-    
-    data_1d[data_1d > val999] = val999
-    
-    width = 60
-    
-    #Loop over every frame and scale data down
-    motion_mask = np.zeros((len(img_temp), len(img_temp[0]), len(img_temp[0])), dtype=np.float32)
-    for k in range(len(img_temp)/2.-3,len(img_temp)/2.+3, 1):
-        print "... frame: ", k
-        for x in range(len(img_temp[k])):
-            for y in range(len(img_temp[k][x])):
-                #if img_temp[k][x][y]>val999:     #OR JUST ALL PIXELS UNDER THE GAUSSIAN
-                #if abs(64-y)<15:
-                #if val999>img_temp[k][x][y]:
-                if img_temp[k][x][y]> 0: 
-                    motion_mask[k][x][y] = img_temp[k][x][y]*inverted_gaussian(width, abs(64-y), img_temp[k][x][y], maxval)
-                    img_temp[k][x][y] = img_temp[k][x][y] + img_temp[k][x][y]*inverted_gaussian(width, abs(64-y), img_temp[k][x][y], maxval)
-                
-                    #img_temp[k][x][y] += regularization(maxval, val999, img_temp[k][x][y])
-
-    motion_file = self.parent.animal.home_dir + self.parent.animal.name + "/" + self.parent.animal.name+ '_motion_mask'
-    np.save(motion_file, motion_mask)
-
-    motion_file_single = motion_file+"_single"
-    motion_mask_single = np.average(motion_mask, axis=0)
-    np.save(motion_file_single, motion_mask_single)
-    
-    img_out = np.ma.hstack((img_temp))
-
-    #data_1d = img_out.reshape(img_out.shape[0]*img_out.shape[1])
-    #data_1d[data_1d > val999] = 0
-    
-    #img_out = data_1d.reshape(x_shape, y_shape)
-
-    v_abs = np.max(img_out)
-    plt.imshow(img_out)
-
-    plt.ylabel(str(round(v_abs*100,2))+"%", fontsize=14)
-    ax.yaxis.set_ticks([])
-    ax.xaxis.set_ticks([])
-
-    #if ctr==(len(select_units)-1): 
-    plt.xlabel("Time from '44' threshold crossing (sec)", fontsize=25)
-    old_xlabel = np.linspace(0,img_out.shape[1], 11)
-    new_xlabel = np.around(np.linspace(start_time,end_time, 11), decimals=2)
-    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
-
-    plt.title(self.traces_filename)
-    #plt.suptitle(animal.ptcsName)
-
-    plt.show()
-
 
 def view_video_stm_all(self):
 
@@ -3587,8 +3140,14 @@ def view_video_stm_all(self):
     all_data = np.mean(data, axis=0)
     print all_data.shape
     
-    vid_array = quick_mask(self, all_data)
+    #Smooth data before processing
+    for v in range(len(all_data)):
+        all_data[v]= ndimage.gaussian_filter(np.float64(all_data[v]), int(self.sigma_smooth.text()))
+    
+    vid_array_save = all_data
 
+    #Mask data;
+    vid_array = quick_mask(self, all_data)
    
     #Apply motion Mask
     #filename_motion_mask = filename[:-4]+ self.selected_session+"_motion_mask.npy"
@@ -3601,11 +3160,11 @@ def view_video_stm_all(self):
     
     #print motion_mask
     vid_array = vid_array * motion_mask
-    
+    vid_array_save = vid_array_save * motion_mask
 
     #***********GENERATE ANIMATIONS
     Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+    writer = Writer(fps=int(self.fps.text()), metadata=dict(artist='Me'), bitrate=1800)
 
     im = []
     
@@ -3621,7 +3180,7 @@ def view_video_stm_all(self):
     ax.get_xaxis().set_visible(False)
     ax.yaxis.set_ticks([])
     plt.title(str(round(v_min*100,1))+ "%.."+str(round(v_max*100,1))+"%", fontsize=18)
-    im.append(plt.imshow(vid_array[0], cmap=plt.get_cmap('jet'), vmin=v_min, vmax=v_max, interpolation='none'))
+    im.append(plt.imshow(vid_array[0], cmap=plt.get_cmap(self.cmap.text()), vmin=v_min, vmax=v_max, interpolation='none'))
 
     #Majid plots
     ax = plt.subplot(1,2,2)
@@ -3633,7 +3192,7 @@ def view_video_stm_all(self):
     ax.yaxis.set_ticks([])
     plt.title(str(round(v_min*100,1))+ "%.."+str(round(v_max*100,1))+"%", fontsize=18)
 
-    im.append(plt.imshow(vid_array[0], cmap=plt.get_cmap('jet'), vmin=v_min, vmax=v_max, interpolation='none'))
+    im.append(plt.imshow(vid_array[0], cmap=plt.get_cmap(self.cmap.text()), vmin=v_min, vmax=v_max, interpolation='none'))
     
     #function to update figure
     def updatefig(j):
@@ -3653,7 +3212,9 @@ def view_video_stm_all(self):
 
     if True:
     #if save_animation:
-        ani.save(filename.replace('tif_files', 'video_files').replace(self.selected_session,'')+'_all.mp4', writer=writer)
+        ani.save(filename.replace('tif_files', 'video_files').replace(self.selected_session+'/','')+'_all.mp4', writer=writer)
+
+        np.save(filename.replace('tif_files', 'video_files').replace(self.selected_session+'/','')+'_all.npy', vid_array_save)
 
     plt.show()
 
@@ -3700,10 +3261,15 @@ def view_video_stm(self):
 
     data = np.load(filename)
     print data.shape
+
+    temp_array = data[int(self.selected_trial)]
+    #Smooth data before processing
+    for v in range(len(temp_array)):
+        temp_array[v]= ndimage.gaussian_filter(np.float64(temp_array[v]), int(self.sigma_smooth.text()))
     
     #Apply Generic Mask 
     print "...selected trial for stm: ", self.selected_trial
-    vid_array = quick_mask(self, data[int(self.selected_trial)])
+    vid_array = quick_mask(self, temp_array)
 
    
     #Apply motion Mask
@@ -3779,7 +3345,6 @@ def quick_mask_event(generic_mask_file, data, midline_mask_n_pixels):
         generic_mask_indexes[:,n_pixels/2+int(int(midline_mask_n_pixels)/2)-i]=True
 
     #Apply full mask; probably FASTER METHOD
-    n_pixels = n_pixels
     temp_array = np.ma.array(np.zeros((len(data),n_pixels,n_pixels),dtype=np.float32), mask=True)
     for i in range(0, len(data), 1):
         temp_array[i] = np.ma.masked_array(data[i], mask=generic_mask_indexes, fill=np.nan)
@@ -4589,33 +4154,31 @@ def concatenate_lfp_zip(self):
     tsf.save_tsf
     print "... done saving..."
 
+
 def subsample_channels_tsf(self):
     """ Subsample # of channels """
     
     tsf = TSF.TSF(self.tsf_file)
     tsf.read_ec_traces()
     tsf.read_footer()
-    
-    
-    font_size = 30
-    electrode_rarifier = int(1./float(self.n_electrodes.text()))
-    print "...electrode_rarifier: ", electrode_rarifier
-    #compression = 50.   #Need this to convert from compressed sample points to realtime
-    
-    #for spike in Sort.units[int(self.selected_unit.text())]:
 
+    #Clip top channels
+
+    #Save only n_channels max
+    save_channels = np.int32(np.linspace(int(self.top_channel.text()), tsf.n_electrodes-1, int(self.total_channels.text())))
     
-    tsf.ec_traces = tsf.ec_traces[::electrode_rarifier]
+    tsf.ec_traces = tsf.ec_traces[save_channels]
     temp_loc = []
-    for k in range(0, tsf.n_electrodes, electrode_rarifier):
+    for k in save_channels:
         temp_loc.append(tsf.Siteloc[k*2])
         temp_loc.append(tsf.Siteloc[k*2+1])
+
     tsf.Siteloc = np.hstack(temp_loc)
     tsf.n_electrodes = len(tsf.ec_traces)
     tsf.layout = np.arange(tsf.n_electrodes)
     print "... saving # of electrodes: ", tsf.n_electrodes
 
-    f_name = self.tsf_file[:-4]+"_rarified_"+str(tsf.n_electrodes)+"ch.tsf"
+    f_name = self.tsf_file[:-4]+"_reduced_"+str(tsf.n_electrodes)+"chs.tsf"
     save_tsf_single(tsf, f_name)
     
     
@@ -4696,9 +4259,50 @@ def load_lfpzip(file_name):     #Nick/Martin data has different LFP structure to
 
 def do_butter_highpass_filter(data, a, b):
     return filtfilt(b, a, data)
+   
+
+def tsf_to_digchs(self):
     
+    print self.selected_recording
+    tsf = TSF.TSF(self.selected_recording)
+    tsf.read_footer()
+
+    offset = 0
+    for f in range(tsf.n_files[0]):     #Loop over concatenated recordings; usually should be only a single recording;
+
+        for k in range(len(tsf.digital_chs[f])):
+            on_times = []
+            off_times = []
+            print "...plotting recording: ", f, "  dig ch: ", k, "  # samples: ", len(tsf.digital_chs[f][k])
+            #if len(tsf.digital_chs[f][k])>1: 
+            #    print "...ERROR: TOO MANY DIGITAL CHS..."
+            #    return
+            
+            plt.plot(tsf.digital_chs[f][k][::100])
+
+            #Find transitions to on and off
+            time_block = 25
+            for s in range(0, len(tsf.digital_chs[f][k]) - time_block, time_block):       #Scan every 20 timesteps; for my recordings that's about 0.8 miliseconds;
+                if tsf.digital_chs[f][k][s]!=tsf.digital_chs[f][k][s+time_block]:
+                    if tsf.digital_chs[f][k][s]==0: 
+                        on_times.append(s+offset)
+                    else: 
+                        off_times.append(s+offset)
+        
+            plt.show()
+            
+            #Convert triggers to seconds time from 25KHZ *** NOTE: The triggers may be saved at another sampling rate
+            on_times = np.float32(on_times)/25000.
+            off_times = np.float32(off_times)/25000.
+            
+            epoch_file = self.selected_recording[:-4]+"_rec"+str(f)+"_digch"+str(k)+"_ontimes.txt"
+            np.savetxt(epoch_file, on_times)
+            epoch_file = self.selected_recording[:-4]+"_rec"+str(f)+"_digch"+str(k)+"_offtimes.txt"
+            np.savetxt(epoch_file, off_times)
+
+        offset = offset+len(tsf.digital_chs[f][k])
     
-def ephys_to_tsf(filenames):
+def rhd_to_tsf(filenames):
     '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
     NB: There are 2 possible mapping depending on the insertion of the AD converter 
     TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
@@ -4720,7 +4324,7 @@ def ephys_to_tsf(filenames):
 
         #********** READ ALL DATA FROM INTAN HARDWARE ***********
         print "Processing: \n", file_name
-        data = read_data(file_name)
+        data = load_intan_rhd_format.read_data(file_name)
 
         tsf.SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate'])
 
@@ -4859,134 +4463,134 @@ def ephys_to_tsf(filenames):
 
     
 
-def rhd_to_tsf(filenames):
-    '''Read .rhd files, convert to correct electrode mapping and save to .tsf file
-    NB: There are 2 possible mapping depending on the insertion of the AD converter 
-    TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
-    '''
+#def rhd_to_tsf(filenames):
+    #'''Read .rhd files, convert to correct electrode mapping and save to .tsf file
+    #NB: There are 2 possible mapping depending on the insertion of the AD converter 
+    #TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
+    #'''
     
-    print "...reading amp data..."
+    #print "...reading amp data..."
 
-    probe = Probe()
+    #probe = Probe()
 
-    for file_name in filenames:
-        print file_name
-        #Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
-        ec_traces = 0.; ec_traces_hp = 0.; data=0.
+    #for file_name in filenames:
+        #print file_name
+        ##Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
+        #ec_traces = 0.; ec_traces_hp = 0.; data=0.
         
-        #file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
-        #file_out = file_name[:-4].replace('rhd_files','tsf_files')
-        file_out = file_name[:-4]
-        #if os.path.exists(file_out)==True: continue
+        ##file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
+        ##file_out = file_name[:-4].replace('rhd_files','tsf_files')
+        #file_out = file_name[:-4]
+        ##if os.path.exists(file_out)==True: continue
 
-        #********** READ ALL DATA FROM INTAN HARDWARE ***********
-        print "Processing: \n", file_name
-        data = read_data(file_name)
+        ##********** READ ALL DATA FROM INTAN HARDWARE ***********
+        #print "Processing: \n", file_name
+        #data = read_data(file_name)
 
-        SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
+        #SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
 
-        #****** SCALE EPHYS DATA *************
-        ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
-        ec_traces*=10.
-        print "...length original traces: ", len(ec_traces)
+        ##****** SCALE EPHYS DATA *************
+        #ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
+        #ec_traces*=10.
+        #print "...length original traces: ", len(ec_traces)
         
-        #print "Converting data to int16..."
-        #for k in range(len(ec_traces)):
-        #    np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
+        ##print "Converting data to int16..."
+        ##for k in range(len(ec_traces)):
+        ##    np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
         
-        n_electrodes = len(ec_traces)
+        #n_electrodes = len(ec_traces)
         
-        #ec_traces = []
-        #for k in range(n_electrodes):
-        #    ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
+        ##ec_traces = []
+        ##for k in range(n_electrodes):
+        ##    ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
 
-        #ec_traces = np.array(ec_traces)
+        ##ec_traces = np.array(ec_traces)
         
-        #print "...length reloaded traces: ", len(ec_traces)
+        ##print "...length reloaded traces: ", len(ec_traces)
 
-        header = 'Test spike file '
-        iformat = 1002
-        n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
-        vscale_HP = 0.1                             #voltage scale factor
-        n_cell_spikes = 0
+        #header = 'Test spike file '
+        #iformat = 1002
+        #n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
+        #vscale_HP = 0.1                             #voltage scale factor
+        #n_cell_spikes = 0
 
-        #****** PROCESS DIGITAL CHANNELS
-        n_digital_chs = len(data['board_dig_in_data'])
-        print "...# digital channels: ", n_digital_chs
+        ##****** PROCESS DIGITAL CHANNELS
+        #n_digital_chs = len(data['board_dig_in_data'])
+        #print "...# digital channels: ", n_digital_chs
         
-        #np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
+        ##np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
 
-        #SAVE RAW DATA
-        if True:
-            print "Writing raw data ..."
-            fout = open(file_out+'.tsf', 'wb')
-            fout.write(header)
-            fout.write(struct.pack('i', 1002))
-            fout.write(struct.pack('i', SampleFrequency))
-            fout.write(struct.pack('i', probe.n_electrodes+n_digital_chs))
-            fout.write(struct.pack('i', n_vd_samples))
-            fout.write(struct.pack('f', vscale_HP))
-
-            #Save ephys data location
-            for i in range(probe.n_electrodes):
-                fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                fout.write(struct.pack('i', i+1))
-
-            #Save additional channel locations
-            for i in range(n_digital_chs):
-                fout.write(struct.pack('h', 0))
-                fout.write(struct.pack('h', 2000+100*i))
-                fout.write(struct.pack('i', probe.n_electrodes+i+1))
-
-            #Save Ephys data
-            for i in range(probe.n_electrodes):
-                print "...writing ch: ", i
-                ec_traces[probe.layout[i]].tofile(fout)  #Frontside
-
-            #Save digital channels
-            for ch in range(n_digital_chs):
-                np.save(file_name[:-4]+'_digitalchannel_'+str(ch), data['board_dig_in_data'][ch])
-                temp_data = np.load(file_name[:-4]+'_digitalchannel_'+str(ch)+ '.npy')
-                temp_data = np.int16(temp_data*10000.)
-                #plt.plot(temp_data)
-                #plt.show()
-                
-                temp_data.tofile(fout)  #Pack data into .tsf file
-        
-                temp_data.tofile(file_name[:-4]+'_digitalchannel_'+str(ch)+'.bin')  #save digital channel separately.
-
-            fout.write(struct.pack('i', n_cell_spikes))
-            fout.close()
-            
-        ##SAVE HIGH PASS WAVELET FILTERED DATA
+        ##SAVE RAW DATA
         #if True:
-            #print "Writing hp data ..."
-            #fout = open(file_out+'_hp.tsf', 'wb')
+            #print "Writing raw data ..."
+            #fout = open(file_out+'.tsf', 'wb')
             #fout.write(header)
             #fout.write(struct.pack('i', 1002))
             #fout.write(struct.pack('i', SampleFrequency))
-            #fout.write(struct.pack('i', probe.n_electrodes))
+            #fout.write(struct.pack('i', probe.n_electrodes+n_digital_chs))
             #fout.write(struct.pack('i', n_vd_samples))
             #fout.write(struct.pack('f', vscale_HP))
-            
-            #for i in range (probe.n_electrodes):
+
+            ##Save ephys data location
+            #for i in range(probe.n_electrodes):
                 #fout.write(struct.pack('h', probe.Siteloc[i][0]))
                 #fout.write(struct.pack('h', probe.Siteloc[i][1]))
                 #fout.write(struct.pack('i', i+1))
 
-            #print "Wavelet filtering..."
-            #ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
-            #print ec_traces_hp.shape
+            ##Save additional channel locations
+            #for i in range(n_digital_chs):
+                #fout.write(struct.pack('h', 0))
+                #fout.write(struct.pack('h', 2000+100*i))
+                #fout.write(struct.pack('i', probe.n_electrodes+i+1))
 
+            ##Save Ephys data
             #for i in range(probe.n_electrodes):
                 #print "...writing ch: ", i
-                #ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+                #ec_traces[probe.layout[i]].tofile(fout)  #Frontside
+
+            ##Save digital channels
+            #for ch in range(n_digital_chs):
+                #np.save(file_name[:-4]+'_digitalchannel_'+str(ch), data['board_dig_in_data'][ch])
+                #temp_data = np.load(file_name[:-4]+'_digitalchannel_'+str(ch)+ '.npy')
+                #temp_data = np.int16(temp_data*10000.)
+                ##plt.plot(temp_data)
+                ##plt.show()
+                
+                #temp_data.tofile(fout)  #Pack data into .tsf file
+        
+                #temp_data.tofile(file_name[:-4]+'_digitalchannel_'+str(ch)+'.bin')  #save digital channel separately.
 
             #fout.write(struct.pack('i', n_cell_spikes))
             #fout.close()
+            
+        ###SAVE HIGH PASS WAVELET FILTERED DATA
+        ##if True:
+            ##print "Writing hp data ..."
+            ##fout = open(file_out+'_hp.tsf', 'wb')
+            ##fout.write(header)
+            ##fout.write(struct.pack('i', 1002))
+            ##fout.write(struct.pack('i', SampleFrequency))
+            ##fout.write(struct.pack('i', probe.n_electrodes))
+            ##fout.write(struct.pack('i', n_vd_samples))
+            ##fout.write(struct.pack('f', vscale_HP))
+            
+            ##for i in range (probe.n_electrodes):
+                ##fout.write(struct.pack('h', probe.Siteloc[i][0]))
+                ##fout.write(struct.pack('h', probe.Siteloc[i][1]))
+                ##fout.write(struct.pack('i', i+1))
 
-    print "... Done conversion ..."
+            ##print "Wavelet filtering..."
+            ##ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
+            ##print ec_traces_hp.shape
+
+            ##for i in range(probe.n_electrodes):
+                ##print "...writing ch: ", i
+                ##ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
+
+            ##fout.write(struct.pack('i', n_cell_spikes))
+            ##fout.close()
+
+    #print "... Done conversion ..."
 
 def rhd_digital_save(file_names):
     '''Read .rhd files, and save digital channels.
@@ -5049,14 +4653,20 @@ def parse_camera_pulses(self):
 
 
 def compute_lfp_triggered_template(self):
+    ''' Event triggered LFP traces
+    '''
     
-    print "...excluded trials: ", self.excluded_trials.text()
+    print "*** NB: event triggers must be in seconds..."
+    
+    top_channel = max(0,int(np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0]+"/top_channel.txt") - 1))      #Load top channel for track; convert to 0-based ichannel values.
+    
     excluded_trials = self.excluded_trials.text()
     
-    
+    print self.selected_recording
     tsf = TSF.TSF(self.selected_recording)
     tsf.read_ec_traces()
     
+    self.triggers = np.int64(self.triggers*tsf.SampleFrequency)
     print self.triggers
     print tsf.n_vd_samples
 
@@ -5065,77 +4675,80 @@ def compute_lfp_triggered_template(self):
     electrode_rarifier = int(1./1.) #int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
     #compression = 50.   #Need this to convert from compressed sample points to realtime
-    
+
     print self.selected_sort
 
     #Remove bottom power..
     if False:
-    #if self.low_cutoff.text()!='0.0':
         for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
             print "...filtering ch: ", k
             self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
-        
-    #load single units
-    #Sort = Ptcs(self.selected_sort)
 
+    #load single units
     ax = plt.subplot(1,1,1)
-    t = np.arange(-n_samples,n_samples+1,1)
-    
+    t = np.arange(-n_samples,n_samples,1)
+
     """ Spikes are saved in # of sample points so no need to scale them up from compressed .ptcs sort file to uncompressed lfp file.
     """
- 
     traces = []
-    for k in range(0, tsf.n_electrodes, electrode_rarifier):
-        traces.append([])
+    #top_channel = 0
+    if 'tim' in self.selected_recording:
+        for k in range(top_channel, tsf.n_electrodes, 2):           #Time recs LFP has 2 columns
+            traces.append([])
+    else:
+        for k in range(tsf.n_electrodes):                          #Nick recordings LFP has only single column
+            traces.append([])
+
+    if 'tim' in self.selected_recording:
+        for trigger in self.triggers:
+            for ctr, k in enumerate(range(top_channel, tsf.n_electrodes, 2)):      
+                trace_out = tsf.ec_traces[k][int(trigger-n_samples):int(trigger+n_samples)]*tsf.vscale_HP
+                if len(trace_out)==(n_samples*2):
+                    traces[ctr].append(trace_out)
+    else:
+        for trigger in self.triggers:
+            for k in range(tsf.n_electrodes):      
+                trace_out = tsf.ec_traces[k][int(trigger-n_samples):int(trigger+n_samples)]*tsf.vscale_HP
+                if len(trace_out)==(n_samples*2):
+                    traces[k].append(trace_out)
+
+            #plt.plot(trace_out+k*100)
+        #plt.show()
     
-    gs = gridspec.GridSpec(2,12)
-    for ctr,trigger in enumerate(self.triggers):
-        if str(ctr) in excluded_trials: continue
-        print int(ctr/6), ctr%6
-        ax = plt.subplot(gs[int(ctr/6),ctr%6])
-        #ax = plt.subplot(2,6,ctr+1)
-        print "...plotting event: ", ctr
-        print "...trigger: ", trigger, " time: ", float(trigger)/tsf.SampleFrequency
-        #for spike in Sort.units[int(self.selected_unit.text())]:
-        for k in range(0, tsf.n_electrodes, electrode_rarifier):
-            trace_out = tsf.ec_traces[k][int(trigger-n_samples):int(trigger+n_samples+1)]*tsf.vscale_HP
-            traces[k].append(trace_out)
-            
-            plt.plot(t, trace_out-voltage_scaling*tsf.Siteloc[k*2+1], color='black', linewidth=1, alpha=.5)
-            plt.yticks([])
-            
-            
+    
+    print len(traces)
+
     #Plot average
-    ax = plt.subplot(gs[:,6:])
-    for k in range(tsf.n_electrodes):
-        trace_ave = np.average(np.array(traces[k]), axis=0)
-        trace_std = np.std(np.array(traces[k]), axis=0)
-       
-        #offset = -voltage_scaling*tsf.Siteloc[k*2+1]
+    ax = plt.subplot(121)
+    trace_ave_array = []
+    for ctr, k in enumerate(range(top_channel, tsf.n_electrodes, 2)):        #Skip every other channel
+        trace_ave = np.average(np.array(traces[ctr]), axis=0)
+        trace_ave_array.append(trace_ave)
+        trace_std = np.std(np.array(traces[ctr]), axis=0)
+        
         plt.plot(t, trace_ave-voltage_scaling*tsf.Siteloc[k*2+1], color='black', linewidth=3)
         ax.fill_between(t, trace_ave+trace_std-voltage_scaling*tsf.Siteloc[k*2+1], trace_ave-trace_std-voltage_scaling*tsf.Siteloc[k*2+1], color='blue', alpha=0.25)
-
-    #plt.plot([t[-1]+10,t[-1]+10], [-250, 0 ], color='black', linewidth=3)
-
-    ##Set ylabel
-    #old_ylabel = -voltage_scaling*np.linspace(0, np.max(tsf.Siteloc), 5)
-    #new_ylabel = np.int16(np.linspace(0, np.max(tsf.Siteloc), 5))
-    #plt.locator_params(axis='y',nbins=5)
-    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
-    #plt.ylabel("Depth (um)", fontsize=font_size)
-
-        ##Set xlabel
-        #old_xlabel = np.linspace(t[0],t[-1],3)
-        #new_xlabel = np.linspace(float(t[0])/tsf.SampleFrequency*1E3, float(t[-1])/tsf.SampleFrequency*1E3, 3)
-        #plt.xticks(old_xlabel, new_xlabel, fontsize=font_size)
-
-        #plt.xlabel("Time (ms)", fontsize = font_size)
-        #plt.tick_params(axis='both', which='both', labelsize=font_size)
-        #plt.locator_params(axis='x',nbins=10)
-
-        #plt.ylim(old_ylabel[-1],old_ylabel[0])
-        #plt.xlim(old_xlabel[0], old_xlabel[-1])
     
+    plt.plot([0,0], [-voltage_scaling*tsf.Siteloc[k*2+1],0], 'r--', color = 'red', linewidth=2, alpha =0.7)
+
+    trace_ave_array = np.float32(trace_ave_array)
+
+    ax = plt.subplot(122)
+    #print lfp_ave.shape
+
+    trace_dif1 = np.gradient(trace_ave_array)
+    trace_dif1 = trace_dif1[0]
+    
+    trace_dif2 = np.gradient(trace_dif1)
+    trace_dif2 = trace_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+    
+    trace_dif2 = -1. * trace_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+   
+    print trace_dif2.shape
+        
+    plt.imshow(trace_dif2, aspect='auto', interpolation = 'sinc')
+
+
     plt.show()
 
     
@@ -5738,97 +5351,316 @@ def view_all_csd_old(self):
     plt.show()
 
 def compute_csd_event_triggered(self):
-    
-    print "...excluded trials: ", self.excluded_trials.text()
-    excluded_trials = self.excluded_trials.text()
-        
-    print self.triggers
 
-    font_size = 30
     n_samples = int(self.n_sample_pts.text())
-    
-    print self.selected_sort
+    top_channel = int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1)      #Load top channel for track; convert to 0-based ichannel values.
 
-    #Remove bottom power..
-    #if self.low_cutoff.text()!='0.0':
-        #if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
-            #for k in range(0, self.tsf.n_electrodes, electrode_rarifier):
-                #print "...filtering ch: ", k
-                #self.tsf.ec_traces[k] = butter_bandpass_filter(self.tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
-        
-            #np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', self.tsf.ec_traces)
-        #else: 
-            #self.tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
-    
-    #Raw traces
+    if 'tim' in self.selected_recording:
+        bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
+        print type(bad_channels)
+        if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
+            print "...converting to list..."
+            bad_channels = [bad_channels]
+    else:
+        bad_channels = []
+    print bad_channels
+
     tsf = TSF.TSF(self.selected_recording)
     tsf.read_ec_traces()
-    
+
     #load single units
-    #Sort = Ptcs(self.selected_sort)
+    print "...triggers: ", self.triggers
 
-    #Load spiketimes as event_trigges 
-    event_times = self.triggers
-
-    lfp_ave = np.zeros((tsf.n_electrodes,2*n_samples),dtype=np.float32)
+    event_times = np.int64(self.triggers*tsf.SampleFrequency)
+    #print event_times
+    
+    lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
     for ch in range(tsf.n_electrodes):
         ctr=0
-        for idx, event in enumerate(event_times):
-            if str(idx) in excluded_trials: continue
-            trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]
-            if len(trace_temp)==(n_samples*2):
-                lfp_ave[ch]+= trace_temp
-                ctr+=1
+        print "...ch: ", ch, "  depth: ", tsf.Siteloc[ch*2:ch*2+2]
+        
+        if ch in bad_channels:
+            print "...ch: ", ch, " averaged from top and bottom..."
+            for event in event_times:
+                trace_temp = (tsf.ec_traces[ch-1][int(event-n_samples):int(event+n_samples)]+tsf.ec_traces[ch+1][int(event-n_samples):int(event+n_samples)])/2.*tsf.vscale_HP
+                if len(trace_temp)==(n_samples*2):
+                    lfp_ave[ch]+= trace_temp
+                    ctr+=1
+        else:
+            for event in event_times:
+                trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]*tsf.vscale_HP
+                if len(trace_temp)==(n_samples*2):
+                    lfp_ave[ch]+= trace_temp
+                    ctr+=1
+
         lfp_ave[ch]=lfp_ave[ch]/ctr
 
+    #******************COMPUTE CSD
+    if 'tim' in self.selected_recording:
+        lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
+        scaling = 1.
+    else:      
+        scaling = 1800./Sort.chanpos[-1][1]
+    
+    print scaling
 
-    #********Compute CSD
-    if tsf.n_electrodes >10: 
-        print "...loading every other channel, NeuroNexus A64 probe ..."
-        probe_layout = tsf.Siteloc[1::2][::2]
-        lfp_ave=lfp_ave[::2]
+    #print lfp_ave.shape
+    lfp_ave_dif1 = np.gradient(lfp_ave)
+    lfp_ave_dif1 = lfp_ave_dif1[0]
+    
+    lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
+    lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+    
+    lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+   
+    print lfp_ave_dif2.shape
+    
+    lfp_ave_dif2 = lfp_ave_dif2[top_channel:]      #Exclude channels that are not in issue
+    print lfp_ave_dif2.shape
+
+    #*****************PLOT CSD:
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
+    vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
+
+    cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+    
+    old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
+    new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
+    plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+    plt.xlabel("Time (ms)", fontsize = 20)
+
+
+    if 'tim' in self.selected_recording:
+        new_ylabel = np.arange(0,901,200)
+        old_ylabel = np.linspace(-0.5, 18*scaling-0.5,len(new_ylabel))
+        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+        plt.ylim(21*scaling-0.5, -0.5)
+    
     else:
-        probe_layout = tsf.Siteloc[1::2]
-        lfp_ave=lfp_ave
-
-    print probe_layout
+        print Sort.chanpos
+        new_ylabel = np.arange(0,1801,200)
+        old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
     
-    z = probe_layout*1E-3 #Convert to mm size
+        plt.ylim(10*scaling-0.5, -0.5)
 
-
-    import imp
-    csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
     
-    sigma = 0.3  # extracellular conductivity (mS/mm)
-    b = 1.0   # assumed radius of the column (mm)
-    SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
+    plt.title(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''), fontsize=10)
 
-    [A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
-    [W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
-    [W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
+    print "... CSD max, min: ", vmax, vmin
 
-
-    CSD=np.dot(W,lfp_ave)   # units: mS/mm^3*mV = uA/mm^3
+    #*********** PLOT CBAR **********
+    cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
+    cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
+    print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
+    cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    cbar.ax.tick_params(labelsize=15) 
     
-    t = np.linspace(-n_samples, n_samples, 6)
-
-    #ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
-    plt.imshow(CSD, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
-    plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
-
-    plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
-    plt.xlim(t[0], t[-1])
-
-    plt.tick_params(axis='both', which='major', labelsize=15)
-    #plt.ylabel("Depth along probe (mm)", fontsize=20)
-    old_xlabel = np.float32(np.linspace(t[0], t[-1], 6), decimals=2)
-    new_xlabel = old_xlabel/tsf.SampleFrequency*1E3
-    plt.xticks(old_xlabel, new_xlabel, fontsize=18)
-    plt.xlabel("Time (msec)",fontsize=20)
-            
+    #cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    #plt.colorbar(cax,fraction=0.2, pad=0.04)
+        
+        
     plt.show()
 
 
+def convert_lfp_to_csd(self):
+    
+    if 'tim' in self.tsf_file:
+        bad_channels = np.loadtxt(os.path.split(os.path.split(self.tsf_file)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indexes
+        print type(bad_channels)
+        if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
+            print "...converting to list..."
+            bad_channels = [bad_channels]
+    else:
+        bad_channels = []
+    print bad_channels
+
+    tsf = TSF.TSF(self.tsf_file) 
+    tsf.read_ec_traces()
+    tsf.read_footer()
+
+    #n_samples = self.start_time_csd
+    #lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+    lfp_ave = []
+    for ch in range(tsf.n_electrodes):
+        print "...ch: ", ch, "  depth: ", tsf.Siteloc[ch*2:ch*2+2]
+        if ch in bad_channels:
+            print "...ch: ", ch, " averaged from top and bottom..."
+            trace_temp = (tsf.ec_traces[ch-1] +  tsf.ec_traces[ch+1])/2.
+        else:
+            trace_temp = tsf.ec_traces[ch]
+
+        lfp_ave.append(trace_temp)
+
+    lfp_ave = np.float32(lfp_ave)
+    
+    #lfp_ave = lfp_ave[top_channel:]
+    #if 'tim' in self.tsf_file:
+        
+    #******************COMPUTE CSD
+    print lfp_ave.shape
+    #np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_ave_lfp", lfp_ave)
+
+    #print lfp_ave.shape
+    print "...taking first gradient..."
+    lfp_ave_dif1 = np.gradient(lfp_ave)
+    lfp_ave_dif1 = lfp_ave_dif1[0]
+    
+    print "...taking second gradient..."
+    lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
+    lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+    
+    lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+   
+    print lfp_ave_dif2.shape
+    
+    #lfp_ave_dif2 = lfp_ave
+    
+    tsf.ec_traces = np.int16(lfp_ave_dif2*0.1)      #*********** SCALE AMPLITUDES DOWN BY 10x OTHERWISE CAN"T LOAD THEM IN SPIKESORTER
+    tsf.layout = np.arange(tsf.n_electrodes)    
+
+    save_tsf_single(tsf, self.tsf_file[:-4]+"_csd.tsf")
+
+    #Also save raw data in full resolution
+    np.save(self.tsf_file[:-4]+"_csd.raw", lfp_ave_dif2)
+
+def view_csd_period(self):
+    
+    
+    electrode_rarifier = int(1./float(self.n_electrodes.text()))
+    voltage_scaling = float(self.voltage_scale.text())
+
+    if 'tim' in self.selected_recording:
+        bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
+        print type(bad_channels)
+        if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
+            print "...converting to list..."
+            bad_channels = [bad_channels]
+    else:
+        bad_channels = []
+    print bad_channels
+
+    tsf = TSF.TSF(self.selected_recording) 
+    tsf.read_ec_traces()
+    n_samples = int(float(self.end_time_csd.text())*tsf.SampleFrequency) - int(float(self.start_time_csd.text())*tsf.SampleFrequency)
+
+    #Remove bottom power..
+    if self.low_cutoff.text()!='0.0':
+        if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
+            for k in range(0, tsf.n_electrodes, electrode_rarifier):
+                print "...filtering ch: ", k
+                tsf.ec_traces[k] = butter_bandpass_filter(tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
+        
+            np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', tsf.ec_traces)
+        else: 
+            tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
+
+    #load single units
+    #Sort = PTCS.PTCS(self.selected_sort)
+
+    #n_samples = self.start_time_csd
+    #lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+    lfp_ave = []
+    for ch in range(tsf.n_electrodes):
+        print "...ch: ", ch, "  depth: ", tsf.Siteloc[ch*2:ch*2+2]
+        if ch in bad_channels:
+            print "...ch: ", ch, " averaged from top and bottom..."
+            trace_temp = (tsf.ec_traces[ch-1][int(float(self.start_time_csd.text())*tsf.SampleFrequency):int(float(self.end_time_csd.text())*tsf.SampleFrequency)] + 
+                          tsf.ec_traces[ch+1][int(float(self.start_time_csd.text())*tsf.SampleFrequency):int(float(self.end_time_csd.text())*tsf.SampleFrequency)])/2.*tsf.vscale_HP
+        else:
+            trace_temp = tsf.ec_traces[ch][int(float(self.start_time_csd.text())*tsf.SampleFrequency):int(float(self.end_time_csd.text())*tsf.SampleFrequency)]*tsf.vscale_HP
+
+        lfp_ave.append(trace_temp)
+
+    lfp_ave = np.float32(lfp_ave)
+
+    #******************COMPUTE CSD
+    if 'tim' in self.selected_recording:
+        lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
+        scaling = 1.
+    else:      
+        scaling = 1800./tsf.Siteloc[-1]
+
+    print lfp_ave.shape
+    print n_samples
+    #np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_ave_lfp", lfp_ave)
+
+    #print lfp_ave.shape
+    lfp_ave_dif1 = np.gradient(lfp_ave)
+    lfp_ave_dif1 = lfp_ave_dif1[0]
+    
+    lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
+    lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+    
+    lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+   
+    print lfp_ave_dif2.shape
+    
+    #lfp_ave_dif2 = lfp_ave
+    
+    lfp_ave_dif2 = lfp_ave_dif2[int(self.start_ch.text())/2:int(self.end_ch.text())/2]      #Exclude channels that are not in issue
+    print lfp_ave_dif2.shape
+
+    #np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_csd", lfp_ave_dif2)
+
+    #*****************PLOT CSD:
+    fig = plt.figure()
+    ax = plt.subplot(1,1,1)
+    
+    #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
+    vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
+    #vmax=15000; vmin=-15000
+    print "... CSD max, min: ", vmax, vmin
+
+    cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+    
+    #old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
+    #new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
+    #plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+    plt.xlabel("Time (samples)", fontsize = 20)
+
+
+    if 'tim' in self.selected_recording:
+        #old_ylabel = np.arange(0, len(lfp_ave), 5)
+        #new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
+        new_ylabel = np.arange(0,901,200)
+        old_ylabel = np.linspace(-0.5, 18*scaling-0.5,len(new_ylabel))
+        
+        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+        plt.ylim(21*scaling-0.5, -0.5)
+    
+    else:
+        new_ylabel = np.arange(0,1801,200)
+        old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+    
+        plt.ylim(10*scaling-0.5, -0.5)
+
+    
+    plt.title(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''), fontsize=10)
+
+
+    #*********** PLOT CBAR **********
+
+    if False: 
+        ax = plt.subplot(1,2,2)
+
+        cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
+        cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
+        print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
+        cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+        cbar.ax.tick_params(labelsize=15) 
+        
+        #cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+        
+        #plt.colorbar(cax,fraction=0.2, pad=0.04)
+    
+        
+        
+    plt.show()
 
 def view_csd(self):
     
@@ -5839,7 +5671,7 @@ def view_csd(self):
     if 'tim' in self.selected_recording:
         bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
         print type(bad_channels)
-        if isinstance(bad_channels, np.int64):
+        if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
             print "...converting to list..."
             bad_channels = [bad_channels]
         
@@ -5890,16 +5722,15 @@ def view_csd(self):
                         lfp_ave[ch]+= trace_temp
                         ctr+=1
 
-
             lfp_ave[ch]=lfp_ave[ch]/ctr
-
 
         #******************COMPUTE CSD
         if 'tim' in self.selected_recording:
             lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
-
-        scaling = 1800./Sort.chanpos[-1][1]
-        print Sort.chanpos[-1][1]
+            scaling = 1.
+        else:      
+            scaling = 1800./Sort.chanpos[-1][1]
+        
         print scaling
     
         np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_ave_lfp", lfp_ave)
@@ -5971,19 +5802,23 @@ def view_csd(self):
 
 
         if 'tim' in self.selected_recording:
-            old_ylabel = np.arange(0, len(lfp_ave), 5)
-            new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
+            #old_ylabel = np.arange(0, len(lfp_ave), 5)
+            #new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
+            new_ylabel = np.arange(0,901,200)
+            old_ylabel = np.linspace(-0.5, 18*scaling-0.5,len(new_ylabel))
+            
             plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+            plt.ylim(21*scaling-0.5, -0.5)
+        
         else:
             print Sort.chanpos
-            #old_ylabel = np.arange(0, len(lfp_ave), 1)[::2]-0.25
-            #new_ylabel = Sort.chanpos[::2][:,1]
             new_ylabel = np.arange(0,1801,200)
             old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
             plt.yticks(old_ylabel, new_ylabel, fontsize=15)
         
+            plt.ylim(10*scaling-0.5, -0.5)
+
         
-        plt.ylim(len(lfp_ave)*scaling-0.5, -0.5)
         plt.title(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,'') + "\nCluster #: "+ str(unit)+",  #events: "+str(len(Sort.units[unit])), fontsize=10)
 
         print "... CSD max, min: ", vmax, vmin
@@ -6056,180 +5891,9 @@ def view_csd(self):
     plt.show()
 
 
-def view_all_csd(self):
-    
-    n_samples = int(self.n_sample_pts.text())
-    electrode_rarifier = int(1./float(self.n_electrodes.text()))
-    voltage_scaling = float(self.voltage_scale.text())
-
-
-    tsf = TSF.TSF(self.selected_recording) 
-    tsf.read_ec_traces()
-    
-    #Remove bottom power..
-    if self.low_cutoff.text()!='0.0':
-        if os.path.exists(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')==False:
-            for k in range(0, tsf.n_electrodes, electrode_rarifier):
-                print "...filtering ch: ", k
-                tsf.ec_traces[k] = butter_bandpass_filter(tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
-        
-            np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', tsf.ec_traces)
-        else: 
-            tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
-
-
-    #Load top channels and channel masks
-    path_dir, filename = os.path.split(self.selected_recording)
-    root_dir, filename = os.path.split(path_dir)
-
-    electrode_mask = np.loadtxt(root_dir+"/electrode_mask.txt", dtype='str')
-
-    #= []
-    #if temp_data != 0.0:
-    #    for k in range(len(temp_data)):
-    #        electrode_mask.append(temp_data[k])
-
-    print electrode_mask
-
-    top_channel = np.int16(np.loadtxt(root_dir+"/top_channel.txt"))-1       #Use 1-based indexes
-    print top_channel
-    
-    #load single units
-    Sort = PTCS.PTCS(self.selected_sort)
-    fig = plt.figure()
-    
-    n_units_morethan_100spikes = 0
-    for k in range(Sort.n_units):
-        print len(Sort.units[k])
-        if len(Sort.units[k])>100:
-            n_units_morethan_100spikes= n_units_morethan_100spikes +1
-          
-    print n_units_morethan_100spikes
-    #Load spiketimes as event_triggers 
-    unit_ctr=-1
-    for unit in range(Sort.n_units): 
-        if len(Sort.units[unit])<100: 
-            print "skipping unit"
-            continue
-            
-        unit_ctr=unit_ctr+1
-        print unit_ctr
-
-        event_times = Sort.units[unit]*1E-6 * Sort.samplerate #Convert from usec to sec back to sample-rate time
-    
-        lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
-        for ch in range(top_channel, tsf.n_electrodes, 1):
-            ctr=0
-            
-            print str(ch+1), electrode_mask
-            if str(ch+1) in electrode_mask:
-                correct_ec_traces = (tsf.ec_traces[ch-1]+tsf.ec_traces[ch+1])/2.
-                print "masked channel"
-            else:
-                correct_ec_traces = tsf.ec_traces[ch]
-
-            for event in event_times:
-                trace_temp = correct_ec_traces[int(event-n_samples):int(event+n_samples)]*tsf.vscale_HP
-                if len(trace_temp)==(n_samples*2):
-                    lfp_ave[ch]+= trace_temp
-                    ctr+=1
-            lfp_ave[ch]=lfp_ave[ch]/ctr
-
-        #Limit analysis to just one column of Neuronexus probe
-        #if ('16_07_26' in self.selected_recording) or ('16_08_31' in self.selected_recording): #This probe had a lot of bad channels at the top - and they seem to be in the odd channel data;
-        #    lfp_ave = lfp_ave[1::2]      
-        #else:
-        lfp_ave = lfp_ave[top_channel:]     #Only look at the bottom channels - if probe not inserted entire way;
-        if "nick" in self.selected_recording:
-            lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
-        else:           #Select only a single column
-            lfp_ave = lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())][::2]
-
-        np.save(self.selected_recording[:-4]+"_unit"+str(unit)+"_ave_lfp", lfp_ave)
-        
-        #*****************PLOT LFP 
-        ax = plt.subplot(n_units_morethan_100spikes, 2, unit_ctr*2+1)
-        vmax = np.max(np.abs(lfp_ave)); vmin=-vmax
-        cax = ax.imshow(lfp_ave, vmin=vmin, vmax=vmax, aspect='auto', cmap='plasma', interpolation='none')
-
-        old_ylabel = np.arange(0, len(lfp_ave), 5)
-        new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
-        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-        plt.ylabel(str(unit)+" #: "+ str(len(Sort.units[unit]))+"\nDepth (um)", fontsize = 15)
-        
-        if unit==(n_units_morethan_100spikes-1):
-            old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
-            new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
-            plt.xticks(old_xlabel, new_xlabel, fontsize=15)
-            plt.xlabel("Time (ms)", fontsize = 20)
-        else:
-            plt.xticks([])
-        
-        if unit==0: 
-            plt.title("LFP", fontsize = 20)
-
-        print "... lfp max: ", vmax
-
-        cbar = fig.colorbar(cax)#, ticks=[x_ticks])
-        #cbar.ax.set_yticklabels(['1^'+self.vmin_value.text(), '1^'+self.vmax_value.text()])  # vertically oriented colorbar
-        cbar.ax.tick_params(labelsize=15) 
-        cbar.ax.set_ylabel("LFP (uV)", fontsize=15)
-
-        #******************COMPUTE CSD
-        lfp_ave_dif1 = np.gradient(lfp_ave)
-        lfp_ave_dif1 = lfp_ave_dif1[0]
-        
-        lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
-        lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gaute's CSD function
-        
-        lfp_ave_dif2 = -1. * lfp_ave_dif2     #***************************Need to invert the currents; matched from Gaute's CSD function
-       
-        #*****************PLOT CSD:
-        ax = plt.subplot(n_units_morethan_100spikes,2,unit_ctr*2+2)
-        
-        vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
-        cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='plasma', interpolation='none')
-        
-        if unit==(n_units_morethan_100spikes-1):
-            old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
-            new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
-            plt.xticks(old_xlabel, new_xlabel, fontsize=15)
-            plt.xlabel("Time (ms)", fontsize = 20)
-        else:
-            plt.xticks([])
-
-        if unit==0: 
-            plt.title("CSD", fontsize = 20)
-
-        old_ylabel = np.arange(0, len(lfp_ave), 5)
-        new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
-        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-        
-
-        print "... CSD max: ", vmax
-
-        cbar = fig.colorbar(cax)#, ticks=[x_ticks])
-        #cbar.ax.set_yticklabels(['1^'+self.vmin_value.text(), '1^'+self.vmax_value.text()])  # vertically oriented colorbar
-        cbar.ax.tick_params(labelsize=15) 
-        cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15)
-
-
-    rois = ['visual', 'barrel', 'auditory']
-    for roi in rois:
-        if roi in self.selected_recording:
-            plt.suptitle(os.path.split(self.selected_recording)[1][:-4] + "    *"+roi+"*", fontsize=20)
-            break
-
-    plt.show()
-        
-    print "... done..."
-    return
 
 
 def Multitaper_specgram(time_series, sampfreq):
-    
-    from libtfr import * #hermf, dpss, trf_spec <- these are some of the fucntions; for som reason last one can't be explicitly imported
-
     
     plotting=False
     if plotting:

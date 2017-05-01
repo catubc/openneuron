@@ -12,8 +12,8 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
 
@@ -613,13 +613,14 @@ class MSL(QtGui.QWidget):
     
     #**************************** LOAD FILE ROUTINES *******************************
     def set_sua_file(self):
-        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "Select SUA file (*.ptcs)", self.parent.root_dir,"PTCS (*.ptcs; *.npz)")
+        #self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.parent.root_dir,"ptcs (*.ptcs; *.npz)")
+        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.parent.root_dir, "*.ptcs")
         self.button_set_sua_file_lbl.setText(self.parent.sua_file.replace(os.path.dirname(self.parent.sua_file),''))
         #self.parent.setWindowTitle(self.parent.sua_file)
 
 
     def set_lfp_event_file(self):
-        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "Select LFP event file (*.ptcs)", self.parent.sua_file,"PTCS (*.ptcs; *.npz)")
+        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "ptcs (*.ptcs)", self.parent.sua_file,"*.ptcs (*.ptcs; *.npz)")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
     

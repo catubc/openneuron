@@ -142,8 +142,6 @@ class TracesTools(QtGui.QWidget):
         layout.addWidget(self.high_cutoff_lbl, row_index,9)
         layout.addWidget(self.high_cutoff, row_index, 10); row_index+=1
         
-
-
         #View traces
         self.button_view_traces = QPushButton('View Traces')
         self.button_view_traces.setMaximumWidth(200)

@@ -120,7 +120,21 @@ class MouseLeverTools(QtGui.QWidget):
         self.button1 = QPushButton('Other Functions')
         self.button1.setMaximumWidth(200)
         self.button1.clicked.connect(self.algn_images)
-        layout.addWidget(self.button1, row_index, 2); row_index +=1
+        layout.addWidget(self.button1, row_index, 2)
+        
+        
+        
+        self.cmap = QLineEdit('viridis')
+        self.cmap.setMaximumWidth(50)
+        self.cmap_lbl = QLabel('Colour map:', self)
+        layout.addWidget(self.cmap_lbl, row_index,5)
+        layout.addWidget(self.cmap, row_index,6)
+        
+        self.fps = QLineEdit('15')
+        self.fps.setMaximumWidth(50)
+        self.fps_lbl = QLabel('Video FPS:', self)
+        layout.addWidget(self.fps_lbl, row_index,7)
+        layout.addWidget(self.fps, row_index,8); row_index+=1
         
         
         #************************************ FILTERING ***************************************
@@ -152,7 +166,7 @@ class MouseLeverTools(QtGui.QWidget):
         self.n_sec_window.setMaximumWidth(50)
         self.n_sec_window_lbl = QLabel('Window (sec):', self)
         layout.addWidget(self.n_sec_window_lbl, row_index,6)
-        layout.addWidget(self.n_sec_window, row_index,7); row_index+=1
+        layout.addWidget(self.n_sec_window, row_index,7)
 
         
         #**************************************************************************************
@@ -327,10 +341,16 @@ class MouseLeverTools(QtGui.QWidget):
         
         self.mask_end_frame = QLineEdit('6')
         self.mask_end_frame.setMaximumWidth(50)
-        self.mask_end_frame_lbl = QLabel('End time:', self)
+        self.mask_end_frame_lbl = QLabel('Mask end frame:', self)
         layout.addWidget(self.mask_end_frame_lbl, row_index,7)
         layout.addWidget(self.mask_end_frame, row_index,8)        
                 
+        self.sigma_smooth = QLineEdit('1')
+        self.sigma_smooth.setMaximumWidth(50)
+        self.sigma_smooth_lbl = QLabel('Smooth pixels:', self)
+        layout.addWidget(self.sigma_smooth_lbl, row_index,9)
+        layout.addWidget(self.sigma_smooth, row_index,10)        
+
         row_index+=1
 
 
@@ -854,6 +874,13 @@ class MouseLeverTools(QtGui.QWidget):
 
         return self.annotated_clusters            
 
+    #*************************************************************************************************************************************************************************
+    #*************************************************************************************************************************************************************************
+    #*************************************************************************************************************************************************************************
+    #*************************************************************************************************************************************************************************
+    #*************************************************************************************************************************************************************************
+    #*************************************************************************************************************************************************************************
+
     def static_stm_mouse_lever(self):
         view_static_stm(self)
 
@@ -861,16 +888,14 @@ class MouseLeverTools(QtGui.QWidget):
     def static_stm_all_lever(self):
         make_static_stm_all(self)
 
-    #def view_stm_activity(self):
-    #    make_stm_motion_mask(self)  #NOT USED ANYMORE; WAS DEVELOPED TO TEST OUT MASKING
-
-
 
     def video_stm_mouse_lever(self):
         view_video_stm(self)
 
+
     def video_stm_all(self):
         view_video_stm_all(self)
+
 
     def style_choice2(self, text):
         self.choice2 = text

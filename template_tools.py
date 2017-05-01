@@ -18,8 +18,8 @@ class TemplateTools(QtGui.QWidget):
         self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
         
         #CAT VISUAL
-        #self.selected_recording = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
-        #self.selected_sort ='/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+        #self.selected_recording = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch.tsf'
+        #self.selected_sort ='/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed_new.ptcs'
 
         #MOUSE VISUAL
         self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
@@ -114,7 +114,7 @@ class TemplateTools(QtGui.QWidget):
         layout.addWidget(self.voltage_scale_lbl, row_index, 7)
         layout.addWidget(self.voltage_scale, row_index,8); row_index+=1
         
-        self.button_view_csd = QPushButton('View CSD')
+        self.button_view_csd = QPushButton('View All CSD')
         self.button_view_csd.setMaximumWidth(200)
         self.button_view_csd.clicked.connect(self.vw_csd)
         layout.addWidget(self.button_view_csd, row_index, 0)
@@ -136,21 +136,30 @@ class TemplateTools(QtGui.QWidget):
         layout.addWidget(self.end_ch, row_index, 4); row_index+=1
         
         
-        self.button_view_all_csd = QPushButton('View all CSD')
+        self.button_view_all_csd = QPushButton('View CSD for Period:')
         self.button_view_all_csd.setMaximumWidth(200)
-        self.button_view_all_csd.clicked.connect(self.vw_all_csd)
+        self.button_view_all_csd.clicked.connect(self.vw_csd_period)
         layout.addWidget(self.button_view_all_csd, row_index, 0)
         
         
-        
-        self.snr_value = QLineEdit('3.0');                
-        self.snr_value.setMaximumWidth(50)
-        self.snr_value_lbl = QLabel('SNR factor:', self)
-        self.snr_value_lbl.setMaximumWidth(100)
-        layout.addWidget(self.snr_value_lbl, row_index,3)
-        layout.addWidget(self.snr_value, row_index, 4); row_index+=1
+        self.start_time_csd = QLineEdit('0');                
+        self.start_time_csd.setMaximumWidth(50)
+        self.start_time_csd_lbl = QLabel('t0 (sec):', self)
+        self.start_time_csd_lbl.setMaximumWidth(100)
+        layout.addWidget(self.start_time_csd_lbl, row_index,1)
+        layout.addWidget(self.start_time_csd, row_index, 2)
+
+
+        self.end_time_csd = QLineEdit('10');                
+        self.end_time_csd.setMaximumWidth(50)
+        self.end_time_csd_lbl = QLabel('t1 (sec):', self)
+        self.end_time_csd_lbl.setMaximumWidth(100)
+        layout.addWidget(self.end_time_csd_lbl, row_index,3)
+        layout.addWidget(self.end_time_csd, row_index, 4); row_index+=1
+
         
         self.setLayout(layout)
+
 
     def slct_recording(self):
         self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.selected_recording,"TSF (*.tsf)") 
@@ -177,8 +186,8 @@ class TemplateTools(QtGui.QWidget):
         view_csd(self)
 
 
-    def vw_all_csd(self):
-        view_all_csd(self)
+    def vw_csd_period(self):
+        view_csd_period(self)
 
 
     def slct_colour(self, text):

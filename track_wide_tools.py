@@ -19,8 +19,8 @@ class TrackWideTools(QtGui.QWidget):
         self.parent = parent
         layout = QtGui.QGridLayout()
         #self.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
-        #self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering'
+        self.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering'
 
         row_index= 0
         #*****************************************************************
@@ -77,21 +77,27 @@ class TrackWideTools(QtGui.QWidget):
         layout.addWidget(self.button1, row_index, 0); row_index+=1
 
         
-        self.subsample_button = QPushButton('Subsample .tsf files')
-        self.subsample_button.setMaximumWidth(250)
-        self.subsample_button.clicked.connect(self.subsample_save)
-        layout.addWidget(self.subsample_button, row_index, 0); 
+        self.lfpcsd_button = QPushButton('Convert LFP->CSD')
+        self.lfpcsd_button.setMaximumWidth(250)
+        self.lfpcsd_button.clicked.connect(self.lfp_to_csd)
+        layout.addWidget(self.lfpcsd_button, row_index, 0); row_index+=1
         
-        #% of electrodes
-        self.n_electrodes = QLineEdit('1.0');                
-        self.n_electrodes.setMaximumWidth(50)
-        self.n_electrodes_lbl = QLabel('%Electrodes', self)
-        self.n_electrodes_lbl.setMaximumWidth(100)
-        layout.addWidget(self.n_electrodes_lbl, row_index, 1)
-        layout.addWidget(self.n_electrodes, row_index, 2); row_index+=1
+        #self.subsample_button = QPushButton('Subsample .tsf files')
+        #self.subsample_button.setMaximumWidth(250)
+        #self.subsample_button.clicked.connect(self.subsample_save)
+        #layout.addWidget(self.subsample_button, row_index, 0); 
+        
+        ##% of electrodes
+        #self.n_electrodes = QLineEdit('1.0');                
+        #self.n_electrodes.setMaximumWidth(50)
+        #self.n_electrodes_lbl = QLabel('%Electrodes', self)
+        #self.n_electrodes_lbl.setMaximumWidth(100)
+        #layout.addWidget(self.n_electrodes_lbl, row_index, 1)
+        #layout.addWidget(self.n_electrodes, row_index, 2); row_index+=1
         
         #***********************************************************************************
-        
+        layout.addWidget(QLabel('', self), row_index,0); row_index+=1
+
         self.preprocess_lbl = QLabel('TIME COMPRESSION', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
@@ -104,11 +110,28 @@ class TrackWideTools(QtGui.QWidget):
         
         self.compress_factor = QLineEdit('50');                  #parent.end_time = self.end_time
         self.compress_factor.setMaximumWidth(50)
-        self.compress_factor_lbl = QLabel('Compress Factor (multiples of 25):', self)
+        self.compress_factor_lbl = QLabel('Compress Factor (multiples of 25): ', self)
         layout.addWidget(self.compress_factor_lbl, row_index, 1)
         layout.addWidget(self.compress_factor, row_index, 2); row_index+=1
         
+        self.button_subsample_tsf = QPushButton('Clip + Subsample .tsf')
+        self.button_subsample_tsf.setMaximumWidth(250)
+        self.button_subsample_tsf.clicked.connect(self.clip_subsample_tsf)
+        layout.addWidget(self.button_subsample_tsf, row_index, 0)
 
+        self.top_channel = QLineEdit('0');                  #parent.end_time = self.end_time
+        self.top_channel.setMaximumWidth(50)
+        self.top_channel_lbl = QLabel('Top Ch:', self)
+        layout.addWidget(self.top_channel_lbl, row_index, 1)
+        layout.addWidget(self.top_channel, row_index, 2)
+        
+        self.total_channels = QLineEdit('10');                  #parent.end_time = self.end_time
+        self.total_channels.setMaximumWidth(50)
+        self.total_channels_lbl = QLabel('Total Chs:', self)
+        layout.addWidget(self.total_channels_lbl, row_index, 3)
+        layout.addWidget(self.total_channels, row_index, 4); row_index+=1
+        
+                
         self.zero_desynch_states = QPushButton('Zero Desynch Periods')
         self.zero_desynch_states.setMaximumWidth(250)
         self.zero_desynch_states.clicked.connect(self.zero_desynch)
@@ -206,7 +229,18 @@ class TrackWideTools(QtGui.QWidget):
         
         subsample_channels_tsf(self) 
     
-    
+    def lfp_to_csd(self):
+        print "... selecting single tsf recording ..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        
+        convert_lfp_to_csd(self)
+
+    def clip_subsample_tsf(self):
+        print "... selecting single tsf recording ..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        subsample_channels_tsf(self)
+        
+        
     def comp_lfp(self):
         print "... selecting single lfp recording ..."
         self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")

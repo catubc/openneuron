@@ -18,33 +18,19 @@ class IntanTools(QtGui.QWidget):
         
         row_index=0
         
-        #*************************************************************
-        #*********************** SELECT RECORDING ********************
-        #*************************************************************
-        #Select recording
-        self.button_select_recording = QPushButton('Select Recording')
-        self.button_select_recording.setMaximumWidth(200)
-        self.button_select_recording.clicked.connect(self.slct_recording2)
-        layout.addWidget(self.button_select_recording, row_index, 0)
-        
-        #self.parent.selected_recording  = os.getcwd()
-        self.selected_recording  = '/media/cat/12TB/in_vivo/tim/cat'
-        self.select_recording_lbl = QLabel(self.selected_recording, self)
-        layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
-        
         
         #*************************************************************
         #*********************** CONVERT TO TSF   ********************
         #*************************************************************
-        self.button_ephys_to_tsf = QPushButton('Convert ephys only to .tsf')
+        self.button_ephys_to_tsf = QPushButton('.rhd -> .tsf (+ dig chs)')
         self.button_ephys_to_tsf.setMaximumWidth(250)
-        self.button_ephys_to_tsf.clicked.connect(self.ephystotsf)
+        self.button_ephys_to_tsf.clicked.connect(self.rhdtotsf)
         layout.addWidget(self.button_ephys_to_tsf, row_index, 0); row_index+=1
 
-        self.button_rhd_to_tsf = QPushButton('Convert ephys and digital channels to .tsf')
-        self.button_rhd_to_tsf.setMaximumWidth(250)
-        self.button_rhd_to_tsf.clicked.connect(self.rhdtotsf)
-        layout.addWidget(self.button_rhd_to_tsf, row_index, 0); row_index+=1
+        self.button_tsf_to_digchs = QPushButton('.tsf -> extract digital chs')
+        self.button_tsf_to_digchs.setMaximumWidth(250)
+        self.button_tsf_to_digchs.clicked.connect(self.tsf_extract_digchannels)
+        layout.addWidget(self.button_tsf_to_digchs, row_index, 0); row_index+=1
 
 
         #*************************************************************
@@ -58,19 +44,20 @@ class IntanTools(QtGui.QWidget):
         
         self.setLayout(layout)
 
-    def slct_recording2(self):
-        self.selected_recording = QtGui.QFileDialog.getOpenFileNames(self, "RHD (*.rhd)", self.root_dir,"RHD (*.rhd)") 
-        #path_name, file_name = os.path.split(self.selected_recording)
-        self.select_recording_lbl.setText(self.selected_recording[0])
-        
-    def ephystotsf(self):
-        ephys_to_tsf(self.selected_recording)   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
-        
 
     def rhdtotsf(self):
+        self.selected_recording = QtGui.QFileDialog.getOpenFileNames(self, "RHD (*.rhd)", self.root_dir,"RHD (*.rhd)") 
         rhd_to_tsf(self.selected_recording)   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
-    
 
+
+    def tsf_extract_digchannels(self):
+        self.selected_recording = QtGui.QFileDialog.getOpenFileNames(self, "tsf (*.tsf)", self.root_dir,"tsf (*.tsf)")[0]
+        tsf_to_digchs(self)   #Send as list in case we revert back to multiple recordings at once need to rmemeber this
+        
+        
     def rhd_digital_convert(self):
-        rhd_digital_save(self.selected_recording)
+        rhd_digital_save(self)
+        
+        
+        
         

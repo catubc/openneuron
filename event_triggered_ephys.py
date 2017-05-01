@@ -1,7 +1,9 @@
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+import os
+import numpy as np
+from analysis import *
 
 class EventTriggeredEphys(QtGui.QWidget):
     def __init__(self, parent):
@@ -15,6 +17,12 @@ class EventTriggeredEphys(QtGui.QWidget):
         #self.parent.root_dir = '/media/cat/500GB/in_vivo/tim/cat/'
         self.parent.n_sec = 3
         
+        
+        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_04_19_visual_ephys/track1/LED_flash_60_100ms_3sec_170419_145514_lfp_250hz.tsf'
+        self.selected_sort = '/media/cat/12TB/in_vivo/tim/cat/2017_04_19_visual_ephys/track1/LED_flash_60_100ms_3sec_170419_145514_lfp_250hz_rec0_digch0_ontimes.txt'
+
+
+
         row_index = 0   #Keep track of button/box row
         
         #**************************************************************************************
@@ -32,7 +40,7 @@ class EventTriggeredEphys(QtGui.QWidget):
         layout.addWidget(self.button_select_recording, row_index, 0)
         
         #self.parent.selected_recording  = os.getcwd()
-        self.selected_recording  = self.parent.root_dir
+        self.selected_recording  = self.selected_recording
         self.select_recording_lbl = QLabel(self.selected_recording, self)
         layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
 
@@ -42,7 +50,7 @@ class EventTriggeredEphys(QtGui.QWidget):
         self.button_select_sort.clicked.connect(self.slct_event_file)
         layout.addWidget(self.button_select_sort, row_index, 0)
         
-        self.selected_sort  = self.parent.root_dir
+        self.selected_sort  = self.selected_sort
         self.select_sort_lbl = QLabel(self.selected_sort, self)
         layout.addWidget(self.select_sort_lbl, row_index,1)
     
@@ -191,7 +199,6 @@ class EventTriggeredEphys(QtGui.QWidget):
         self.select_recording_lbl.setText(file_name)
 
 
-
     def slct_event_file(self):
         self.selected_sort =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
         path_name, file_name = os.path.split(self.selected_sort)
@@ -233,10 +240,12 @@ class EventTriggeredEphys(QtGui.QWidget):
 
 
     def lfp_avg(self):
+        self.triggers = np.loadtxt(self.selected_sort)          #******************* LFP AVEERAGE
+
         compute_lfp_triggered_template(self)
 
 
-    def csd_avg(self):
+    def csd_avg(self):                      #**************************** CSD 
         compute_csd_event_triggered(self)
 
     def select_dff_filter(self,text):
