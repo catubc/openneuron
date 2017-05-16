@@ -120,20 +120,20 @@ class TemplateTools(QtGui.QWidget):
         layout.addWidget(self.button_view_csd, row_index, 0)
         
         
-        self.start_ch = QLineEdit('0');               
-        self.start_ch.setMaximumWidth(50)
-        self.start_ch_lbl = QLabel('Starting ch:', self)
-        self.start_ch_lbl.setMaximumWidth(100)
-        layout.addWidget(self.start_ch_lbl, row_index,1)
-        layout.addWidget(self.start_ch, row_index, 2)
+        self.top_channel = QLineEdit('0');               
+        self.top_channel.setMaximumWidth(50)
+        self.top_channel_lbl = QLabel('Starting ch:', self)
+        self.top_channel_lbl.setMaximumWidth(100)
+        layout.addWidget(self.top_channel_lbl, row_index,1)
+        layout.addWidget(self.top_channel, row_index, 2)
         
         
-        self.end_ch = QLineEdit('64');                
-        self.end_ch.setMaximumWidth(50)
-        self.end_ch_lbl = QLabel('Ending ch:', self)
-        self.end_ch_lbl.setMaximumWidth(100)
-        layout.addWidget(self.end_ch_lbl, row_index,3)
-        layout.addWidget(self.end_ch, row_index, 4); row_index+=1
+        self.bottom_channel = QLineEdit('64');                
+        self.bottom_channel.setMaximumWidth(50)
+        self.bottom_channel_lbl = QLabel('Ending ch:', self)
+        self.bottom_channel_lbl.setMaximumWidth(100)
+        layout.addWidget(self.bottom_channel_lbl, row_index,3)
+        layout.addWidget(self.bottom_channel, row_index, 4); row_index+=1
         
         
         self.button_view_all_csd = QPushButton('View CSD for Period:')

@@ -3211,9 +3211,9 @@ def view_video_stm_all(self):
     ani = animation.FuncAnimation(fig, updatefig, frames=range(len(vid_array)), interval=100, blit=False, repeat=True)
 
     if True:
-    #if save_animation:
         ani.save(filename.replace('tif_files', 'video_files').replace(self.selected_session+'/','')+'_all.mp4', writer=writer)
 
+        #Save the animation as a numpy array also for analysis;
         np.save(filename.replace('tif_files', 'video_files').replace(self.selected_session+'/','')+'_all.npy', vid_array_save)
 
     plt.show()
@@ -3782,6 +3782,8 @@ def concatenate_tsf(self):
     temp_n_samples = []
     temp_n_digital_chs = []
     temp_digital_chs = []
+    
+    
     for k in range(len(self.tsf_files)):
         print self.tsf_files[k]
         if '.tsf' in self.tsf_files[k]:                    #Concatenate standard .tsf files
@@ -4162,10 +4164,23 @@ def subsample_channels_tsf(self):
     tsf.read_ec_traces()
     tsf.read_footer()
 
-    #Clip top channels
-
+    #Clip top channels; use user typed value or default to insertion.txt file
+    print self.top_channel.text()
+    if self.top_channel.text()=='0':
+        print "Using insertion depth ..."
+        insertion = int(np.loadtxt(os.path.split(os.path.split(self.tsf_file)[0])[0]+"/insertion.txt"))
+        top_channel = int(max(0,64*(1-insertion/1449.)))
+    else:
+        top_channel = int(self.top_channel.text())
+    print "top-channel: ", top_channel
+    
+    
+    #self.top_channel_lbl.setText(str(top_channel))
+    bottom_channel = int(self.bottom_channel.text())
+    
     #Save only n_channels max
-    save_channels = np.int32(np.linspace(int(self.top_channel.text()), tsf.n_electrodes-1, int(self.total_channels.text())))
+    #save_channels = np.int32(np.linspace(int(self.top_channel.text()), int(self.bottom_channel.text()), int(self.total_channels.text())))
+    save_channels = np.int32(np.linspace(top_channel, int(self.bottom_channel.text()), int(self.total_channels.text())))
     
     tsf.ec_traces = tsf.ec_traces[save_channels]
     temp_loc = []
@@ -4178,7 +4193,7 @@ def subsample_channels_tsf(self):
     tsf.layout = np.arange(tsf.n_electrodes)
     print "... saving # of electrodes: ", tsf.n_electrodes
 
-    f_name = self.tsf_file[:-4]+"_reduced_"+str(tsf.n_electrodes)+"chs.tsf"
+    f_name = self.tsf_file[:-4]+"_reduced_"+"topch_"+str(top_channel)+ "_bottomch"+self.bottom_channel.text()+"_"+str(tsf.n_electrodes)+"chs.tsf"
     save_tsf_single(tsf, f_name)
     
     
@@ -4368,7 +4383,7 @@ def rhd_to_tsf(filenames):
         
         #************************* THIS SHOULD BE DONE VIA FUNCTION ************************
         #SAVE RAW DATA
-        if True:
+        if False:
             #tsf.ec_traces = tsf.ec_traces_raw
             tsf.save_tsf(file_out+'_raw.tsf')
         
@@ -5349,11 +5364,622 @@ def view_all_csd_old(self):
 
         plt.suptitle("Cluster: " + str(p), fontsize=25)
     plt.show()
+    
+def compute_LEC_csd_event_triggered_multi(self):
+    
+    #Load .tsf and .txt trigger files 
+    tsf_filenames = np.loadtxt(self.selected_tsf_files, dtype='str')
+    #print tsf_filenames
+    n_files = len(tsf_filenames)
+    
+    stim_filenames= np.loadtxt(self.selected_ptcs_files, dtype='str')
+    #print stim_filenames
+    
+    shifts = np.loadtxt(self.selected_tsf_files[:-4]+"_shift_space.txt") 
+
+    time_shifts = np.loadtxt(self.selected_tsf_files[:-4]+"_shift_time.txt") 
+
+    compress = np.loadtxt(self.selected_tsf_files[:-4]+"_compress.txt") 
+    
+    depth_view = 950   #Depth to show
+    
+    n_samples = int(self.n_sample_pts.text())
+    #top_channel = max(0,int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1))      #Load top channel for track; convert to 0-based ichannel values.
+    
+    file_ctr = 0
+    average_array = []
+    for tsf_filename, stim_filename in zip(tsf_filenames, stim_filenames):
+        
+        fig = plt.figure()
+
+        self.selected_recording = tsf_filename
+        
+        #*********** LOAD STIM TRIGGERS
+        #self.triggers = np.loadtxt(stim_filename) 
+        sort = PTCS.PTCS(stim_filename)
+        
+        self.triggers = []
+        for p in range(sort.n_units):
+            self.triggers.append(sort.units[p]*1E-6)
+
+            print "...triggers: ", self.triggers[p][:10]
+        #*********** LOAD CORTICAL SHIFT AND ADD TO INSERTION DEPTH
+        #print "...shift: ", shifts[file_ctr]
+        
+        insertion = int(np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0]+"/insertion.txt")) #+shifts[file_ctr]
+        
+        
+        top_channel = int(max(0,64*(1-insertion/1449.)))
+        #print "top-channel: ", top_channel
+        self.top_channel_lbl.setText(str(top_channel))
+
+        #top_channel = int(self.top_channel.text())
+        #bottom_channel = int(self.bottom_channel.text())
+        bottom_channel = min(63, top_channel+int(depth_view/23.))
+
+        if 'tim' in self.selected_recording:
+            bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
+            #print type(bad_channels)
+            if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
+                #print "...converting to list..."
+                bad_channels = [bad_channels]
+        else:
+            bad_channels = []
+        #print bad_channels
+
+        #********* LOAD TSF DATA***********
+        tsf = TSF.TSF(self.selected_recording)
+        tsf.read_ec_traces()
+
+        for q in range(len(self.triggers)):
+            
+            event_times = np.int64(self.triggers[q]*tsf.SampleFrequency)
+            print "...event_times: ",  event_times[:10]
+            
+            lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+            for ch in range(tsf.n_electrodes):
+                ctr=0
+                #print "...ch: ", ch, "  depth: ", tsf.Siteloc[ch*2:ch*2+2]
+                
+                if ch in bad_channels:
+                    #print "...ch: ", ch, " averaged from top and bottom..."
+                    for event in event_times:
+                        trace_temp = (tsf.ec_traces[ch-1][int(event-n_samples):int(event+n_samples)]+tsf.ec_traces[ch+1][int(event-n_samples):int(event+n_samples)])/2.*tsf.vscale_HP
+                        if len(trace_temp)==(n_samples*2):
+                            lfp_ave[ch]+= trace_temp
+                            ctr+=1
+                else:
+                    for event in event_times:
+                        trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]*tsf.vscale_HP
+                        if len(trace_temp)==(n_samples*2):
+                            lfp_ave[ch]+= trace_temp
+                            ctr+=1
+
+                lfp_ave[ch]=lfp_ave[ch]/ctr
+
+            #******************COMPUTE CSD
+            if 'tim' in self.selected_recording:
+                #lfp_ave = lfp_ave[int(self.top_channel.text()):int(self.bottom_channel.text())]
+                lfp_ave = lfp_ave[top_channel:bottom_channel]
+
+                lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
+                scaling = 1.
+            else:      
+                scaling = 1800./Sort.chanpos[-1][1]
+            
+            #print lfp_ave.shape
+            lfp_ave_dif1 = np.gradient(lfp_ave)
+            lfp_ave_dif1 = lfp_ave_dif1[0]
+            
+            lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
+            lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+            
+            lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+           
+            #print lfp_ave_dif2.shape
+            
+            lfp_ave_dif2 = lfp_ave_dif2 #[top_channel:]      #THIS IS ALREADY DONE ABOVE
+            #print lfp_ave_dif2.shape
+
+            #Select top/botom channels only.
+            #print lfp_ave_dif2.shape
+
+            #****************** COMPRESS CSD BEFORE VIEWING ************
+            if True: 
+                mid_point = len(lfp_ave_dif2)
+                lfp_ave_dif2_temp = np.zeros((lfp_ave_dif2.shape), dtype=np.float32)
+                for k in range(len(lfp_ave_dif2_temp)):
+                    if int(mid_point-int((mid_point-k)*compress[file_ctr]))<len(lfp_ave_dif2):
+                        if int(mid_point-int((mid_point-k)*compress[file_ctr]))>=0:                    
+                            
+                            lfp_ave_dif2_temp[k] = lfp_ave_dif2[mid_point-int((mid_point-k)*compress[file_ctr])]
+                    
+                lfp_ave_dif2 = lfp_ave_dif2_temp
+
+            
+            #***************** SHIFT CSD PLOT UP/DOWN *****************
+            lfp_ave_dif2_temp = []
+            if shifts[file_ctr]>0:
+                for k in range(int(shifts[file_ctr])):
+                    lfp_ave_dif2_temp.append(np.zeros(len(lfp_ave_dif2[0]), dtype=np.float32))
+                lfp_ave_dif2 = np.vstack ((lfp_ave_dif2_temp, lfp_ave_dif2))
+            if shifts[file_ctr]<0:
+                lfp_ave_dif2 = lfp_ave_dif2[abs(shifts[file_ctr]):]
+
+            
+            #***************** SHIFT CSD PLOT LEFT/RIGHT - TIME *****************
+            if True:
+                for p in range(len(lfp_ave_dif2)):
+                    lfp_ave_dif2[p] = np.roll(lfp_ave_dif2[p], int(time_shifts[file_ctr]))
+
+            #*****************PLOT CSD:
+            #ax = fig.add_subplot(1,n_files,file_ctr+1)
+            ax = plt.subplot(1,sort.n_units, q+1)
+            #ax = plt.subplot(1,2, q+1)
+            
+            
+            #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
+            #lfp_ave_dif2 = lfp_ave_dif2[:,len(lfp_ave_dif2[0])/2:]
+            
+            vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
+            average_array.append(lfp_ave_dif2)
+            #cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+            cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+            
+            old_xlabel = np.linspace(0,len(lfp_ave_dif2[0]), 3)
+            new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 3))
+            
+            plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+            plt.xlabel("Time (ms)", fontsize = 20)
+            plt.xlim(0, n_samples*2)
+
+            if 'tim' in self.selected_recording:
+                depths = [];depths.append(0)
+                depths.append(118/2);depths.append(118)
+                depths.append((364-118)/2+118); depths.append(364)
+                depths.append((469-364)/2+364); depths.append(469)
+                depths.append((659-469)/2+469); depths.append(659)
+                depths.append((850-659)/2+659); depths.append(850)
+
+                for k in range(0,len(depths),2):
+                    plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+                    #plt.plot([-n_samples,n_samples], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+                plt.ylim(900./46,-0.5)
+
+                if file_ctr==0:
+                    old_ylabel = []
+                    for depth in depths:
+                        old_ylabel.append(-0.5 + float(depth)/46.)
+
+                    new_ylabel = depths
+                
+                    new_ylabel_str = []
+                    new_ylabel_str.append("L1")
+                    new_ylabel_str.append("L23")
+                    new_ylabel_str.append("L4")
+                    new_ylabel_str.append("L5")
+                    new_ylabel_str.append("L6")
+
+                    old_ylabel_str=[]
+                    old_ylabel_str.append(old_ylabel[1])
+                    old_ylabel_str.append(old_ylabel[3])
+                    old_ylabel_str.append(old_ylabel[5])
+                    old_ylabel_str.append(old_ylabel[7])
+                    old_ylabel_str.append(old_ylabel[9])
+                    plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
+                else:
+                    ax.set_yticks([])
+
+            else:
+                #print Sort.chanpos
+                new_ylabel = np.arange(0,1801,200)
+                old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+                plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+            
+                plt.ylim(10*scaling-0.5, -0.5)
+
+            
+            plt.title("#:"+str(len(event_times))+"  "+str(vmax)+ "  "+str(vmin), fontsize=8)
+
+        plt.suptitle(os.path.split(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''))[0], fontsize=10)
+        file_ctr+=1
+
+
+    #************ PLOT AVERAGE CSD RESPONSE ************
+    
+    fig2 = plt.figure()
+    ax=plt.subplot(111)
+    temp_array = np.zeros((40,n_samples*2), dtype=np.float32)
+    for k in range(40):
+        ctr=0
+        for p in range(len(average_array)):
+            if len(average_array[p])>=(k+1):
+                temp_array[k]=temp_array[k]+average_array[p][k]
+                ctr+=1
+        temp_array[k]=temp_array[k]/float(ctr)
+    
+    temp_array=np.array(temp_array[:20])
+
+    cax = ax.imshow(temp_array, aspect='auto',cmap='viridis_r', interpolation='sinc')
+
+    #old_xlabel = np.linspace(0,len(lfp_ave_dif2[0]), 3)
+    new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 3))
+    
+    #plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+    #plt.xlabel("Time (ms)", fontsize = 20)
+    #plt.xlim(0, n_samples*2)
+            
+            
+    old_xlabel = np.linspace(0,len(temp_array[0]), 3)
+    new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 3))
+    
+    plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+    plt.xlabel("Time (ms)", fontsize = 20)
+    plt.xlim(0, n_samples*2)
+
+    print n_samples
+    for k in range(0, n_samples*2, 25):
+        print k
+        plt.plot([k,k],[-0.5,900./46], 'r--', color='white', alpha=0.8)
+    #plt.plot([-50,-50],[-0.5,900./46], 'r--', color='white', alpha=0.8)
+    #plt.plot([0,0],[-0.5,900./46], 'r--', color='white', alpha=0.8)
+    #plt.plot([50,50],[-0.5,900./46], 'r--', color='white', alpha=0.8)
+    
+    print len(temp_array[0])
+    
+    if 'tim' in self.selected_recording:
+        depths = [];depths.append(0)
+        depths.append(118/2);depths.append(118)
+        depths.append((364-118)/2+118); depths.append(364)
+        depths.append((469-364)/2+364); depths.append(469)
+        depths.append((659-469)/2+469); depths.append(659)
+        depths.append((850-659)/2+659); depths.append(850)
+
+        for k in range(0,len(depths),2):
+            plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+            #plt.plot([0,n_samples], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+        plt.ylim(900./46,-0.5)
+
+        old_ylabel = []
+        for depth in depths:
+            old_ylabel.append(-0.5 + float(depth)/46.)
+
+        new_ylabel = depths
+    
+        new_ylabel_str = []
+        new_ylabel_str.append("L1")
+        new_ylabel_str.append("L23")
+        new_ylabel_str.append("L4")
+        new_ylabel_str.append("L5")
+        new_ylabel_str.append("L6")
+
+        old_ylabel_str=[]
+        old_ylabel_str.append(old_ylabel[1])
+        old_ylabel_str.append(old_ylabel[3])
+        old_ylabel_str.append(old_ylabel[5])
+        old_ylabel_str.append(old_ylabel[7])
+        old_ylabel_str.append(old_ylabel[9])
+        plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
+        
+    #ax=plt.subplot(122)
+    ##*********** PLOT CBAR **********
+    #cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
+    #cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
+    #print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
+    #cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    #cbar.ax.tick_params(labelsize=15) 
+    
+    ##cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    ##plt.colorbar(cax,fraction=0.2, pad=0.04)
+
+        
+    plt.show()
+
+
+def compute_csd_event_triggered_multi(self):
+    
+    #Load .tsf and .txt trigger files 
+    
+    tsf_filenames = np.loadtxt(self.selected_files, dtype='str')
+    print tsf_filenames
+    n_files = len(tsf_filenames)
+    
+    stim_filenames= np.loadtxt(self.selected_files[:-4]+"_stim.txt", dtype='str')
+    print stim_filenames
+    
+    shifts = np.loadtxt(self.selected_files[:-4]+"_shift.txt") 
+
+    time_shifts = np.loadtxt(self.selected_files[:-4]+"_shift_time.txt") 
+
+    compress = np.loadtxt(self.selected_files[:-4]+"_compress.txt") 
+    
+    depth_view = 950   #Depth to show
+    
+    n_samples = int(self.n_sample_pts.text())
+    #top_channel = max(0,int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1))      #Load top channel for track; convert to 0-based ichannel values.
+    
+    file_ctr = 0
+    average_array = []
+    for tsf_filename, stim_filename in zip(tsf_filenames, stim_filenames):
+        
+        self.selected_recording = tsf_filename
+        
+        
+        #*********** LOAD STIM TRIGGERS
+        self.triggers = np.loadtxt(stim_filename) 
+        #print "...triggers: ", self.triggers
+        
+        #*********** LOAD CORTICAL SHIFT AND ADD TO INSERTION DEPTH
+        print "...shift: ", shifts[file_ctr]
+        
+        insertion = int(np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0]+"/insertion.txt")) #+shifts[file_ctr]
+        
+        
+        top_channel = int(max(0,64*(1-insertion/1449.)))
+        #print "top-channel: ", top_channel
+        self.top_channel_lbl.setText(str(top_channel))
+
+        #top_channel = int(self.top_channel.text())
+        #bottom_channel = int(self.bottom_channel.text())
+        bottom_channel = min(63, top_channel+int(depth_view/23.))
+
+        if 'tim' in self.selected_recording:
+            bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
+            #print type(bad_channels)
+            if isinstance(bad_channels, np.int64):  #If only a single channel is in the list, convert it into a list for later parsing
+                #print "...converting to list..."
+                bad_channels = [bad_channels]
+        else:
+            bad_channels = []
+        #print bad_channels
+
+        #********* LOAD TSF DATA***********
+        tsf = TSF.TSF(self.selected_recording)
+        tsf.read_ec_traces()
+
+
+        event_times = np.int64(self.triggers*tsf.SampleFrequency)
+        #print event_times
+        
+        lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
+        for ch in range(tsf.n_electrodes):
+            ctr=0
+            #print "...ch: ", ch, "  depth: ", tsf.Siteloc[ch*2:ch*2+2]
+            
+            if ch in bad_channels:
+                #print "...ch: ", ch, " averaged from top and bottom..."
+                for event in event_times:
+                    trace_temp = (tsf.ec_traces[ch-1][int(event-n_samples):int(event+n_samples)]+tsf.ec_traces[ch+1][int(event-n_samples):int(event+n_samples)])/2.*tsf.vscale_HP
+                    if len(trace_temp)==(n_samples*2):
+                        lfp_ave[ch]+= trace_temp
+                        ctr+=1
+            else:
+                for event in event_times:
+                    trace_temp = tsf.ec_traces[ch][int(event-n_samples):int(event+n_samples)]*tsf.vscale_HP
+                    if len(trace_temp)==(n_samples*2):
+                        lfp_ave[ch]+= trace_temp
+                        ctr+=1
+
+            lfp_ave[ch]=lfp_ave[ch]/ctr
+
+        #******************COMPUTE CSD
+        if 'tim' in self.selected_recording:
+            #lfp_ave = lfp_ave[int(self.top_channel.text()):int(self.bottom_channel.text())]
+            lfp_ave = lfp_ave[top_channel:bottom_channel]
+
+            lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
+            scaling = 1.
+        else:      
+            scaling = 1800./Sort.chanpos[-1][1]
+        
+        #print lfp_ave.shape
+        lfp_ave_dif1 = np.gradient(lfp_ave)
+        lfp_ave_dif1 = lfp_ave_dif1[0]
+        
+        lfp_ave_dif2 = np.gradient(lfp_ave_dif1)
+        lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
+        
+        lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
+       
+        #print lfp_ave_dif2.shape
+        
+        lfp_ave_dif2 = lfp_ave_dif2 #[top_channel:]      #THIS IS ALREADY DONE ABOVE
+        #print lfp_ave_dif2.shape
+
+        #Select top/botom channels only.
+        #print lfp_ave_dif2.shape
+
+        #****************** COMPRESS CSD BEFORE VIEWING ************
+        mid_point = len(lfp_ave_dif2)
+        lfp_ave_dif2_temp = np.zeros((lfp_ave_dif2.shape), dtype=np.float32)
+        for k in range(len(lfp_ave_dif2_temp)):
+            if int(mid_point-int((mid_point-k)*compress[file_ctr]))<len(lfp_ave_dif2):
+                if int(mid_point-int((mid_point-k)*compress[file_ctr]))>=0:                    
+                    lfp_ave_dif2_temp[k] = lfp_ave_dif2[mid_point-int((mid_point-k)*compress[file_ctr])]
+            
+        lfp_ave_dif2 = lfp_ave_dif2_temp
+
+        
+        #***************** SHIFT CSD PLOT UP/DOWN *****************
+        lfp_ave_dif2_temp = []
+        if shifts[file_ctr]>0:
+            for k in range(int(shifts[file_ctr])):
+                lfp_ave_dif2_temp.append(np.zeros(len(lfp_ave_dif2[0]), dtype=np.float32))
+            lfp_ave_dif2 = np.vstack ((lfp_ave_dif2_temp, lfp_ave_dif2))
+        if shifts[file_ctr]<0:
+            lfp_ave_dif2 = lfp_ave_dif2[abs(shifts[file_ctr]):]
+
+        
+        #***************** SHIFT CSD PLOT LEFT/RIGHT - TIME *****************
+        for p in range(len(lfp_ave_dif2)):
+            lfp_ave_dif2[p] = np.roll(lfp_ave_dif2[p], int(time_shifts[file_ctr]))
+
+        #*****************PLOT CSD:
+        #fig = plt.figure()
+        #ax = fig.add_subplot(1,n_files,file_ctr+1)
+        ax = plt.subplot(1,n_files, file_ctr+1)
+        #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
+        vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
+        lfp_ave_dif2 = lfp_ave_dif2[:,len(lfp_ave_dif2[0])/2:]
+        average_array.append(lfp_ave_dif2)
+        #cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+        cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
+        
+        old_xlabel = np.linspace(0,len(lfp_ave_dif2[0]), 3)
+        new_xlabel = np.int32(np.linspace(0, n_samples, 3))
+        
+        plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+        plt.xlabel("Time (ms)", fontsize = 20)
+        plt.xlim(0, new_xlabel[-1])
+
+        if 'tim' in self.selected_recording:
+            depths = [];depths.append(0)
+            depths.append(118/2);depths.append(118)
+            depths.append((364-118)/2+118); depths.append(364)
+            depths.append((469-364)/2+364); depths.append(469)
+            depths.append((659-469)/2+469); depths.append(659)
+            depths.append((850-659)/2+659); depths.append(850)
+
+            for k in range(0,len(depths),2):
+                #plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+                plt.plot([0,n_samples], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+            plt.ylim(900./46,-0.5)
+
+            if file_ctr==0:
+                old_ylabel = []
+                for depth in depths:
+                    old_ylabel.append(-0.5 + float(depth)/46.)
+
+                new_ylabel = depths
+            
+                new_ylabel_str = []
+                new_ylabel_str.append("L1")
+                new_ylabel_str.append("L23")
+                new_ylabel_str.append("L4")
+                new_ylabel_str.append("L5")
+                new_ylabel_str.append("L6")
+
+                old_ylabel_str=[]
+                old_ylabel_str.append(old_ylabel[1])
+                old_ylabel_str.append(old_ylabel[3])
+                old_ylabel_str.append(old_ylabel[5])
+                old_ylabel_str.append(old_ylabel[7])
+                old_ylabel_str.append(old_ylabel[9])
+                plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
+            else:
+                ax.set_yticks([])
+
+        else:
+            #print Sort.chanpos
+            new_ylabel = np.arange(0,1801,200)
+            old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+            plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+        
+            plt.ylim(10*scaling-0.5, -0.5)
+
+        
+        #plt.title(os.path.split(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''))[0], fontsize=10)
+        plt.ylabel(os.path.split(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''))[0], fontsize=10)
+
+        print "... CSD max, min: ", vmax, vmin
+
+
+        file_ctr+=1
+
+    #************ PLOT AVERAGE CSD RESPONSE ************
+    
+    fig2 = plt.figure()
+    ax=plt.subplot(111)
+    temp_array = np.zeros((40,n_samples), dtype=np.float32)
+    for k in range(40):
+        ctr=0
+        for p in range(len(average_array)):
+            print p
+            if len(average_array[p])>=(k+1):
+                temp_array[k]=temp_array[k]+average_array[p][k]
+                ctr+=1
+        temp_array[k]=temp_array[k]/float(ctr)
+    
+    temp_array=np.array(temp_array[:20])
+
+    cax = ax.imshow(temp_array, aspect='auto',cmap='viridis_r', interpolation='sinc')
+        
+    old_xlabel = np.linspace(0,len(temp_array[0]), 3)
+    new_xlabel = np.int32(np.linspace(0, n_samples, 3))
+    
+    plt.xticks(old_xlabel, new_xlabel, fontsize=15)
+    plt.xlabel("Time (ms)", fontsize = 20)
+    plt.xlim(0, new_xlabel[-1])
+
+    if 'tim' in self.selected_recording:
+        depths = [];depths.append(0)
+        depths.append(118/2);depths.append(118)
+        depths.append((364-118)/2+118); depths.append(364)
+        depths.append((469-364)/2+364); depths.append(469)
+        depths.append((659-469)/2+469); depths.append(659)
+        depths.append((850-659)/2+659); depths.append(850)
+
+        for k in range(0,len(depths),2):
+            #plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+            plt.plot([0,n_samples], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+        plt.ylim(900./46,-0.5)
+
+        old_ylabel = []
+        for depth in depths:
+            old_ylabel.append(-0.5 + float(depth)/46.)
+
+        new_ylabel = depths
+    
+        new_ylabel_str = []
+        new_ylabel_str.append("L1")
+        new_ylabel_str.append("L23")
+        new_ylabel_str.append("L4")
+        new_ylabel_str.append("L5")
+        new_ylabel_str.append("L6")
+
+        old_ylabel_str=[]
+        old_ylabel_str.append(old_ylabel[1])
+        old_ylabel_str.append(old_ylabel[3])
+        old_ylabel_str.append(old_ylabel[5])
+        old_ylabel_str.append(old_ylabel[7])
+        old_ylabel_str.append(old_ylabel[9])
+        plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
+        
+    #ax=plt.subplot(122)
+    ##*********** PLOT CBAR **********
+    #cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
+    #cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
+    #print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
+    #cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    #cbar.ax.tick_params(labelsize=15) 
+    
+    ##cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+    ##plt.colorbar(cax,fraction=0.2, pad=0.04)
+
+    
+
+
+        
+    plt.show()
 
 def compute_csd_event_triggered(self):
 
+    print self.selected_recording
+
     n_samples = int(self.n_sample_pts.text())
-    top_channel = int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1)      #Load top channel for track; convert to 0-based ichannel values.
+    #top_channel = max(0,int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/top_channel.txt") - 1))      #Load top channel for track; convert to 0-based ichannel values.
+    insertion = int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/insertion.txt"))
+    top_channel = int(max(0,64*(1-insertion/1449.)))
+    print "top-channel: ", top_channel
+    self.top_channel_lbl.setText(str(top_channel))
+
+    #top_channel = int(self.top_channel.text())
+    bottom_channel = int( self.bottom_channel.text())
+
 
     if 'tim' in self.selected_recording:
         bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
@@ -5397,6 +6023,9 @@ def compute_csd_event_triggered(self):
 
     #******************COMPUTE CSD
     if 'tim' in self.selected_recording:
+        #lfp_ave = lfp_ave[int(self.top_channel.text()):int(self.bottom_channel.text())]
+        lfp_ave = lfp_ave[top_channel:bottom_channel]
+
         lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
         scaling = 1.
     else:      
@@ -5415,30 +6044,60 @@ def compute_csd_event_triggered(self):
    
     print lfp_ave_dif2.shape
     
-    lfp_ave_dif2 = lfp_ave_dif2[top_channel:]      #Exclude channels that are not in issue
+    lfp_ave_dif2 = lfp_ave_dif2 #[top_channel:]      #THIS IS ALREADY DONE ABOVE
+    print lfp_ave_dif2.shape
+
+    #Select top/botom channels only.
     print lfp_ave_dif2.shape
 
     #*****************PLOT CSD:
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(121)
     
     #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
     vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
 
     cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
     
-    old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
-    new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
+    old_xlabel = np.arange(0, len(lfp_ave_dif2[0])+1, 50)
+    new_xlabel = np.int32(np.arange(-n_samples, n_samples+1, 50))
+    
     plt.xticks(old_xlabel, new_xlabel, fontsize=15)
     plt.xlabel("Time (ms)", fontsize = 20)
 
-
     if 'tim' in self.selected_recording:
-        new_ylabel = np.arange(0,901,200)
-        old_ylabel = np.linspace(-0.5, 18*scaling-0.5,len(new_ylabel))
-        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-        plt.ylim(21*scaling-0.5, -0.5)
+        depths = [];depths.append(0)
+        depths.append(118/2);depths.append(118)
+        depths.append((364-118)/2+118); depths.append(364)
+        depths.append((469-364)/2+364); depths.append(469)
+        depths.append((659-469)/2+469); depths.append(659)
+        depths.append((850-659)/2+659); depths.append(850)
+        
+        old_ylabel = []
+        for depth in depths:
+            old_ylabel.append(-0.5 + float(depth)/46.)
+
+        new_ylabel = depths
+        for k in range(0,len(depths),2):
+            plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+        plt.ylim(900./46,-0.5)
     
+        new_ylabel_str = []
+        new_ylabel_str.append("L1")
+        new_ylabel_str.append("L23")
+        new_ylabel_str.append("L4")
+        new_ylabel_str.append("L5")
+        new_ylabel_str.append("L6")
+
+        old_ylabel_str=[]
+        old_ylabel_str.append(old_ylabel[1])
+        old_ylabel_str.append(old_ylabel[3])
+        old_ylabel_str.append(old_ylabel[5])
+        old_ylabel_str.append(old_ylabel[7])
+        old_ylabel_str.append(old_ylabel[9])
+        plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
+
     else:
         print Sort.chanpos
         new_ylabel = np.arange(0,1801,200)
@@ -5452,6 +6111,7 @@ def compute_csd_event_triggered(self):
 
     print "... CSD max, min: ", vmax, vmin
 
+    ax=plt.subplot(122)
     #*********** PLOT CBAR **********
     cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
     cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
@@ -5667,6 +6327,11 @@ def view_csd(self):
     n_samples = int(self.n_sample_pts.text())
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
+    insertion = int(np.loadtxt(os.path.split(os.path.split(self.selected_sort)[0])[0]+"/insertion.txt"))
+    top_channel = int(max(0,64*(1-insertion/1449.)))
+    print "top-channel: ", top_channel
+    self.top_channel_lbl.setText(str(top_channel))
+    bottom_channel = int( self.bottom_channel.text())
 
     if 'tim' in self.selected_recording:
         bad_channels = np.loadtxt(os.path.split(os.path.split(self.selected_recording)[0])[0] +"/electrode_mask.txt", dtype=np.int16)-1 #Convet to zero based indxes
@@ -5724,12 +6389,17 @@ def view_csd(self):
 
             lfp_ave[ch]=lfp_ave[ch]/ctr
 
+
         #******************COMPUTE CSD
         if 'tim' in self.selected_recording:
+            #lfp_ave = lfp_ave[int(self.top_channel.text()):int(self.bottom_channel.text())]
+            lfp_ave = lfp_ave[top_channel:bottom_channel]
+
             lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
             scaling = 1.
         else:      
             scaling = 1800./Sort.chanpos[-1][1]
+            
         
         print scaling
     
@@ -5747,52 +6417,21 @@ def view_csd(self):
         print lfp_ave_dif2.shape
         
         
-        lfp_ave_dif2 = lfp_ave_dif2[int(self.start_ch.text())/2:int(self.end_ch.text())/2]      #Exclude channels that are not in issue
-        print lfp_ave_dif2.shape
+        #lfp_ave_dif2 = lfp_ave_dif2[int(self.start_ch.text())/2:int(self.end_ch.text())/2]      #Exclude channels that are not in issue
+        #print lfp_ave_dif2.shape
 
         np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_csd", lfp_ave_dif2)
 
-        
-        #*****************PLOT LFP 
-        fig = plt.figure()
-        #ax = plt.subplot(1,2,1)
-        if False:
-            lfp_ave = lfp_ave[int(self.start_ch.text())/2:int(self.end_ch.text())/2]      #Exclude channels that are not in issue
-            vmax = np.max(np.abs(lfp_ave)); vmin=-vmax
-            cax = ax.imshow(lfp_ave, vmin=vmin, vmax=vmax, aspect='auto', cmap='viridis_r', interpolation='sinc')
-
-            if 'tim' in self.selected_recording:
-                old_ylabel = np.arange(0, len(lfp_ave), 5)
-                new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
-                plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-            else:
-                old_ylabel = np.arange(0, len(lfp_ave), 1)[::2]-0.25
-                new_ylabel = Sort.chanpos[::2][:,1]
-                plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-                
-            plt.ylim(len(lfp_ave)*scaling, 0)
-
-            plt.ylabel("Depth (um)", fontsize = 20)
-            
-            old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
-            new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
-            plt.xticks(old_xlabel, new_xlabel, fontsize=15)
-            plt.xlabel("Time (ms)", fontsize = 20)
-
-            print "... lfp max: ", vmax
-
-            cbar = fig.colorbar(cax)#, ticks=[x_ticks])
-            #cbar.ax.set_yticklabels(['1^'+self.vmin_value.text(), '1^'+self.vmax_value.text()])  # vertically oriented colorbar
-            cbar.ax.tick_params(labelsize=15) 
-            cbar.ax.set_ylabel("LFP (uV)", fontsize=15, labelpad=-6)
-
+        #fig = plt.figure()
 
         #*****************PLOT CSD:
-        ax = plt.subplot(1,2,1)
+        ax = plt.subplot(1,len(units),unit+1)
         
         #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
         vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
+        #vmax = np.max(lfp_ave_dif2); vmin=np.min(lfp_ave_dif2)
 
+        print "Vmax: ", vmax, "  vmin: ", vmin
         cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
         
         old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
@@ -5802,13 +6441,37 @@ def view_csd(self):
 
 
         if 'tim' in self.selected_recording:
-            #old_ylabel = np.arange(0, len(lfp_ave), 5)
-            #new_ylabel = np.arange(0, len(lfp_ave)*46, 5*46)
-            new_ylabel = np.arange(0,901,200)
-            old_ylabel = np.linspace(-0.5, 18*scaling-0.5,len(new_ylabel))
+            depths = [];depths.append(0)
+            depths.append(118/2);depths.append(118)
+            depths.append((364-118)/2+118); depths.append(364)
+            depths.append((469-364)/2+364); depths.append(469)
+            depths.append((659-469)/2+469); depths.append(659)
+            depths.append((850-659)/2+659); depths.append(850)
             
-            plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-            plt.ylim(21*scaling-0.5, -0.5)
+            old_ylabel = []
+            for depth in depths:
+                old_ylabel.append(-0.5 + float(depth)/46.)
+
+            new_ylabel = depths
+            for k in range(0,len(depths),2):
+                plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+            plt.ylim(900./46,-0.5)
+        
+            new_ylabel_str = []
+            new_ylabel_str.append("L1")
+            new_ylabel_str.append("L23")
+            new_ylabel_str.append("L4")
+            new_ylabel_str.append("L5")
+            new_ylabel_str.append("L6")
+
+            old_ylabel_str=[]
+            old_ylabel_str.append(old_ylabel[1])
+            old_ylabel_str.append(old_ylabel[3])
+            old_ylabel_str.append(old_ylabel[5])
+            old_ylabel_str.append(old_ylabel[7])
+            old_ylabel_str.append(old_ylabel[9])
+            plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
         
         else:
             print Sort.chanpos
@@ -5819,18 +6482,18 @@ def view_csd(self):
             plt.ylim(10*scaling-0.5, -0.5)
 
         
-        plt.title(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,'') + "\nCluster #: "+ str(unit)+",  #events: "+str(len(Sort.units[unit])), fontsize=10)
 
         print "... CSD max, min: ", vmax, vmin
 
-        #*********** PLOT CBAR **********
-        ax = plt.subplot(1,2,2)
+        plt.ylabel("#: "+str(len(Sort.units[unit]))+ " "+str(int(vmin))+ ".."+str(int(vmax)), fontsize=10)
+        ##*********** PLOT CBAR **********
+        #ax = plt.subplot(1,2,2)
 
-        cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
-        cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
-        print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
-        cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
-        cbar.ax.tick_params(labelsize=15) 
+        #cbar = fig.colorbar(cax, orientation='horizontal', ticks = [vmin, vmax-1], fraction = 0.2)#, ticks=[x_ticks])
+        #cbar.ax.set_xticklabels([str(int(vmin/10.)*10), str(int(vmax/10.)*10)])  # vertically oriented colorbar
+        #print str(int(vmin/10.)*10), str(int(vmax/10.)*10)
+        #cbar.ax.set_xlabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
+        #cbar.ax.tick_params(labelsize=15) 
         
         #cbar.ax.set_ylabel("CSD (A/m^3)", fontsize=15, labelpad=-6)
         
@@ -5838,57 +6501,58 @@ def view_csd(self):
         
         
         
+    plt.suptitle(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''), fontsize=10)
     plt.show()
    
 
     print "... done..."
     return
 
-    #****************** SELECTING PROBE CHANNELS ***********************
-    if tsf.n_electrodes >10: 
-        print "...loading every other channel, NN A64 probe ..."
-        probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())][::2]
-        lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())][::2]
-    else:
-        probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())]
-        lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
+    ##****************** SELECTING PROBE CHANNELS ***********************
+    #if tsf.n_electrodes >10: 
+        #print "...loading every other channel, NN A64 probe ..."
+        #probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())][::2]
+        #lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())][::2]
+    #else:
+        #probe_layout = tsf.Siteloc[1::2][int(self.start_ch.text()):int(self.end_ch.text())]
+        #lfp_ave=lfp_ave[int(self.start_ch.text()):int(self.end_ch.text())]
 
-    print probe_layout
+    #print probe_layout
     
-    plt.show()
+    #plt.show()
 
 
 
-    #************************ SERGEY'S CSD FUNCTIONS *****************************************
-    z = probe_layout*1E-3 #Convert to mm size
-    import imp
-    csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
+    ##************************ SERGEY'S CSD FUNCTIONS *****************************************
+    #z = probe_layout*1E-3 #Convert to mm size
+    #import imp
+    #csdmod = imp.load_source('csd_est_funds','csd_est_funcs.py')
     
-    sigma = 0.3  # extracellular conductivity (mS/mm)
-    b = 1.0   # assumed radius of the column (mm)
-    SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
+    #sigma = 0.3  # extracellular conductivity (mS/mm)
+    #b = 1.0   # assumed radius of the column (mm)
+    #SNR = float(self.snr_value.text())    # average ratio of signal to noise on each channel
 
-    [A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
-    [W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
-    [W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
+    #[A,A0] = csdmod.forward_operator(z,b,sigma) # compute the forward operator: A -dimensional (mm^3/mS) and A0 -dimensionless operators 
+    #[W,R] = csdmod.inverse_tikhonov(A,SNR) # compute the inverse operator, units (mS/mm^3)
+    #[W0,R0] = csdmod.inverse_tikhonov(A0,SNR)  # the zeros are dimensionless operators which we do not use but display for sanity check
 
 
-    CSD=np.dot(W,lfp_ave)   # units: mS/mm^3*mV = uA/mm^3
+    #CSD=np.dot(W,lfp_ave)   # units: mS/mm^3*mV = uA/mm^3
     
-    t = np.linspace(-n_samples, n_samples, 6)
+    #t = np.linspace(-n_samples, n_samples, 6)
 
-    #ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
-    plt.imshow(CSD, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
-    plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
+    ##ax.imshow(CSD[p], vmin = v_min, vmax=v_max, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    #plt.imshow(CSD, extent=[t[0],t[-1],z[-1],z[0]], cmap='jet', aspect='auto', interpolation='none'); 
+    #plt.plot([0,0], [0,np.max(tsf.Siteloc)*1E-3], 'r--', linewidth=3, color='black', alpha=0.6)
 
-    plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
-    plt.xlim(t[0], t[-1]*5)
+    #plt.ylim(np.max(tsf.Siteloc)*1E-3,0)
+    #plt.xlim(t[0], t[-1]*5)
 
-    plt.tick_params(axis='both', which='major', labelsize=15)
-    #plt.ylabel("Depth along probe (mm)", fontsize=20)
-    #plt.xlabel("Time (msec)",fontsize=20)
+    #plt.tick_params(axis='both', which='major', labelsize=15)
+    ##plt.ylabel("Depth along probe (mm)", fontsize=20)
+    ##plt.xlabel("Time (msec)",fontsize=20)
 
-    plt.show()
+    #plt.show()
 
 
 
@@ -13527,7 +14191,7 @@ def sta_movies(self):
     im=[]
     for k in range(len(vid_array)):
         ax = plt.subplot(2,len(vid_array),k+1)
-        
+
         ax.get_xaxis().set_visible(False)
         ax.yaxis.set_ticks([])
         ax.yaxis.labelpad = 0

@@ -125,11 +125,17 @@ class TrackWideTools(QtGui.QWidget):
         layout.addWidget(self.top_channel_lbl, row_index, 1)
         layout.addWidget(self.top_channel, row_index, 2)
         
+        self.bottom_channel = QLineEdit('63');                  #parent.end_time = self.end_time
+        self.bottom_channel.setMaximumWidth(50)
+        self.bottom_channel_lbl = QLabel('Top Ch:', self)
+        layout.addWidget(self.bottom_channel_lbl, row_index, 3)
+        layout.addWidget(self.bottom_channel, row_index, 4)
+        
         self.total_channels = QLineEdit('10');                  #parent.end_time = self.end_time
         self.total_channels.setMaximumWidth(50)
         self.total_channels_lbl = QLabel('Total Chs:', self)
-        layout.addWidget(self.total_channels_lbl, row_index, 3)
-        layout.addWidget(self.total_channels, row_index, 4); row_index+=1
+        layout.addWidget(self.total_channels_lbl, row_index, 5)
+        layout.addWidget(self.total_channels, row_index, 6); row_index+=1
         
                 
         self.zero_desynch_states = QPushButton('Zero Desynch Periods')

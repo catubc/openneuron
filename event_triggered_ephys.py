@@ -41,7 +41,7 @@ class EventTriggeredEphys(QtGui.QWidget):
         
         #self.parent.selected_recording  = os.getcwd()
         self.selected_recording  = self.selected_recording
-        self.select_recording_lbl = QLabel(self.selected_recording, self)
+        self.select_recording_lbl = QLabel(os.path.split(self.selected_recording)[1], self)
         layout.addWidget(self.select_recording_lbl, row_index,1); row_index+=1
 
         #Select recording
@@ -51,7 +51,7 @@ class EventTriggeredEphys(QtGui.QWidget):
         layout.addWidget(self.button_select_sort, row_index, 0)
         
         self.selected_sort  = self.selected_sort
-        self.select_sort_lbl = QLabel(self.selected_sort, self)
+        self.select_sort_lbl = QLabel(os.path.split(self.selected_sort)[1], self)
         layout.addWidget(self.select_sort_lbl, row_index,1)
     
 
@@ -135,7 +135,7 @@ class EventTriggeredEphys(QtGui.QWidget):
         layout.addWidget(self.excluded_trials, row_index, 4)
         
                 
-        self.n_sample_pts = QLineEdit('20');                #parent.start_time = self.start_time
+        self.n_sample_pts = QLineEdit('100');                #parent.start_time = self.start_time
         self.n_sample_pts.setMaximumWidth(50)
         self.n_sample_pts_lbl = QLabel('#Sample Pts:', self)
         self.n_sample_pts_lbl.setMaximumWidth(100)
@@ -156,12 +156,19 @@ class EventTriggeredEphys(QtGui.QWidget):
         self.button31.clicked.connect(self.csd_avg)
         layout.addWidget(self.button31, row_index, 0)
         
-        self.snr_value = QLineEdit('3.0');                
-        self.snr_value.setMaximumWidth(50)
-        self.snr_value_lbl = QLabel('SNR factor:', self)
-        self.snr_value_lbl.setMaximumWidth(100)
-        layout.addWidget(self.snr_value_lbl, row_index,3)
-        layout.addWidget(self.snr_value, row_index, 4); row_index+=1
+        self.top_channel = QLineEdit('0');                
+        self.top_channel.setMaximumWidth(50)
+        self.top_channel_lbl = QLabel('Top Ch:', self)
+        self.top_channel_lbl.setMaximumWidth(100)
+        layout.addWidget(self.top_channel_lbl, row_index,3)
+        layout.addWidget(self.top_channel, row_index, 4)
+
+        self.bottom_channel = QLineEdit('64');                
+        self.bottom_channel.setMaximumWidth(50)
+        self.bottom_channel_lbl = QLabel('Bottom Ch:', self)
+        self.bottom_channel_lbl.setMaximumWidth(100)
+        layout.addWidget(self.bottom_channel_lbl, row_index,5)
+        layout.addWidget(self.bottom_channel, row_index, 6); row_index+=1
         
 
         self.button31 = QPushButton('Single Unit Histogram')
@@ -183,15 +190,83 @@ class EventTriggeredEphys(QtGui.QWidget):
         
         
         
-        #*************************************************************************
+        #**************************************************************************************
+        #******************************** MULTI CSD MAPPING ***********************************
+        #**************************************************************************************
+        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
         row_index+=1
-        for o in range(4):
-            for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
-            row_index+=1
         
+        self.preprocess_lbl = QLabel('MULTI-ANIMAL CSD MAPPING', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        #Select recording
+        self.button_select_recording = QPushButton('Select Recordings')
+        self.button_select_recording.setMaximumWidth(200)
+        self.button_select_recording.clicked.connect(self.csd_all_pickfiles)
+        layout.addWidget(self.button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.select_recording_lbl2 = QLabel('', self)
+        layout.addWidget(self.select_recording_lbl2, row_index,1); row_index+=1
+        
+
+        self.multi_csd = QPushButton('Multi-file CSD')
+        self.multi_csd.setMaximumWidth(200)
+        self.multi_csd.clicked.connect(self.csd_all)
+        layout.addWidget(self.multi_csd, row_index, 0); row_index+=1
+
+
+
+        #**************************************************************************************
+        #******************************** MULTI LEC MAPPING ***********************************
+        #**************************************************************************************
+        for k in range(6): layout.addWidget(QLabel(' '*40, self), row_index,k)
+        row_index+=1
+        
+        self.preprocess_lbl = QLabel('MULTI-ANIMAL LFP CLUSTER MAPPING', self)
+        self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
+        self.preprocess_lbl.setStyleSheet('color: blue')
+        layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        #Select recording
+        self.LFP_clusters_button_select_recording = QPushButton('Select .tsf Recordings')
+        self.LFP_clusters_button_select_recording.setMaximumWidth(200)
+        self.LFP_clusters_button_select_recording.clicked.connect(self.LFP_all_pickfiles)
+        layout.addWidget(self.LFP_clusters_button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.select_recording_lbl3 = QLabel('', self)
+        layout.addWidget(self.select_recording_lbl3, row_index,1); row_index+=1
+        
+        self.ptcs_clusters_button_select_recording = QPushButton('Select .ptcs Recordings')
+        self.ptcs_clusters_button_select_recording.setMaximumWidth(200)
+        self.ptcs_clusters_button_select_recording.clicked.connect(self.ptcs_all_pickfiles)
+        layout.addWidget(self.ptcs_clusters_button_select_recording, row_index, 0)
+        
+        #self.parent.selected_recording  = os.getcwd()
+        self.select_recording_lbl4 = QLabel('', self)
+        layout.addWidget(self.select_recording_lbl4, row_index,1); row_index+=1
+
+
+        self.multi_LEC = QPushButton('Multi-file LECs')
+        self.multi_LEC.setMaximumWidth(200)
+        self.multi_LEC.clicked.connect(self.LEC_all)
+        layout.addWidget(self.multi_LEC, row_index, 0); row_index+=1
+
+
+
+
+
+
+
+
         
         self.setLayout(layout)
 
+
+    #***************************************************************************************************************************************
 
     def slct_recording1(self):
         self.selected_recording = QtGui.QFileDialog.getOpenFileName(self, ".tsf", self.selected_recording,"(*.tsf)") 
@@ -248,6 +323,31 @@ class EventTriggeredEphys(QtGui.QWidget):
     def csd_avg(self):                      #**************************** CSD 
         compute_csd_event_triggered(self)
 
+    def LFP_all_pickfiles(self):
+        self.selected_tsf_files =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
+        path_name, file_name = os.path.split(self.selected_tsf_files)
+        self.select_recording_lbl3.setText(file_name)
+
+        self.selected_ptcs_files = self.selected_tsf_files.replace('_lfp_', '_ptcs_')
+        path_name, file_name = os.path.split(self.selected_ptcs_files)
+        self.select_recording_lbl4.setText(file_name)
+
+    def ptcs_all_pickfiles(self):
+        self.selected_ptcs_files =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
+        path_name, file_name = os.path.split(self.selected_ptcs_files)
+        self.select_recording_lbl4.setText(file_name)
+
+    def csd_all_pickfiles(self):
+        self.selected_files =  QtGui.QFileDialog.getOpenFileName(self, ".ptcs or .txt or .npy)", self.selected_recording,"PTCS, TXT, NPY (*.ptcs *.txt *.npy)")
+        path_name, file_name = os.path.split(self.selected_files)
+        self.select_sort_lbls.setText(file_name)
+
+    def csd_all(self):                      #**************************** MULTI FILE CSD 
+        compute_csd_event_triggered_multi(self)
+        
+    def LEC_all(self):                      #**************************** MULTI FILE LECs 
+        compute_LEC_csd_event_triggered_multi(self)
+        
     def select_dff_filter(self,text):
         self.selected_dff_filter=text
         
