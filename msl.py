@@ -12,8 +12,8 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
-        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
+        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
 
@@ -620,7 +620,7 @@ class MSL(QtGui.QWidget):
 
 
     def set_lfp_event_file(self):
-        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "ptcs (*.ptcs)", self.parent.sua_file,"*.ptcs (*.ptcs; *.npz)")
+        self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "ptcs (*.ptcs)", self.parent.sua_file,"*.ptcs *.npz")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
     
@@ -726,7 +726,6 @@ class MSL(QtGui.QWidget):
     #*************************************************************************
     #***************************** STATISTICS FUNCTIONS **********************
     #*************************************************************************
-    
     def sua_lockpercentage(self):
         sua_lock_percentage(self)
 
@@ -737,7 +736,6 @@ class MSL(QtGui.QWidget):
 
     def view_pval(self):
         view_msl_pval(self)                     #View P-Values
-
 
 
 

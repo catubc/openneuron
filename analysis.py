@@ -4910,13 +4910,11 @@ def view_templates(self):
     
     if 0 in bad_channels:
         bad_channels = []
-       
 
     font_size = 20
     n_samples = int(self.n_sample_pts.text())
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
-
     
     #compression = 50.   #Need this to convert from compressed sample points to realtime
     
@@ -4962,7 +4960,7 @@ def view_templates(self):
         traces = []
         if True:
             for spike in spikes:
-                print spike
+                #print spike
                 trace_out = self.tsf.ec_traces[k+ch_offset][int(spike-n_samples):int(spike+n_samples+1)]*self.tsf.vscale_HP*voltage_scaling
                 
                 if len(trace_out)!=(n_samples*2+1):     #If end/begining of potentials;
@@ -4978,7 +4976,7 @@ def view_templates(self):
                     #maxchan_trough.append(np.argmin(trace_out[n_samples:n_samples+60]))
                     #maxchan_trough.append(np.argmin(trace_out[n_samples-100:n_samples]))
             
-        print len(traces)
+        #print len(traces)
         
         trace_ave = np.average(traces, axis=0)
         trace_std = np.std(traces, axis=0)
@@ -4991,7 +4989,7 @@ def view_templates(self):
         else: 
             plt.plot(t, trace_ave+offset, color='black', linewidth=3, alpha=0.25)
         
-        ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.2)
+        #ax.fill_between(t, trace_ave+trace_std+offset, trace_ave-trace_std+offset, color=self.selected_colour, alpha=0.2)
 
         plt.plot([-n_samples,n_samples], [offset, offset], color='black', linewidth=2, alpha=.35)
 
@@ -5513,9 +5511,12 @@ def compute_LEC_csd_event_triggered_multi(self):
                     lfp_ave_dif2[p] = np.roll(lfp_ave_dif2[p], int(time_shifts[file_ctr]))
 
             #*****************PLOT CSD:
-            #ax = fig.add_subplot(1,n_files,file_ctr+1)
-            ax = plt.subplot(1,sort.n_units, q+1)
-            #ax = plt.subplot(1,2, q+1)
+            individual_plots=False
+            if individual_plots:
+                fig = plt.figure()
+                ax = plt.subplot(1,2,1)
+            else:
+                ax = plt.subplot(1,sort.n_units, q+1)
             
             
             #vmax = np.max(np.abs(lfp_ave_dif2)); vmin=-vmax
@@ -5534,39 +5535,53 @@ def compute_LEC_csd_event_triggered_multi(self):
             plt.xlim(0, n_samples*2)
 
             if 'tim' in self.selected_recording:
-                depths = [];depths.append(0)
-                depths.append(118/2);depths.append(118)
-                depths.append((364-118)/2+118); depths.append(364)
-                depths.append((469-364)/2+364); depths.append(469)
-                depths.append((659-469)/2+469); depths.append(659)
-                depths.append((850-659)/2+659); depths.append(850)
+                if individual_plots:
+                    depths = []
+                    depths.append(0)
+                    depths.append(250)
+                    depths.append(500)
+                    depths.append(750)
+                else:
+                    depths = [];depths.append(0)
+                    depths.append(118/2);depths.append(118)
+                    depths.append((364-118)/2+118); depths.append(364)
+                    depths.append((469-364)/2+364); depths.append(469)
+                    depths.append((659-469)/2+469); depths.append(659)
+                    depths.append((850-659)/2+659); depths.append(850)
 
-                for k in range(0,len(depths),2):
-                    plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
+                #for k in range(0,len(depths),2):
+                #    plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
                     #plt.plot([-n_samples,n_samples], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
                 plt.ylim(900./46,-0.5)
 
                 if file_ctr==0:
-                    old_ylabel = []
-                    for depth in depths:
-                        old_ylabel.append(-0.5 + float(depth)/46.)
+                    if individual_plots:
+                        old_ylabel = []
+                        for depth in depths:
+                            old_ylabel.append(-0.5 + float(depth)/46.)
+                        plt.yticks(old_ylabel, depths, fontsize=15)
+                    else:
+                        old_ylabel = []
+                        for depth in depths:
+                            old_ylabel.append(-0.5 + float(depth)/46.)
 
-                    new_ylabel = depths
-                
-                    new_ylabel_str = []
-                    new_ylabel_str.append("L1")
-                    new_ylabel_str.append("L23")
-                    new_ylabel_str.append("L4")
-                    new_ylabel_str.append("L5")
-                    new_ylabel_str.append("L6")
+                        new_ylabel = depths
+                    
+                        new_ylabel_str = []
+                        new_ylabel_str.append("L1")
+                        new_ylabel_str.append("L23")
+                        new_ylabel_str.append("L4")
+                        new_ylabel_str.append("L5")
+                        new_ylabel_str.append("L6")
 
-                    old_ylabel_str=[]
-                    old_ylabel_str.append(old_ylabel[1])
-                    old_ylabel_str.append(old_ylabel[3])
-                    old_ylabel_str.append(old_ylabel[5])
-                    old_ylabel_str.append(old_ylabel[7])
-                    old_ylabel_str.append(old_ylabel[9])
-                    plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+                        old_ylabel_str=[]
+                        old_ylabel_str.append(old_ylabel[1])
+                        old_ylabel_str.append(old_ylabel[3])
+                        old_ylabel_str.append(old_ylabel[5])
+                        old_ylabel_str.append(old_ylabel[7])
+                        old_ylabel_str.append(old_ylabel[9])
+                        plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
+
 
                 else:
                     ax.set_yticks([])
@@ -6475,11 +6490,11 @@ def view_csd(self):
         
         else:
             print Sort.chanpos
-            new_ylabel = np.arange(0,1801,200)
-            old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+            new_ylabel = np.arange(0,1751,250)
+            old_ylabel = np.linspace(-0.5, 9.5,len(new_ylabel))
             plt.yticks(old_ylabel, new_ylabel, fontsize=15)
         
-            plt.ylim(10*scaling-0.5, -0.5)
+            plt.ylim(9.5, -0.5)
 
         
 
@@ -10497,25 +10512,26 @@ def plot_msl_continuous_multi_unit(self):
 
     #Plot Unit Rasters
     raster_offset = -100
-    clr_ctr=0
-    for clr_ctr, unit in enumerate(units):
-        spikes = Sort_sua.units[unit]*1E-6/60.
+    #clr_ctr=0
+    if False:
+        for clr_ctr, unit in enumerate(units):
+            spikes = Sort_sua.units[unit]*1E-6/60.
+            ymin=np.zeros(len(spikes))
+            ymax=np.zeros(len(spikes))
+            ymin+=raster_offset
+            ymax+=raster_offset-5
+            plt.vlines(spikes, ymin, ymax, linewidth=1, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.5) #colors[mod(counter,7)])
+            
+            raster_offset = raster_offset-clr_ctr*5
+        
+        #Plot LFP Events
+        raster_offset-=3
+        spikes = pop_spikes*1E-6/60.
         ymin=np.zeros(len(spikes))
         ymax=np.zeros(len(spikes))
-        ymin+=raster_offset
-        ymax+=raster_offset-5
-        plt.vlines(spikes, ymin, ymax, linewidth=1, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.5) #colors[mod(counter,7)])
-        
-        raster_offset = raster_offset-clr_ctr*5
-    
-    #Plot LFP Events
-    raster_offset-=3
-    spikes = pop_spikes*1E-6/60.
-    ymin=np.zeros(len(spikes))
-    ymax=np.zeros(len(spikes))
-    ymin+=raster_offset-4-clr_ctr*3
-    ymax+=raster_offset-14-clr_ctr*3
-    plt.vlines(spikes, ymin, ymax, linewidth=1, color='black',alpha=.5) #colors[mod(counter,7)])
+        ymin+=raster_offset-4-clr_ctr*3
+        ymax+=raster_offset-14-clr_ctr*3
+        plt.vlines(spikes, ymin, ymax, linewidth=1, color='black',alpha=.5) #colors[mod(counter,7)])
 
 
     #*************************** PLOT MSL DRIFT DATA ***********************
@@ -10524,90 +10540,90 @@ def plot_msl_continuous_multi_unit(self):
     poisson_method = False
     
     n_epochs = 93
-
+    max_error = 10
+    
     #Make plots for single cell raster
-    if Luczak_method: 
+    #if Luczak_method: 
         #clr_ctr=0
 
-        for clr_ctr, unit in enumerate(units):
-            #print "... unit: ", unit
-            ax = plt.subplot(1, 1, 1)
+    for clr_ctr, unit in enumerate(units):
+        #print "... unit: ", unit
+        ax = plt.subplot(1, 1, 1)
 
-            #************** Plot locked times rasters *********************
-            even_locks=[]; odd_locks=[]
-            for k in range(len(lock_time[unit])): 
-                even_locks.append(lock_time[unit][k][0])
-                odd_locks.append(lock_time[unit][k][1])
-            
-            #Plot event times scatter
-            even_times = []
-            for k in range(len(even_locks)):
-                if even_locks[k]!=0.0:
-                    even_times.append([k, even_locks[k]])
-            
-            even_times = np.array(even_times).T
-            #if len(even_times)>0: 
-            #    plt.scatter(even_times[0], even_times[1], s = 10, color='blue', alpha=.6)
-            
-            #Plot odd times scatter
-            odd_times = []
-            for k in range(len(odd_locks)):
-                if odd_locks[k]!=0.0:
-                    odd_times.append([k, odd_locks[k]])
-            odd_times = np.array(odd_times).T
-            #if len(odd_times)>0: 
-            #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
-            
-            #Plot ave times plot; search for locking times; if only an odd or even time exists, set that time; otherwise use average;
-            ave_times = []
-            error_array = []
-            skip_unit = False
-            for k in range(len(even_locks)):
-                temp = 0
-                if even_locks[k]!=0: 
-                    temp+=even_locks[k]
-                    if odd_locks[k]!=0: 
-                        temp+=odd_locks[k]
-                        ave_times.append([k, temp/2.])
-                        error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
-                    else:
-                        ave_times.append([k, temp])
-                        error_array.append([even_locks[k], even_locks[k]])
+        #************** Plot locked times rasters *********************
+        even_locks=[]; odd_locks=[]
+        for k in range(len(lock_time[unit])): 
+            even_locks.append(lock_time[unit][k][0])
+            odd_locks.append(lock_time[unit][k][1])
+        
+        #Plot event times scatter
+        even_times = []
+        for k in range(len(even_locks)):
+            if even_locks[k]!=0.0:
+                even_times.append([k, even_locks[k]])
+        
+        even_times = np.array(even_times).T
+        #if len(even_times)>0: 
+        #    plt.scatter(even_times[0], even_times[1], s = 10, color='blue', alpha=.6)
+        
+        #Plot odd times scatter
+        odd_times = []
+        for k in range(len(odd_locks)):
+            if odd_locks[k]!=0.0:
+                odd_times.append([k, odd_locks[k]])
+        odd_times = np.array(odd_times).T
+        #if len(odd_times)>0: 
+        #    plt.scatter(odd_times[0], odd_times[1], s = 10, color='red', alpha=.6)
+        
+        #Plot ave times plot; search for locking times; if only an odd or even time exists, set that time; otherwise use average;
+        ave_times = []
+        error_array = []
+        skip_unit = False
+        for k in range(len(even_locks)):
+            temp = 0
+            if even_locks[k]!=0: 
+                temp+=even_locks[k]
+                if odd_locks[k]!=0: 
+                    temp+=odd_locks[k]
+                    ave_times.append([k, temp/2.])
+                    error_array.append([min(even_locks[k],odd_locks[k]), max(even_locks[k],odd_locks[k])])
                 else:
-                    if odd_locks[k]!=0:
-                        ave_times.append([k, odd_locks[k]])
-                        error_array.append([odd_locks[k], odd_locks[k]])
-                    else:
-                        error_array.append([odd_locks[k], odd_locks[k]])
-                   
-                if abs(error_array[k][0]-error_array[k][1])>30: 
-                    skip_unit = True
+                    ave_times.append([k, temp])
+                    error_array.append([even_locks[k], even_locks[k]])
+            else:
+                if odd_locks[k]!=0:
+                    ave_times.append([k, odd_locks[k]])
+                    error_array.append([odd_locks[k], odd_locks[k]])
+                else:
+                    error_array.append([odd_locks[k], odd_locks[k]])
+               
+            if abs(error_array[k][0]-error_array[k][1])>max_error: 
+                skip_unit = True
+        
+        if skip_unit: 
+            print "...bad cell: ", unit
+            continue
+        else: print "... good cell: ", unit
             
-            if skip_unit: continue
-            else: print "... good cell: ", unit
+        offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
+        if len(ave_times)>0: 
+            for k in range(len(ave_times)-1):
                 
-            offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
-            if len(ave_times)>0: 
-                for k in range(len(ave_times)-1):
-                    
-                    #Plot line average;
-                    if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
-                        plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
-                                 [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
-                                 color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
-                                 #color = cm.magma(int(float(k)/n_epochs*256)), linewidth = 5, alpha=.75)
-                       
-                        #Plot error; LUCZAK METHOD: odd vs. even location times.
-                        if True: 
-                            x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
-                            y1 = error_array[k][0]-100
-                            y2 = error_array[k][1]-100
-                            plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
-                            #plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
+                #Plot line average;
+                if (ave_times[k+1][0] - ave_times[k][0])==1:  #Only plot lines between consecutive times
+                    plt.plot([ave_times[k][0]*int(self.sliding_window_step.text())+offset_temp, ave_times[k+1][0]*int(self.sliding_window_step.text())+offset_temp],    #X coordinates
+                             [ave_times[k][1]-100, ave_times[k+1][1]-100],                                                                                              #Y coordinates
+                             color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), linewidth = 5, alpha=.75)
+                             #color = cm.magma(int(float(k)/n_epochs*256)), linewidth = 5, alpha=.75)
+                   
+                    #Plot error; LUCZAK METHOD: odd vs. even location times.
+                    if False: 
+                        x = np.arange(ave_times[k][0]*int(self.sliding_window_step.text()), ave_times[k+1][0]*int(self.sliding_window_step.text()),0.1)-0.5+offset_temp
+                        y1 = error_array[k][0]-100
+                        y2 = error_array[k][1]-100
+                        plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
+                        #plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
 
-            
-            
-            
             
                 
                 
@@ -10617,9 +10633,9 @@ def plot_msl_continuous_multi_unit(self):
     ax.tick_params(axis='both', which='both', labelsize=25)
     
 
-    plt.ylim(-100, 100)
+    plt.ylim(-20, 10)
     
-    plt.xlim(0, 90.)
+    plt.xlim(0, pop_spikes[-1]*1E-6/60.)
 
     plt.ylabel("Mean-Spike-Latency (ms)\n Single Units   LFP Events", fontsize = 30)
     plt.xlabel("Recording time (mins)", fontsize = 25)
@@ -13765,23 +13781,250 @@ def sua_lock_percentage(self):
     
     plt.show()
 
+def cell_count_matrix_allspikes(self): 
 
-
-
-def cell_count_matrix(self):
     print "count matrix"
+    cell1 = int(self.start_cell.text())
+    cell2 = int(self.end_cell.text())
+    cell3 = int(self.other_cell.text())
     
-    #n_spikes = int(self.n_spikes.text()) #Min number of spikes in clusters considered
-    #cell_rasters = self.cell_rasters
-    #time_chunks = self.t_chunks
-       
-    #Load SUA Sort
-    if self.exp_type=='mouse': sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
-    elif self.exp_type =='cat': sua_file = self.animal.recName.replace('.tsf','.ptcs')
+    print "...cells: ", cell1, cell2, cell3
+    
+    lfp_selected = int(self.lfp_selected.text())
+    compress_factor = 50.
+    
+    sua_sort = PTCS.PTCS(self.sua_file)
+    for k in range(sua_sort.n_units):
+        print "unit: ", k, " #spks: ", len(sua_sort.units[k])
+    
+    
+    #lfp_sort = PTCS.PTCS(self.lfp_ptcs)
+    #for k in range(lfp_sort.n_units):
+    #    print "LEC: ", k, " #spks: ", len(lfp_sort.units[k])
+    
+    reference_raster = sua_sort.units[cell2]   #Convert to miliseconds
+    
+    
+    #print lfp_sort.units[0]
+    
+    raster_data = np.load(self.lfp_file)
+    print raster_data.shape
 
-    print sua_file
+    bin_len = int(self.bin_len.text())
+    t_window = int(self.zoom.text()) #Convert from miliseconds to 10ms intervals
+    raster_window = t_window    #Convert to usec for comparison with .ptcs time stamps
+    print "...raster window: ", raster_window
+    t_window = t_window/bin_len #Convert from miliseconds to 10ms intervals
+
+    count_matrix = np.zeros((t_window*2, t_window*2), dtype=np.float32)       #-2sec to 2sec; 1ms bins; Bin after computation
+
+    time_offset = 0
+    epoch=0
+    window_len = 1800   #Window length of 30mins in seconds
+    count_matrices = []
+    count_matrices.append(count_matrix)
+
+    for k in range(len(sua_sort.units[cell2])):                          #Loop over LEC events
+        #print " ... LEC event: ", k, "   /  ", len(lfp_sort.units[lfp_selected]), "   time: ", lfp_sort.units[lfp_selected][k]*1E-6*compress_factor
+        if (sua_sort.units[cell2][k]*1E-6-time_offset)>window_len:
+            time_offset=sua_sort.units[cell2][k]*1E-6
+            if epoch==3:
+                print "...done first 2 hours..."
+                break
+            epoch+=1
+            #count_matrices.append(np.zeros((4000, 4000), dtype=np.float32))
+            count_matrices.append(np.zeros((t_window*2, t_window*2), dtype=np.float32))
+            print "New epoch: ", time_offset
+        
+        #temp_raster1 = raster_data[cell1][k]*1E-3; temp_raster2 = raster_data[cell2][k]*1E-3; temp_raster3 = raster_data[cell3][k]*1E-3
+        ref_spike = sua_sort.units[cell2][k]*1E-3
+        
+        raster1 = ref_spike-sua_sort.units[cell1]*1E-3
+        raster1 = raster1[np.where(np.logical_and(raster1>=-raster_window, raster1<=raster_window))[0]]     #Rasters in msec
+        raster3 = ref_spike-sua_sort.units[cell3]*1E-3
+        raster3 = raster3[np.where(np.logical_and(raster3>=-raster_window, raster3<=raster_window))[0]]     #Rasters in msec
+
+        #print raster1, raster3
+        if (len(raster1)==0) or (len(raster3)==0): 
+            continue
+        else:
+            temp_array1 = raster1
+            temp_array2 = raster3
+
+            grid = np.int32(np.dstack(np.meshgrid(temp_array1, temp_array2)).reshape(-1, 2)/bin_len)+t_window   #Convert to binned milliseconds; offset to centre of matrix
+            temp_indexes = []
+            #print "...GRID: ", grid
+            for p in range(len(grid)):
+                if (grid[p][0]<(t_window*2)) and (grid[p][1]<(t_window*2)):
+                    count_matrices[epoch][grid[p][0], grid[p][1]]+=1
+        
+
+    print "Total epochs of length: ", window_len, "sec  # ", epoch+1
+    print len(count_matrices)
+    #Bin output matrix
+    for q in range(epoch+1):
+        print "...plotting matrix: ", q
+        ax = plt.subplot(2,2,q+1)
+        count_matrix_10ms= count_matrices[q]
+        mid_pt = len(count_matrix_10ms)/2
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        max_val = np.max(count_matrix_10ms)
+        total_bin = np.sum(count_matrix_10ms.ravel())
+        plt.title("Max bin: "+str(max_val)+" total: "+str(total_bin),fontsize=15)
+        max_bin = np.unravel_index(count_matrix_10ms.argmax(), count_matrix_10ms.shape)
+        plt.ylabel("Bin: "+str((max_bin[0]-t_window)*bin_len)+"ms  " + str((max_bin[1]-t_window)*bin_len)+"ms",fontsize=15)
+
+
+        count_matrix_10ms[mid_pt][0] = np.nan; count_matrix_10ms[mid_pt][-1] = np.nan
+        mid_pt = len(count_matrix_10ms[0])/2
+        count_matrix_10ms[0][mid_pt] = np.nan;  count_matrix_10ms[-1][mid_pt] = np.nan
+        
+        plt.imshow(count_matrix_10ms, aspect='auto', interpolation=self.interpolation.text())
     
-    Sort_sua = PTCS.PTCS(sua_file) #Auto load flag for Nick's data
+    plt.suptitle(self.sua_file+"\n Units: " + str(cell1)+ " (" + str(len(sua_sort.units[cell1]))+ ")  "
+                                            + str(cell2)+ " (" + str(len(sua_sort.units[cell2]))+ ")  "
+                                            + str(cell3)+ " (" + str(len(sua_sort.units[cell3]))+ ")  "
+                                            , fontsize=15)
+    plt.show()
+    
+    
+    
+    return
+    
+
+def cell_count_matrix_LEC(self):
+    
+    print "count matrix"
+    cell1 = int(self.start_cell.text())
+    cell2 = int(self.end_cell.text())
+    cell3 = int(self.other_cell.text())
+    
+    print "...cells: ", cell1, cell2, cell3
+    
+    lfp_selected = int(self.lfp_selected.text())
+    compress_factor = 50.
+    
+    sua_sort = PTCS.PTCS(self.sua_file)
+    for k in range(sua_sort.n_units):
+        print "unit: ", k, " #spks: ", len(sua_sort.units[k])
+    
+    lfp_sort = PTCS.PTCS(self.lfp_ptcs)
+    for k in range(lfp_sort.n_units):
+        print "LEC: ", k, " #spks: ", len(lfp_sort.units[k])
+    
+    #print lfp_sort.units[0]
+    
+    raster_data = np.load(self.lfp_file)
+    print raster_data.shape
+
+    bin_len = int(self.bin_len.text())
+    t_window = int(self.zoom.text()) #Convert from miliseconds to 10ms intervals
+    raster_window = t_window*1E3    #Convert to usec for comparison with .ptcs time stamps
+    print "...raster window: ", raster_window
+    t_window = t_window/bin_len #Convert from miliseconds to 10ms intervals
+
+    count_matrix = np.zeros((t_window*2, t_window*2), dtype=np.float32)       #-2sec to 2sec; 1ms bins; Bin after computation
+
+    time_offset = 0
+    epoch=0
+    window_len = 1800   #Window length of 30mins in seconds
+    count_matrices = []
+    count_matrices.append(count_matrix)
+    print len(lfp_sort.units[lfp_selected])
+    for k in range(len(lfp_sort.units[lfp_selected])):                          #Loop over LEC events
+        #print " ... LEC event: ", k, "   /  ", len(lfp_sort.units[lfp_selected]), "   time: ", lfp_sort.units[lfp_selected][k]*1E-6*compress_factor
+        if (lfp_sort.units[lfp_selected][k]*1E-6*compress_factor-time_offset)>window_len:
+            time_offset=lfp_sort.units[lfp_selected][k]*1E-6*compress_factor
+            
+            if epoch==3:
+                print "...done first 2 hours..."
+                break
+            epoch+=1
+            #count_matrices.append(np.zeros((4000, 4000), dtype=np.float32))
+            count_matrices.append(np.zeros((t_window*2, t_window*2), dtype=np.float32))
+            print "New epoch: ", time_offset
+        
+        #temp_raster1 = raster_data[cell1][k]*1E-3; temp_raster2 = raster_data[cell2][k]*1E-3; temp_raster3 = raster_data[cell3][k]*1E-3
+        raster1 = raster_data[cell1][k][np.where(np.logical_and(raster_data[cell1][k]>=-raster_window, raster_data[cell1][k]<=raster_window))[0]]*1E-3   #Rasters in msec
+        raster2 = raster_data[cell2][k][np.where(np.logical_and(raster_data[cell2][k]>=-raster_window, raster_data[cell2][k]<=raster_window))[0]]*1E-3   #Rasters in msec
+        raster3 = raster_data[cell3][k][np.where(np.logical_and(raster_data[cell3][k]>=-raster_window, raster_data[cell3][k]<=raster_window))[0]]*1E-3   #Rasters in msec
+        
+        if (len(raster1)==0) or (len(raster2)==0) or (len(raster3)==0): 
+            continue
+        else:
+            temp_array1 = []
+            temp_array2 = []
+            for p in range(len(raster2)):
+                temp_array1.append((raster2[p]-raster1))               
+                temp_array2.append((raster2[p]-raster3))
+
+            grid = np.int32(np.dstack(np.meshgrid(temp_array1, temp_array2)).reshape(-1, 2)/bin_len)+t_window   #Convert to binned milliseconds; offset to centre of matrix
+            temp_indexes = []
+            #print "...GRID: ", grid
+            for p in range(len(grid)):
+                if (grid[p][0]<(t_window*2)) and (grid[p][1]<(t_window*2)):
+                    count_matrices[epoch][grid[p][0], grid[p][1]]+=1
+        
+
+    print "Total epochs of length: ", window_len, "sec  # ", epoch+1
+    print len(count_matrices)
+    #Bin output matrix
+    for q in range(epoch+1):
+        print "...plotting matrix: ", q
+        ax = plt.subplot(2,2,q+1)
+        #count_matrix_10ms = np.zeros((t_window/bin_len,t_window/bin_len),dtype=np.float32)
+        #for k in range(0,len(count_matrix),bin_len):
+        #    for p in range(0,len(count_matrix),bin_len):
+        #        count_matrix_10ms[k][p]=np.sum(count_matrices[q][k:k+bin_len,p:p+bin_len].ravel())
+        
+        count_matrix_10ms= count_matrices[q]
+        #Shouldn't need to slice the matrix any longer
+        #count_matrix_10ms = count_matrix_10ms[t_window/bin_len-t_window:t_window/bin_len+t_window, 2000/bin_len-t_window:2000/bin_len+t_window]
+        mid_pt = len(count_matrix_10ms)/2
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        max_val = np.max(count_matrix_10ms)
+        total_bin = np.sum(count_matrix_10ms.ravel())
+        plt.title("Max bin: "+str(max_val)+" total: "+str(total_bin),fontsize=15)
+        max_bin = np.unravel_index(count_matrix_10ms.argmax(), count_matrix_10ms.shape)
+        plt.ylabel("Bin: "+str((max_bin[0]-t_window)*bin_len)+"ms  " + str((max_bin[1]-t_window)*bin_len)+"ms",fontsize=15)
+
+
+        count_matrix_10ms[mid_pt][0] = np.nan; count_matrix_10ms[mid_pt][-1] = np.nan
+        mid_pt = len(count_matrix_10ms[0])/2
+        count_matrix_10ms[0][mid_pt] = np.nan;  count_matrix_10ms[-1][mid_pt] = np.nan
+        
+        plt.imshow(count_matrix_10ms, aspect='auto', interpolation=self.interpolation.text())
+    
+    plt.suptitle(self.sua_file+"\n Units: " + str(cell1)+ " (" + str(len(sua_sort.units[cell1]))+ ")  "
+                                            + str(cell2)+ " (" + str(len(sua_sort.units[cell2]))+ ")  "
+                                            + str(cell3)+ " (" + str(len(sua_sort.units[cell3]))+ ")  "
+                                            , fontsize=15)
+    plt.show()
+    
+    
+    
+    return
+    
+    quit()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    #****************************************** OLD METHODS *******************************************
+    Sort_sua = PTCS.PTCS(self.sua_file) #Auto load flag for Nick's data
     total_units = len(Sort_sua.units)
     
     for u in range(len(Sort_sua.units)):
