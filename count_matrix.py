@@ -79,10 +79,24 @@ class CountMatrix(QtGui.QWidget):
         
         self.bin_len = QLineEdit('10');                   #parent.block_save = self.block_save
         self.bin_len.setMaximumWidth(50)
-        bin_len_lbl = QLabel('Bin Length:', self.zoom)
+        bin_len_lbl = QLabel('bin (ms):', self.zoom)
         bin_len_lbl.setMaximumWidth(100)
         layout.addWidget(bin_len_lbl, row_index,8)
-        layout.addWidget(self.bin_len, row_index,9);row_index+=1
+        layout.addWidget(self.bin_len, row_index,9)
+        
+        self.time_chunk = QLineEdit('30');                   #parent.block_save = self.block_save
+        self.time_chunk.setMaximumWidth(50)
+        time_chunk_lbl = QLabel('Time_chunks (min):', self.time_chunk)
+        time_chunk_lbl.setMaximumWidth(100)
+        layout.addWidget(time_chunk_lbl, row_index,10)
+        layout.addWidget(self.time_chunk, row_index,11)
+        
+        self.n_chunks = QLineEdit('4');                   #parent.block_save = self.block_save
+        self.n_chunks.setMaximumWidth(50)
+        n_chunks_lbl = QLabel('#chunks:', self.n_chunks)
+        n_chunks_lbl.setMaximumWidth(100)
+        layout.addWidget(n_chunks_lbl, row_index,12)
+        layout.addWidget(self.n_chunks, row_index,13);row_index+=1
         
 
         #MAKE BUTTONS
@@ -167,18 +181,18 @@ class CountMatrix(QtGui.QWidget):
         self.setLayout(layout)
 
     def set_sua_file(self):
-        self.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.root_dir, "*.ptcs")
+        self.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.root_dir, "*.ptcs *.npz")
         self.button_set_sua_file_lbl.setText(self.sua_file.replace(os.path.dirname(self.sua_file),''))
         self.root_dir = os.path.split(self.sua_file)[0]
 
     def set_lfp_ptcs(self):
-        self.lfp_ptcs = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.root_dir, "*.ptcs")
-        self.button_set_lfp_file_lbl.setText(self.sua_file.replace(os.path.dirname(self.sua_file),''))
+        self.lfp_ptcs = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.root_dir, "*.ptcs *.npz")
+        self.button_set_lfp_file_lbl.setText(self.sua_file.replace(os.path.dirname(self.lfp_ptcs),''))
         self.root_dir = os.path.split(self.sua_file)[0]
 
     def set_lfp_file(self):
         self.lfp_file = QtGui.QFileDialog.getOpenFileName(self, "*.npy (*.npy)", self.root_dir, "*.npy")
-        self.button_set_lfp_file_lbl.setText(self.lfp_file.replace(os.path.dirname(self.lfp_file),''))
+        self.button_set_raster_file_lbl.setText(self.lfp_file.replace(os.path.dirname(self.lfp_file),''))
         self.root_dir = os.path.split(self.sua_file)[0]
         
 

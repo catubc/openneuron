@@ -217,12 +217,16 @@ class MSL(QtGui.QWidget):
         self.button_set_lfp_event_file.setMaximumWidth(200)
         self.button_set_lfp_event_file.clicked.connect(self.set_lfp_event_file)
         layout.addWidget(self.button_set_lfp_event_file, row_index, 0)
-        
-        #self.parent.set_lfp_event_file = os.getcwd()
         self.button_set_lfp_event_file_lbl = QLabel(os.path.split(self.parent.lfp_event_file)[1], self)
         layout.addWidget(self.button_set_lfp_event_file_lbl, row_index, row_index, 1, 9); row_index+=1
 
-
+        #Set LFP event file
+        self.button_set_lfp_tsf = QPushButton('LPF TSF (uncomp.) ')
+        self.button_set_lfp_tsf.setMaximumWidth(200)
+        self.button_set_lfp_tsf.clicked.connect(self.set_lfp_tsf_file)
+        layout.addWidget(self.button_set_lfp_tsf, row_index, 0)
+        self.button_set_lfp_tsf_lbl = QLabel(os.path.split(self.parent.lfp_tsf_file)[1], self)
+        layout.addWidget(self.button_set_lfp_tsf_lbl, row_index, row_index, 1, 9); row_index+=1
 
         #**************************************************************************************
         #*********************************** SET LFP PARAMETERS *******************************
@@ -421,7 +425,30 @@ class MSL(QtGui.QWidget):
         self.button_msl_single_lfpevent = QPushButton('MSL Single Unit - Single Event')     
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
-        layout.addWidget(self.button_msl_single_lfpevent, row_index, 3); row_index+=1
+        layout.addWidget(self.button_msl_single_lfpevent, row_index, 3); 
+        
+        
+                
+        self.max_error = QLineEdit('10');               
+        self.max_error.setMaximumWidth(50)
+        self.max_error_lbl = QLabel('Max Error (ms)', self)
+        layout.addWidget(self.max_error_lbl,row_index,4)
+        layout.addWidget(self.max_error, row_index,5)
+        
+        
+        
+        self.ylim_bottom = QLineEdit('-40');               
+        self.ylim_bottom.setMaximumWidth(50)
+        self.ylim_bottom_lbl = QLabel('Ylim (bottom)', self)
+        layout.addWidget(self.ylim_bottom_lbl,row_index,6)
+        layout.addWidget(self.ylim_bottom, row_index,7)
+        
+        
+        self.ylim_top = QLineEdit('20');               
+        self.ylim_top.setMaximumWidth(50)
+        self.ylim_top_lbl = QLabel('Ylim (top)', self)
+        layout.addWidget(self.ylim_top_lbl,row_index,8)
+        layout.addWidget(self.ylim_top, row_index,9); row_index+=1
 
 
         self.button_msl_state_space = QPushButton('MSL - State Space')     #WHAT DOES THIS DO AGAIN? 
@@ -614,7 +641,7 @@ class MSL(QtGui.QWidget):
     #**************************** LOAD FILE ROUTINES *******************************
     def set_sua_file(self):
         #self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.parent.root_dir,"ptcs (*.ptcs; *.npz)")
-        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.parent.root_dir, "*.ptcs")
+        self.parent.sua_file = QtGui.QFileDialog.getOpenFileName(self, "*.ptcs (*.ptcs)", self.parent.root_dir, "*.ptcs *.npz")
         self.button_set_sua_file_lbl.setText(self.parent.sua_file.replace(os.path.dirname(self.parent.sua_file),''))
         #self.parent.setWindowTitle(self.parent.sua_file)
 
@@ -623,6 +650,11 @@ class MSL(QtGui.QWidget):
         self.parent.lfp_event_file = QtGui.QFileDialog.getOpenFileName(self, "ptcs (*.ptcs)", self.parent.sua_file,"*.ptcs *.npz")
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
+    
+    def set_lfp_tsf_file(self):
+        self.parent.lfp_tsf_file  = QtGui.QFileDialog.getOpenFileName(self, "tsf (*.tsf)", self.parent.sua_file,"*.tsf")
+        self.button_set_lfp_tsf_lbl.setText(self.parent.lfp_tsf_file.replace(os.path.dirname(self.parent.lfp_tsf_file),''))
+    
     
     
     def set_recording(self):

@@ -7146,7 +7146,7 @@ def Specgram_syncindex(self):
     data_in = tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:int(self.time_end.text())*tsf.SampleFrequency][::int(tsf.SampleFrequency/1000)]
     samp_freq = 1000
     print "... computing notch filter..."
-    data_in = Notch_Filter(data_in)  
+    #data_in = Notch_Filter(data_in)  
     
     f0 = 0.1; f1 = 100
     p0 = float(self.specgram_db_clip.text())
@@ -7223,7 +7223,7 @@ def Specgram_syncindex(self):
         plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
 
     
-    plt.plot(t, si*sync_scale+sync_0, linewidth=5, color='green', alpha=0.8)
+    #plt.plot(t, si*sync_scale+sync_0, linewidth=5, color='green', alpha=0.8)
 
     plt.plot([0,max(t)],[sync_1-sync_scale*(1-si_limit),sync_1-sync_scale*(1-si_limit)], 'r--', color='black', linewidth = 3, alpha=0.8)
     plt.plot([0,max(t)],[sync_1,sync_1], color='black', linewidth = 2, alpha=0.8)
@@ -10499,7 +10499,7 @@ def plot_msl_continuous_multi_unit(self):
         shuffled_indexes = np.arange(len(lock_time[units[0]]))
         
         np.random.shuffle(shuffled_indexes)
-        print shuffled_indexes
+        #print shuffled_indexes
         
         lock_time_shuffled = lock_time[units[0]][shuffled_indexes]
 
@@ -10539,15 +10539,19 @@ def plot_msl_continuous_multi_unit(self):
     std_method = False
     poisson_method = False
     
-    n_epochs = 93
-    max_error = 10
+    n_epochs = 120
+    lock_time = lock_time[:,:n_epochs,:]        #Limit # epochs here;
+    print lock_time.shape
+    
+    max_error = int(self.max_error.text())
     
     #Make plots for single cell raster
     #if Luczak_method: 
         #clr_ctr=0
 
+    save_array = []
     for clr_ctr, unit in enumerate(units):
-        #print "... unit: ", unit
+        print "... unit: ", unit,
         ax = plt.subplot(1, 1, 1)
 
         #************** Plot locked times rasters *********************
@@ -10600,11 +10604,10 @@ def plot_msl_continuous_multi_unit(self):
             if abs(error_array[k][0]-error_array[k][1])>max_error: 
                 skip_unit = True
         
-        if skip_unit: 
-            print "...bad cell: ", unit
-            continue
-        else: print "... good cell: ", unit
-            
+        if skip_unit: print "... bad cell "; continue
+        else: print "... good cell: "
+        
+        save_array.append(ave_times)
         offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
         if len(ave_times)>0: 
             for k in range(len(ave_times)-1):
@@ -10624,6 +10627,7 @@ def plot_msl_continuous_multi_unit(self):
                         plt.fill_between(x, y1, y2, color = cm.viridis(int(float(unit)/Sort_sua.n_units*256)), alpha=0.4)
                         #plt.fill_between(x, y1, y2, color = cm.magma(int(float(unit)/n_epochs*256)), alpha=0.4)
 
+    np.save(file_out+"_stable_cells", save_array)
             
                 
                 
@@ -10632,8 +10636,9 @@ def plot_msl_continuous_multi_unit(self):
     win_len = self.sliding_window_length.text()      #Work in ms
     ax.tick_params(axis='both', which='both', labelsize=25)
     
-
-    plt.ylim(-20, 10)
+    
+    #plt.ylim(-20, 10)
+    plt.ylim(int(self.ylim_bottom.text()), int(self.ylim_top.text()))
     
     plt.xlim(0, pop_spikes[-1]*1E-6/60.)
 
@@ -13794,8 +13799,17 @@ def cell_count_matrix_allspikes(self):
     compress_factor = 50.
     
     sua_sort = PTCS.PTCS(self.sua_file)
+    max_spike_unit=0
     for k in range(sua_sort.n_units):
         print "unit: ", k, " #spks: ", len(sua_sort.units[k])
+        if len(sua_sort.units[max_spike_unit])<len(sua_sort.units[k]): max_spike_unit = k
+    rec_len = sua_sort.units[max_spike_unit][-1]*1E-6
+    print "... rec len: ", rec_len
+    
+    #Print cells chosen:
+    print "...cell1: ", cell1, " : ", + len(sua_sort.units[cell1])/rec_len
+    print "...cell2: ", cell2, " : ", + len(sua_sort.units[cell2])/rec_len
+    print "...cell3: ", cell3, " : ", + len(sua_sort.units[cell3])/rec_len
     
     
     #lfp_sort = PTCS.PTCS(self.lfp_ptcs)
@@ -13814,13 +13828,13 @@ def cell_count_matrix_allspikes(self):
     t_window = int(self.zoom.text()) #Convert from miliseconds to 10ms intervals
     raster_window = t_window    #Convert to usec for comparison with .ptcs time stamps
     print "...raster window: ", raster_window
-    t_window = t_window/bin_len #Convert from miliseconds to 10ms intervals
+    t_window = t_window/bin_len #Convert from miliseconds to binned intervals intervals
 
     count_matrix = np.zeros((t_window*2, t_window*2), dtype=np.float32)       #-2sec to 2sec; 1ms bins; Bin after computation
 
     time_offset = 0
     epoch=0
-    window_len = 1800   #Window length of 30mins in seconds
+    window_len = int(self.time_chunk.text())*60   #Window length in minutes; convert to seconds
     count_matrices = []
     count_matrices.append(count_matrix)
 
@@ -13828,8 +13842,8 @@ def cell_count_matrix_allspikes(self):
         #print " ... LEC event: ", k, "   /  ", len(lfp_sort.units[lfp_selected]), "   time: ", lfp_sort.units[lfp_selected][k]*1E-6*compress_factor
         if (sua_sort.units[cell2][k]*1E-6-time_offset)>window_len:
             time_offset=sua_sort.units[cell2][k]*1E-6
-            if epoch==3:
-                print "...done first 2 hours..."
+            if epoch==(int(self.n_chunks.text())-1):
+                print "...done chunks...", epoch
                 break
             epoch+=1
             #count_matrices.append(np.zeros((4000, 4000), dtype=np.float32))
@@ -13863,13 +13877,20 @@ def cell_count_matrix_allspikes(self):
     print len(count_matrices)
     #Bin output matrix
     for q in range(epoch+1):
-        print "...plotting matrix: ", q
-        ax = plt.subplot(2,2,q+1)
+        print "...plotting time chunk: ", q
+        if int(np.sqrt(epoch))==np.sqrt(epoch):
+            ax = plt.subplot(np.sqrt(epoch),np.sqrt(epoch),q+1)
+        else:
+            ax = plt.subplot(np.sqrt(epoch)+1,np.sqrt(epoch)+1,q+1)
+            
         count_matrix_10ms= count_matrices[q]
         mid_pt = len(count_matrix_10ms)/2
 
-        ax.set_xticks([])
+        #ax.set_xticks([])
         ax.set_yticks([])
+        old_xlabel = np.linspace(-0.5,len(count_matrix_10ms)-0.5, 5)
+        new_xlabel = np.linspace(-t_window*bin_len,t_window*bin_len, 5)
+        plt.xticks(old_xlabel, new_xlabel)#, fontsize=12,rotation='vertical')
 
         max_val = np.max(count_matrix_10ms)
         total_bin = np.sum(count_matrix_10ms.ravel())
@@ -13908,8 +13929,17 @@ def cell_count_matrix_LEC(self):
     compress_factor = 50.
     
     sua_sort = PTCS.PTCS(self.sua_file)
+    max_spike_unit=0
     for k in range(sua_sort.n_units):
         print "unit: ", k, " #spks: ", len(sua_sort.units[k])
+        if len(sua_sort.units[max_spike_unit])<len(sua_sort.units[k]): max_spike_unit = k
+    rec_len = sua_sort.units[max_spike_unit][-1]*1E-6
+    print "... rec len: ", rec_len
+    
+    #Print cells chosen:
+    print "...cell1: ", cell1, " : ", + len(sua_sort.units[cell1])/rec_len
+    print "...cell2: ", cell2, " : ", + len(sua_sort.units[cell2])/rec_len
+    print "...cell3: ", cell3, " : ", + len(sua_sort.units[cell3])/rec_len
     
     lfp_sort = PTCS.PTCS(self.lfp_ptcs)
     for k in range(lfp_sort.n_units):
@@ -13930,7 +13960,7 @@ def cell_count_matrix_LEC(self):
 
     time_offset = 0
     epoch=0
-    window_len = 1800   #Window length of 30mins in seconds
+    window_len = int(self.time_chunk.text())*60   #Window length in minutes; convert to seconds
     count_matrices = []
     count_matrices.append(count_matrix)
     print len(lfp_sort.units[lfp_selected])
@@ -13939,8 +13969,8 @@ def cell_count_matrix_LEC(self):
         if (lfp_sort.units[lfp_selected][k]*1E-6*compress_factor-time_offset)>window_len:
             time_offset=lfp_sort.units[lfp_selected][k]*1E-6*compress_factor
             
-            if epoch==3:
-                print "...done first 2 hours..."
+            if epoch==(int(self.n_chunks.text())-1):
+                print "...done chunks...", epoch
                 break
             epoch+=1
             #count_matrices.append(np.zeros((4000, 4000), dtype=np.float32))
@@ -13948,6 +13978,9 @@ def cell_count_matrix_LEC(self):
             print "New epoch: ", time_offset
         
         #temp_raster1 = raster_data[cell1][k]*1E-3; temp_raster2 = raster_data[cell2][k]*1E-3; temp_raster3 = raster_data[cell3][k]*1E-3
+        
+        if (len(raster_data[cell1][k])==0) or (len(raster_data[cell2][k])==0) or (len(raster_data[cell3][k])==0): continue      #Skip LEC events where one of the cells doesn't fire
+        
         raster1 = raster_data[cell1][k][np.where(np.logical_and(raster_data[cell1][k]>=-raster_window, raster_data[cell1][k]<=raster_window))[0]]*1E-3   #Rasters in msec
         raster2 = raster_data[cell2][k][np.where(np.logical_and(raster_data[cell2][k]>=-raster_window, raster_data[cell2][k]<=raster_window))[0]]*1E-3   #Rasters in msec
         raster3 = raster_data[cell3][k][np.where(np.logical_and(raster_data[cell3][k]>=-raster_window, raster_data[cell3][k]<=raster_window))[0]]*1E-3   #Rasters in msec
@@ -13974,7 +14007,10 @@ def cell_count_matrix_LEC(self):
     #Bin output matrix
     for q in range(epoch+1):
         print "...plotting matrix: ", q
-        ax = plt.subplot(2,2,q+1)
+        if int(np.sqrt(epoch))==np.sqrt(epoch):
+            ax = plt.subplot(np.sqrt(epoch),np.sqrt(epoch),q+1)
+        else:
+            ax = plt.subplot(np.sqrt(epoch)+1,np.sqrt(epoch)+1,q+1)
         #count_matrix_10ms = np.zeros((t_window/bin_len,t_window/bin_len),dtype=np.float32)
         #for k in range(0,len(count_matrix),bin_len):
         #    for p in range(0,len(count_matrix),bin_len):
@@ -13985,8 +14021,12 @@ def cell_count_matrix_LEC(self):
         #count_matrix_10ms = count_matrix_10ms[t_window/bin_len-t_window:t_window/bin_len+t_window, 2000/bin_len-t_window:2000/bin_len+t_window]
         mid_pt = len(count_matrix_10ms)/2
 
-        ax.set_xticks([])
+        #ax.set_xticks([])
         ax.set_yticks([])
+        old_xlabel = np.linspace(-0.5,len(count_matrix_10ms)-0.5, 5)
+        new_xlabel = np.linspace(-t_window*bin_len,t_window*bin_len, 5)
+        plt.xticks(old_xlabel, new_xlabel)#, fontsize=12,rotation='vertical')
+                
 
         max_val = np.max(count_matrix_10ms)
         total_bin = np.sum(count_matrix_10ms.ravel())
