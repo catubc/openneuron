@@ -27,9 +27,9 @@ class MSL(QtGui.QWidget):
         
         #**************************** PTC17 ***********************
         #ptc17 tr1 - 1202um electrode
-        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_alltrack_sync.ptcs2.npz'
-        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed_50compressed.ptcs'
-        self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed.tsf'
+        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_alltrack_sync.ptcs2.npz'
+        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed_50compressed.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr1/sort_all_track/01-tr1-driftgrating_lp_alltrack_desynch_zeroed.tsf'
         
         #ptc17 tr2 - 1202um electrode
         #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc17/tr2b/sort_all_track/44-tr2b-blankscreen_alltrack_sync.ptcs2.npz'
@@ -124,10 +124,10 @@ class MSL(QtGui.QWidget):
         '''
         
         #2017-02_03 VISUAL
-        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
         ###self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
-        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
+        self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
@@ -688,7 +688,7 @@ class MSL(QtGui.QWidget):
         Compute_LFP_histograms(self)
     
     
-    #************************** VIEWING FUCNTIONS?!
+    #************************** VIEWING FUNCTIONS?!
     
     def view_peth(self):
         peth_scatter_plots(self)

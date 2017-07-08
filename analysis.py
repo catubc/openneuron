@@ -3413,7 +3413,7 @@ def synchrony_index(data, SampleFrequency, si_limit, lfpwidth = 15, lfptres = 7.
     #lowband = [0.1, 4]; highband = [15,100]     #Martin's suggestions; Saleem 2010?
     #lowband = [0.1, 5]; highband = [20,100]     # Cat's implementation
     #lowband = [0.1, 5]; highband = [15,100]     #variations
-    lowband = [0.1, 4]; highband = [5,100]     #variations
+    lowband = [0.1, 4]; highband = [15,100]     #variations
 
     f0, f1 = lowband
     f2, f3 = highband
@@ -3614,6 +3614,7 @@ def filter_ephys(self):
     tsf = TSF.TSF(self.tsf_filename)
     tsf.read_ec_traces()
     print tsf.SampleFrequency
+
     
     for ch in range(0, tsf.n_electrodes):
         print "...filtering ch: ", ch
@@ -3634,23 +3635,23 @@ def notch_ephys(self):
     
     tsf = TSF.TSF(self.tsf_filename)
     tsf.read_ec_traces()
-    print tsf.SampleFrequency
     
-    for ch in range(0, tsf.n_electrodes):
+    #Load 
+    notches = np.loadtxt(os.path.split(self.tsf_filename)[0]+"/notch.txt" , dtype=np.float32)    
 
-        trace_temp = tsf.ec_traces[ch] #[int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
+    for ch in range(0, tsf.n_electrodes):
+        print "...notching ch: ", ch
+        data = tsf.ec_traces[ch] #[int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
         
-        #trace_temp = butter_highpass_filter(trace_temp, float(self.low_cutoff.text()), tsf.SampleFrequency, 5)
-        
-        tsf.ec_traces[ch] = Notch_Filter(tsf.ec_traces[ch])
+        for notch in notches:
+            data = Notch_Filter_specific(data, notch)   #THIS ONLY WORKS FOR 1KHZ sample rate
+
+        #tsf.ec_traces[ch] = Notch_Filter_specific(tsf.ec_traces[ch], 66)
 
     tsf.file_names=[]; tsf.n_samples=[]; tsf.n_digital_chs=[]; tsf.digital_chs=[]
     tsf.layout = np.arange(tsf.n_electrodes)
-
   
     save_tsf_single(tsf, self.tsf_filename[:-4]+"_notch.tsf")
-    
-    
 
 def Plot_rasters(self):
 
@@ -3789,38 +3790,49 @@ def concatenate_tsf(self):
         if '.tsf' in self.tsf_files[k]:                    #Concatenate standard .tsf files
             temp_tsf = TSF.TSF(self.tsf_files[k])
 
-            print temp_tsf.Readloc
+            #print temp_tsf.Readloc
             
             print ">>>>>>>>> SITELOC ORDER CHANGED TO DEAL WITH NICK'S FILES: Make sure it still works for INTAN files <<<<<<<<<<<<<"
             ordered_indexes = np.argsort(temp_tsf.Siteloc[1::2])        #Is this ok for non cat data? ************************
-            print ordered_indexes
+            #print ordered_indexes
             temp_tsf.Readloc = np.arange(1, temp_tsf.n_electrodes+1, 1)
-            print temp_tsf.Readloc
-
-            print temp_tsf.Siteloc
-
             temp_siteloc = []
             for p in ordered_indexes:
-                print temp_tsf.Siteloc[p*2], temp_tsf.Siteloc[p*2+1]
+                #print temp_tsf.Siteloc[p*2], temp_tsf.Siteloc[p*2+1]
                 temp_siteloc.append(temp_tsf.Siteloc[p*2])
                 temp_siteloc.append(temp_tsf.Siteloc[p*2+1])
             
             temp_tsf.Siteloc = temp_siteloc
-            #print temp_tsf.Siteloc
             
             total_n_vd_samples += temp_tsf.n_vd_samples
             print "...len loaded data: ", temp_tsf.n_vd_samples
             
+            #READ FOOTER
             temp_tsf.read_footer()                      #Reads the footer and original file_name if available;
-            temp_names.extend(temp_tsf.file_names)
-            temp_n_samples.extend(temp_tsf.n_samples)
-            
-            temp_n_digital_chs.extend(temp_tsf.n_digital_chs)   #I think this is a list also
-            temp_digital_chs.extend(temp_tsf.digital_chs)
 
-            #print "... <<<<<<<<EXITING>>>>>>>>>>>>>..."
-            #return
             
+            if len(temp_tsf.file_names)==0:
+                temp_names.append(self.tsf_files[k])
+            elif len(temp_tsf.file_names)==1:
+                temp_names.append(temp_tsf.file_names[0])
+            else:
+                temp_names.append(temp_tsf.file_names)
+            
+            if len(temp_tsf.n_digital_chs)==0:
+                temp_n_digital_chs.append(0)   #I think this is a list also
+                temp_digital_chs.append([])        #I think this is a list of lists
+            else:
+                temp_n_digital_chs.append(temp_tsf.n_digital_chs[0][0])   #I think this is a list also
+                temp_digital_chs.append(temp_tsf.digital_chs[0])
+                temp_n_samples.append(len(temp_tsf.digital_chs[0][0]))
+                
+                #print temp_tsf.n_digital_chs
+                #print len(temp_tsf.digital_chs)
+                #print len(temp_tsf.digital_chs[0])
+                #print len(temp_tsf.digital_chs[0][0])
+                
+                #return
+                
             
         elif "_lp.tsf" in self.tsf_files[k]:                #Concatenate martin's _lp.tsf files
             
@@ -3869,11 +3881,13 @@ def concatenate_tsf(self):
     tsf.layout = temp_tsf.Readloc - 1   #The order of the channels is the same as Readloc; change to zero-based indices
 
     #Footer; tsf object doesn't exist above, otherwise could have assigend directly.
+
     tsf.file_names = temp_names     #These are the original filenames to be preserved;
     tsf.n_samples = temp_n_samples
     tsf.n_digital_chs = temp_n_digital_chs
     tsf.digital_chs = temp_digital_chs
-    
+
+    print tsf.file_names, tsf.n_samples, tsf.n_digital_chs
     
     print "... channel order layout: ", tsf.layout
     
@@ -3911,28 +3925,9 @@ def concatenate_tsf(self):
         
     print "...saving alltrack .tsf..."
     
+    file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
     
-    #REFILTER DATA BEFORE SAVING:
-    if False: 
-        for ch in range(len(tsf.ec_traces)):
-            print ".... bandpass filtering, lowcut: ", self.low_cutoff.text(), "   highcut: ", self.high_cutoff.text(), "   channel: ", ch
-            temp_trace = tsf.ec_traces[ch]
-            
-            print tsf.SampleFrequency
-            #plt.plot(temp_trace[0:10000], color='blue')
-            #temp_trace = butter_bandpass_filter(temp_trace, float(self.low_cutoff.text()), float(self.high_cutoff.text()), tsf.SampleFrequency, order=5)
-            temp_trace = butter_lowpass_filter(temp_trace, float(self.high_cutoff.text()), tsf.SampleFrequency, order=5)
-            #print temp_trace[0:100]
-            #plt.plot(temp_trace[0:10000], color='red')
-            #plt.show()
-            
-            tsf.ec_traces[ch] = temp_trace
-
-        file_name = self.tsf_files[0][:-4]+"_alltrack_lowcut"+self.low_cutoff.text()+"_highcut"+self.high_cutoff.text()+".tsf"
-    
-    else: 
-        file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
-    
+    print tsf.file_names
 
     tsf.save_tsf(file_name)
     
@@ -4386,7 +4381,10 @@ def rhd_to_tsf(filenames):
         if False:
             #tsf.ec_traces = tsf.ec_traces_raw
             tsf.save_tsf(file_out+'_raw.tsf')
-        
+            
+            print "... saved raw... exiting..."
+            return
+            
         print tsf.n_electrodes
         print len(tsf.ec_traces)
         
@@ -4396,7 +4394,7 @@ def rhd_to_tsf(filenames):
             tsf_lfp.SampleFrequency = 1000   #LFP to be downsampled to 1khz from raw data.
             
             print "...converting raw to .lfp (1Khz) sample rate tsf files ..."
-            lowpass_freq = 250      #250Hz for lowpass cutoff
+            lowpass_freq = 500      #250Hz for lowpass cutoff
             #lowpass_freq = 100      #250Hz for lowpass cutoff
 
             temp_traces = []
@@ -4439,23 +4437,10 @@ def rhd_to_tsf(filenames):
             print len(tsf_lfp.ec_traces)
             
             tsf_lfp.save_tsf(file_name[:-4]+'_lfp_'+str(lowpass_freq)+'hz.tsf')
-
-            
-        ##SAVE HIGH PASS WAVELET FILTERED DATA
-        #if False:
-            
-            #print "Wavelet filtering..."
-            #wname='db4'
-            #maxlevel = 4
-            #tsf.ec_traces = wavelet(tsf.ec_traces_raw, wname, maxlevel)
-            #print tsf.ec_traces.shape
-            
-            #print "Writing hp data wavelet filtered ..."
-            #save_tsf_single(tsf, file_out+'_hp_wavelet.tsf')
-
+    
         
         #SAVE BUTTER PASS FILTERED DATA
-        if True:
+        if False:
 
             print "... highpass filtering data (parallel version)..."
             cutoff = 1000
@@ -4477,136 +4462,6 @@ def rhd_to_tsf(filenames):
     print "... Done converting data to .tsf format ..."
 
     
-
-#def rhd_to_tsf(filenames):
-    #'''Read .rhd files, convert to correct electrode mapping and save to .tsf file
-    #NB: There are 2 possible mapping depending on the insertion of the AD converter 
-    #TODO: implement a wavelet high pass filter directly to avoid SpikeSorter Butterworth filter artifacts
-    #'''
-    
-    #print "...reading amp data..."
-
-    #probe = Probe()
-
-    #for file_name in filenames:
-        #print file_name
-        ##Delete previous large arrays; Initialize arrays; IS THIS REDUNDANT?
-        #ec_traces = 0.; ec_traces_hp = 0.; data=0.
-        
-        ##file_out = file_name[:file_name.find('rhd_files')]+'tsf_files/'+ file_name[file_name.find('rhd_files')+10:]+'_hp.tsf'
-        ##file_out = file_name[:-4].replace('rhd_files','tsf_files')
-        #file_out = file_name[:-4]
-        ##if os.path.exists(file_out)==True: continue
-
-        ##********** READ ALL DATA FROM INTAN HARDWARE ***********
-        #print "Processing: \n", file_name
-        #data = read_data(file_name)
-
-        #SampleFrequency = int(data['frequency_parameters']['board_adc_sample_rate']); print "SampleFrequency: ", SampleFrequency
-
-        ##****** SCALE EPHYS DATA *************
-        #ec_traces = data['amplifier_data'] #*10       #Multiply by 10 to increase resolution for int16 conversion
-        #ec_traces*=10.
-        #print "...length original traces: ", len(ec_traces)
-        
-        ##print "Converting data to int16..."
-        ##for k in range(len(ec_traces)):
-        ##    np.save(file_name+"_ch_"+str(k), np.int16(ec_traces[k]))
-        
-        #n_electrodes = len(ec_traces)
-        
-        ##ec_traces = []
-        ##for k in range(n_electrodes):
-        ##    ec_traces.append(np.load(file_name+"_ch_"+str(k)+'.npy'))
-
-        ##ec_traces = np.array(ec_traces)
-        
-        ##print "...length reloaded traces: ", len(ec_traces)
-
-        #header = 'Test spike file '
-        #iformat = 1002
-        #n_vd_samples = len(ec_traces[0]); print "Number of samples: ", n_vd_samples
-        #vscale_HP = 0.1                             #voltage scale factor
-        #n_cell_spikes = 0
-
-        ##****** PROCESS DIGITAL CHANNELS
-        #n_digital_chs = len(data['board_dig_in_data'])
-        #print "...# digital channels: ", n_digital_chs
-        
-        ##np.save(file_name[:-4].replace('rhd_files','camera_files')+'_'+response, data['board_dig_in_data'][ch])
-
-        ##SAVE RAW DATA
-        #if True:
-            #print "Writing raw data ..."
-            #fout = open(file_out+'.tsf', 'wb')
-            #fout.write(header)
-            #fout.write(struct.pack('i', 1002))
-            #fout.write(struct.pack('i', SampleFrequency))
-            #fout.write(struct.pack('i', probe.n_electrodes+n_digital_chs))
-            #fout.write(struct.pack('i', n_vd_samples))
-            #fout.write(struct.pack('f', vscale_HP))
-
-            ##Save ephys data location
-            #for i in range(probe.n_electrodes):
-                #fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                #fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                #fout.write(struct.pack('i', i+1))
-
-            ##Save additional channel locations
-            #for i in range(n_digital_chs):
-                #fout.write(struct.pack('h', 0))
-                #fout.write(struct.pack('h', 2000+100*i))
-                #fout.write(struct.pack('i', probe.n_electrodes+i+1))
-
-            ##Save Ephys data
-            #for i in range(probe.n_electrodes):
-                #print "...writing ch: ", i
-                #ec_traces[probe.layout[i]].tofile(fout)  #Frontside
-
-            ##Save digital channels
-            #for ch in range(n_digital_chs):
-                #np.save(file_name[:-4]+'_digitalchannel_'+str(ch), data['board_dig_in_data'][ch])
-                #temp_data = np.load(file_name[:-4]+'_digitalchannel_'+str(ch)+ '.npy')
-                #temp_data = np.int16(temp_data*10000.)
-                ##plt.plot(temp_data)
-                ##plt.show()
-                
-                #temp_data.tofile(fout)  #Pack data into .tsf file
-        
-                #temp_data.tofile(file_name[:-4]+'_digitalchannel_'+str(ch)+'.bin')  #save digital channel separately.
-
-            #fout.write(struct.pack('i', n_cell_spikes))
-            #fout.close()
-            
-        ###SAVE HIGH PASS WAVELET FILTERED DATA
-        ##if True:
-            ##print "Writing hp data ..."
-            ##fout = open(file_out+'_hp.tsf', 'wb')
-            ##fout.write(header)
-            ##fout.write(struct.pack('i', 1002))
-            ##fout.write(struct.pack('i', SampleFrequency))
-            ##fout.write(struct.pack('i', probe.n_electrodes))
-            ##fout.write(struct.pack('i', n_vd_samples))
-            ##fout.write(struct.pack('f', vscale_HP))
-            
-            ##for i in range (probe.n_electrodes):
-                ##fout.write(struct.pack('h', probe.Siteloc[i][0]))
-                ##fout.write(struct.pack('h', probe.Siteloc[i][1]))
-                ##fout.write(struct.pack('i', i+1))
-
-            ##print "Wavelet filtering..."
-            ##ec_traces_hp = wavelet(ec_traces, wname="db4", maxlevel=6)
-            ##print ec_traces_hp.shape
-
-            ##for i in range(probe.n_electrodes):
-                ##print "...writing ch: ", i
-                ##ec_traces_hp[probe.layout[i]].tofile(fout)  #Frontside
-
-            ##fout.write(struct.pack('i', n_cell_spikes))
-            ##fout.close()
-
-    #print "... Done conversion ..."
-
 def rhd_digital_save(file_names):
     '''Read .rhd files, and save digital channels.
     NB: there can be 2, 4 or 6 digital channels inside Intan file
@@ -4880,7 +4735,52 @@ def lfp_to_lptsf(lfpzip_file):
 
     print "... done converting lfp.zip -> _lp.tsf..."
 
-def Notch_Filter(data, fs=1000, band=1., freq=60., ripple=10, order=4, filter_type='ellip'):
+#def Notch_Filter(data, fs=1000, band=1., freq=60., ripple=10, order=4, filter_type='ellip'):
+def Notch_Filter_specific(data, freq):
+    """Using iirfilter instead of Martin's LFP work
+    """
+    print "... filtering : ", freq
+    fs=1000; band=1; ripple=20; order=4; filter_type='butter'
+    from scipy.signal import iirfilter, lfilter
+    #fs   = 1/time
+    nyq  = fs/2.0
+    low  = freq - band/2.0
+    high = freq + band/2.0
+    low  = low/nyq
+    high = high/nyq
+    
+    b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
+                     analog=False, ftype=filter_type)
+    
+    filtered_data = filtfilt(b,a,data)     #Try thsi!?
+   
+    
+    return filtered_data
+
+def Notch_Filter_specific_full(data, freq, fs):
+    """Using iirfilter instead of Martin's LFP work
+    """
+    band=1; ripple=20; order=4; filter_type='butter'
+    from scipy.signal import iirfilter, lfilter
+    #fs   = 1/time
+    nyq  = fs/2.0
+    low  = freq - band/2.0
+    high = freq + band/2.0
+    low  = low/nyq
+    high = high/nyq
+    
+    b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
+                     analog=False, ftype=filter_type)
+    
+    #filtered_data = lfilter(b, a, data)
+    
+    filtered_data = filtfilt(b,a,data)     #Try thsi!?
+  
+    return filtered_data
+    
+    
+
+def Notch_Filter(data, fs=1000, band=1., freq=60., ripple=20, order=4, filter_type='butter'):
     """Using iirfilter instead of Martin's LFP work
     """
     from scipy.signal import iirfilter, lfilter
@@ -4894,9 +4794,27 @@ def Notch_Filter(data, fs=1000, band=1., freq=60., ripple=10, order=4, filter_ty
     b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
                      analog=False, ftype=filter_type)
     
-    filtered_data = lfilter(b, a, data)
+    #filtered_data = lfilter(b, a, data)
     
-    #filtered_data = filtfilt(b,a,data)     #Try thsi!?
+    filtered_data = filtfilt(b,a,data)     #Try thsi!?
+
+    #print "... ALSO FILTERING 66HZ OUT..."
+    ##from scipy.signal import iirfilter, lfilter
+    #freq=66
+    #fs=1000; band=1.; ripple=20; order=4; filter_type='butter'
+    #nyq  = fs/2.0
+    #low  = freq - band/2.0
+    #high = freq + band/2.0
+    #low  = low/nyq
+    #high = high/nyq
+    
+    #b, a = iirfilter(order, [low, high], rp=ripple, rs=50, btype='bandstop',
+                     #analog=False, ftype=filter_type)
+    
+    ##filtered_data = lfilter(b, a, data)
+    
+    #filtered_data = filtfilt(b,a,filtered_data)     #Try thsi!?
+    
     
     return filtered_data
 
@@ -4946,7 +4864,7 @@ def view_templates(self):
     
 
     max_chan_traces = []
-    for k in range(top_channel, self.tsf.n_electrodes, electrode_rarifier):
+    for k in np.int32(np.linspace(top_channel, self.tsf.n_electrodes-1, 10)):
         print "...plotting ch: ", k, "  depth: ", -self.tsf.Siteloc[k*2+1]
         
         ch_offset = 0
@@ -6383,6 +6301,13 @@ def view_csd(self):
         event_times = Sort.units[unit]*1E-6 * Sort.samplerate #Convert from usec to sec back to sample-rate time
         #print event_times
         
+        #Exclude events after 2 hrs;
+        if True: 
+            print "... EXCLUDING spikes after 2hrs...*****************"
+            
+            event_times = event_times[np.where(event_times<120.*60*Sort.samplerate)[0]]
+
+        
         lfp_ave = np.zeros((len(tsf.ec_traces),2*n_samples),dtype=np.float32)
         for ch in range(tsf.n_electrodes):
             ctr=0
@@ -6468,9 +6393,8 @@ def view_csd(self):
                 old_ylabel.append(-0.5 + float(depth)/46.)
 
             new_ylabel = depths
-            for k in range(0,len(depths),2):
-                plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
-            plt.ylim(900./46,-0.5)
+            #for k in range(0,len(depths),2):
+            #    plt.plot([0,n_samples*2], [depths[k]/46.-0.5,depths[k]/46.-0.5], 'r--', linewidth = 2, color='white', alpha=0.8)
         
             new_ylabel_str = []
             new_ylabel_str.append("L1")
@@ -6487,6 +6411,7 @@ def view_csd(self):
             old_ylabel_str.append(old_ylabel[9])
             plt.yticks(old_ylabel_str, new_ylabel_str, fontsize=15)
 
+            plt.ylim(900./46,-0.5)
         
         else:
             print Sort.chanpos
@@ -7005,9 +6930,11 @@ def zero_out_desynch_periods(self):
 
     tsf = TSF.TSF(self.selected_recording)
     tsf.read_ec_traces()
+    
+    print self.selected_recording
 
     samp_freq = tsf.SampleFrequency
-    print "rec length: ", len(tsf.ec_traces[channel])/float(tsf.SampleFrequency), " sec."
+    print "rec length: ", len(tsf.ec_traces[channel])/float(tsf.SampleFrequency), " sec.", len(tsf.ec_traces[channel])/float(tsf.SampleFrequency)/3600., " hrs."
 
     #********************************************************************************************
     #*********************************** COMPUTE SYNCH INDEX ************************************
@@ -7019,6 +6946,16 @@ def zero_out_desynch_periods(self):
     lfptres=7.5     #Sliding window overlap in seconds
     si, t, sync_periods = synchrony_index(tsf.ec_traces[channel], samp_freq, si_limit, lfpwidth, lfptres)    #Time resolution: bin width for analysis in seconds)
     
+    tot_time = 0
+    for k in range(len(sync_periods)):
+        tot_time+= (sync_periods[k][1]-sync_periods[k][0])
+    
+    print "...tot synch time: ", tot_time/3600., " hrs." 
+    
+    np.savetxt(os.path.split(os.path.split(self.selected_recording)[0])[0]+"/sync_rec_len.txt", [tot_time])
+    
+    print "...returning early<------------- remove this to generate sync file..."
+    return
     
     #************ SMOOTH OUT FUNCTION ****************
     def smooth(y, box_pts):
@@ -7114,8 +7051,85 @@ def zero_out_desynch_periods(self):
     plt.show()    
     
     
+def Spectrum(self):
+    
+    channel=int(self.specgram_ch.text())
+    
+    if '.tsf' in self.selected_recording:
+        tsf = TSF.TSF(self.selected_recording)
+        #tsf.read_ec_traces()
+        tsf.read_trace(channel)
+        #for k in range(0, len(tsf.Siteloc),2):
+        #    print k, tsf.Siteloc[k], tsf.Siteloc[k+1]
+            
+    elif '_lp.tsf' in self.selected_recording:
+        tsf = load_lfpzip(self.selected_recording)
+        #for k in range(len(tsf.Siteloc)):
+        #    print k, tsf.Siteloc[k]
+    
+    samp_freq = tsf.SampleFrequency
+    print "rec length: ", len(tsf.ec_traces)/float(tsf.SampleFrequency), " sec."
+
+    ax = plt.subplot(1,1,1)
+    font_size = 30
+    height = 25
+    width_plots = 35 #int(max(20, int(math.ceil(len(SUA_sort.sec_len)*3)))*1.16)
+
+    #tsf.ec_traces #<------ the trace in question
+
+    #Compute Specgram
+    #data_in = tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:int(self.time_end.text())*tsf.SampleFrequency][::int(tsf.SampleFrequency/1000)]
+    #samp_freq = 1000
+    
+    rate = tsf.SampleFrequency
+    print "...computing fft..."
+    
+
+    Fs = 1000  # sampling rate
+    Ts = 1.0/Fs; # sampling interval
+    t = np.arange(0,1,Ts) # time vector
+    
+    data = tsf.ec_traces[::tsf.SampleFrequency/Fs]
+    
+    #Load 
+    notches = np.loadtxt(os.path.split(self.selected_recording)[0]+"/notch.txt" , dtype=np.float32)    
+    for notch in notches:
+        data = Notch_Filter_specific(data, notch)   #THIS ONLY WORKS FOR 1KHZ sample rate
 
 
+    def plotSpectrum(y,Fs):
+         """
+         Plots a Single-Sided Amplitude Spectrum of y(t)
+         """
+         from scipy import fft, arange
+         n = len(y) # length of the signal
+         k = arange(n)
+         T = n/Fs
+         frq = k/T # two sides frequency range
+         frq = frq[range(n/2)] # one side frequency range
+
+         Y = fft(y)/n # fft computing and normalization
+         Y = Y[range(n/2)]
+         
+         plt.plot(frq,abs(Y)) # plotting the spectrum
+         plt.xlabel('Freq (Hz)')
+         plt.ylabel('|Y(freq)|')
+
+
+    #ff = 5;   # frequency of the signal
+    #y = sin(2*pi*ff*t)
+    y = data
+
+    #plt.subplot(2,1,1)
+    #plt.plot(t,y)
+    #plt.xlabel('Time')
+    #plt.ylabel('Amplitude')
+    #plt.subplot(2,1,2)
+    plotSpectrum(y,Fs)
+
+    plt.show()
+    
+    
 def Specgram_syncindex(self):
     
     channel=int(self.specgram_ch.text())
@@ -7147,8 +7161,17 @@ def Specgram_syncindex(self):
     samp_freq = 1000
     print "... computing notch filter..."
     #data_in = Notch_Filter(data_in)  
-    
-    f0 = 0.1; f1 = 100
+    print "filtering 66Hz"
+    data_in = Notch_Filter_specific(data_in, 66)  
+    print "filtering 60Hz"
+    data_in = Notch_Filter_specific(data_in, 60)  
+    #data_in = Notch_Filter_specific(data_in, 180)  
+    #data_in = Notch_Filter_specific(data_in, 200)  
+    #data_in = Notch_Filter_specific(data_in, 300)  
+
+
+
+    f0 = 0.1; f1 = 1000
     p0 = float(self.specgram_db_clip.text())
     temp_file = self.selected_recording[:-4]+"_ch"+str(channel)+"specgram"
     #if os.path.exists(temp_file+'.npz'):
@@ -7162,13 +7185,18 @@ def Specgram_syncindex(self):
     plt.imshow(P, extent=extent, aspect='auto')
 
     #Compute sync index
-    si_limit=0.4
+    si_limit=0.5
     lfpwidth=15     #Width of FFT window in seconds
     lfptres=7.5     #Sliding window overlap in seconds
     print "...computing sync periods..."
     si, t, sync_periods = synchrony_index(tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:(int(self.time_end.text())+10)*tsf.SampleFrequency], 
                         samp_freq, si_limit, lfpwidth, lfptres)    #Time resolution: bin width for analysis in seconds)
     
+    #t_sync = np.hstack(t_sync)
+    #si_sync = np.hstack(si_sync)
+    sync_0 = -30
+    sync_1 = -10
+    sync_scale = 20
     
     #************ SMOOTH OUT FUNCTION ****************
     def smooth(y, box_pts):
@@ -7177,14 +7205,18 @@ def Specgram_syncindex(self):
         return y_smooth
 
     si = smooth(si, 10)    
+    print si
+    temp_t = np.arange(max(t))
+    plt.plot(t, si*sync_scale+sync_0, linewidth = 4, color='red', alpha=0.8)
+    
     
     ##************ COMPUTE SYNC PERIODS ***************
-    #t_sync = np.zeros(len(t),dtype=np.float32)
-    #si_sync = np.zeros(len(si),dtype=np.float32)
-    #for k in range(len(si)-1): 
-        #if si[k]>si_limit:
-            #si_sync[k] = si[k]
-            #t_sync[k] = t[k]
+    t_sync = np.zeros(len(t),dtype=np.float32)
+    si_sync = np.zeros(len(si),dtype=np.float32)
+    for k in range(len(si)-1): 
+        if si[k]>si_limit:
+            si_sync[k] = si[k]
+            t_sync[k] = t[k]
 
 
     #search for periods of at least 60 seconds of sync state:
@@ -7207,17 +7239,13 @@ def Specgram_syncindex(self):
                     t_sync.append(t[in_sync_index: k+1])
                     si_sync.append(si[in_sync_index:k+1])
 
-    #close perid if still in sync state;
+    #close period if still in sync state;
     if in_sync:
         if ((k-in_sync_index)*lfptres)>=60:
             t_sync.append(t[in_sync_index: k+1])
             si_sync.append(si[in_sync_index:k+1])
 
-    #t_sync = np.hstack(t_sync)
-    #si_sync = np.hstack(si_sync)
-    sync_0 = -30
-    sync_1 = -10
-    sync_scale = 20
+
 
     for k in range(len(t_sync)):
         plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
@@ -7229,9 +7257,9 @@ def Specgram_syncindex(self):
     plt.plot([0,max(t)],[sync_1,sync_1], color='black', linewidth = 2, alpha=0.8)
     plt.plot([0,max(t)],[sync_0,sync_0], color='black', linewidth = 2, alpha=0.8)
     
-    #xx = np.linspace(0,max(t)+10,5)
-    #x_label = np.round(np.linspace(0, max(t)+10,5))
-    #plt.xticks(xx, x_label, fontsize=20)
+    xx = np.linspace(0,max(t)+10,5)
+    x_label = np.int32(np.linspace(0, max(t)+10,5)/60.)
+    plt.xticks(xx, x_label, fontsize=20)
        
     #ax.set_xlim((0,P.shape[1]/2))    
     ax.set_ylim((sync_0-1,f1))    
@@ -7243,7 +7271,7 @@ def Specgram_syncindex(self):
     ax.tick_params(axis='both', which='both', labelsize=font_size)
 
     plt.ylabel("Synchrony Index             Specgram Frequency (Hz)      ", fontsize=font_size-5)           
-    plt.xlabel("Time (sec)", fontsize = font_size)
+    plt.xlabel("Time (mins)", fontsize = font_size)
     #plt.title(self.recName, fontsize=font_size-10)
     plt.show()
 
@@ -9768,6 +9796,7 @@ def peth_scatter_plots(self):
     x_ticks = np.append(x_ticks, vmin_value)
     print x_ticks
     #x_ticks = [float(vmax_value), float(vmin_value)]
+    
     cbar = f2.colorbar(cax, ticks=x_ticks)
     
     x_tick_labels = []
@@ -10539,7 +10568,7 @@ def plot_msl_continuous_multi_unit(self):
     std_method = False
     poisson_method = False
     
-    n_epochs = 120
+    n_epochs = 120  #120 epochs ~= 15minutes + 120minutes
     lock_time = lock_time[:,:n_epochs,:]        #Limit # epochs here;
     print lock_time.shape
     
@@ -10606,7 +10635,7 @@ def plot_msl_continuous_multi_unit(self):
         
         if skip_unit: print "... bad cell "; continue
         else: print "... good cell: "
-        
+        print np.mean(ave_times)
         save_array.append(ave_times)
         offset_temp =int(self.sliding_window_length.text())/2   #OFFSET DATA BY 1/2 WINDOW LENGTH TO REFLECT AVERAGING TO MIDDLE OF WINDOW;
         if len(ave_times)>0: 
@@ -10629,7 +10658,7 @@ def plot_msl_continuous_multi_unit(self):
 
     np.save(file_out+"_stable_cells", save_array)
             
-                
+
                 
     #**********Plot labels and additional info
     
@@ -12013,7 +12042,7 @@ def Compute_MSL_depth(self):
 
     top_channel = np.loadtxt(os.path.split(os.path.split(self.parent.sua_file)[0])[0]+"/top_channel.txt") - 1      #Load top channel for track; convert to 0-based ichannel values.
 
-    colors=['blue','green','cyan','magenta','red','pink','orange', 'brown', 'yellow']
+    colors=['blue','red','blue','magenta','red','pink','orange', 'brown', 'yellow']
     #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
 
     si_limit = 0.7
@@ -12243,23 +12272,24 @@ def Compute_MSL_depth(self):
     #plt.suptitle(self.parent.sua_file.replace('.ptcs','')+",  sigma: " + str(sig) +"(ms)", fontsize=20)
 
 
-    ##*******************PLOT MSL ALL CELL DISTRIBUTIONS ************************
-    ##cmap = plt.cm.get_cmap('viridis', Sort_sua.n_units)
-    ##plt.set_cmap('viridis')
+    ##*******************PLOT EXAMPLE CELL HISTOGRAM ************************
+    #cmap = plt.cm.get_cmap('viridis', Sort_sua.n_units)
+    #plt.set_cmap('viridis')
     
-    #f2 = plt.figure()
+    #
+    f2 = plt.figure()
     #for ctr,img_mean in enumerate(img_means):
         #print img_mean
-        #plt.plot(img_mean, linewidth = 5, color = cm.viridis(int(float(ctr)/len(chunk_index)*256)))
+    plt.plot(img[starting_cell], linewidth = 15, color = colors[lfp_cluster])
     
     #old_xlabel = np.linspace(0, window*2, 3)
     #new_xlabel = np.linspace(-window, window, 3)
-    
-    
     #plt.xticks(old_xlabel, new_xlabel, fontsize=30) #, rotation='vertical')    
-    #plt.xlabel("Time (ms)", fontsize = 30, fontweight='bold')
-    #plt.xlim(0,lock_window_end*2)
-    #plt.ylim(bottom=0)
+    plt.plot([window/2.*1E-3,window/2.*1E-3], [0,1], 'r--', linewidth=3, color='black')
+    
+    plt.xlabel("Time (ms)", fontsize = 30, fontweight='bold')
+    plt.xlim(0,lock_window_end*2)
+    plt.ylim(bottom=0)
      
     
     ##*******************PLOT PERCENT SPIKING HISTOGRAMS ************************

@@ -132,7 +132,7 @@ class Info(QtGui.QWidget):
     def view_header_ptcs(self):
         
         print "... selecting single lfp recording ..."
-        self.ptcs_file = QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.root_dir,"PTCS (*.ptcs; *.npz)")
+        self.ptcs_file = QtGui.QFileDialog.getOpenFileName(self, "PTCS (*.ptcs)", self.root_dir,"PTCS (*.ptcs *.npz)")
         sort = PTCS.PTCS(self.ptcs_file)
         
         sort.print_header()
