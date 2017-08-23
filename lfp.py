@@ -14,21 +14,21 @@ class LFP(QtGui.QWidget):
         
         self.parent = parent
         
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
         #self.selected_recording = self.parent.root_dir
         #self.selected_sort_sua = self.parent.root_dir
         #self.selected_sort_lfp = self.parent.root_dir
         
         #CAT VISUAL
-        #self.selected_recording = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
-        #self.selected_sort_sua = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
-        #self.selected_sort_lfp = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+        self.selected_recording = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
+        self.selected_sort_sua = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
+        self.selected_sort_lfp = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
         
         #MOUSE AUDITORY
-        self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack.tsf'
-        self.selected_sort_sua = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
-        self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
+        #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack.tsf'
+        #self.selected_sort_sua = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_hp_butter_alltrack.ptcs'
+        #self.selected_sort_lfp = '/media/cat/12TB/in_vivo/tim/cat/2016_07_26_vsd_auditory/sort_alltrack2/track2_spontaneous_1iso_160726_215426_lfp_250hz_alltrack_50compressed.ptcs'
 
         #MOUSE VISUAL
         #self.selected_recording = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
@@ -157,7 +157,6 @@ class LFP(QtGui.QWidget):
         self.all_rasters = QPushButton('SUA and LFP Rasters')
         layout.addWidget(self.all_rasters, row_index, 0)
         self.all_rasters.clicked.connect(self.view_allrasters)    
-        
         
         
         self.setLayout(layout)

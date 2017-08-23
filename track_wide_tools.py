@@ -82,26 +82,29 @@ class TrackWideTools(QtGui.QWidget):
         self.lfpcsd_button.clicked.connect(self.lfp_to_csd)
         layout.addWidget(self.lfpcsd_button, row_index, 0); row_index+=1
         
-        #self.subsample_button = QPushButton('Subsample .tsf files')
-        #self.subsample_button.setMaximumWidth(250)
-        #self.subsample_button.clicked.connect(self.subsample_save)
-        #layout.addWidget(self.subsample_button, row_index, 0); 
-        
-        ##% of electrodes
-        #self.n_electrodes = QLineEdit('1.0');                
-        #self.n_electrodes.setMaximumWidth(50)
-        #self.n_electrodes_lbl = QLabel('%Electrodes', self)
-        #self.n_electrodes_lbl.setMaximumWidth(100)
-        #layout.addWidget(self.n_electrodes_lbl, row_index, 1)
-        #layout.addWidget(self.n_electrodes, row_index, 2); row_index+=1
-        
         #***********************************************************************************
+        #***********************************************************************************
+        #***********************************************************************************
+
         layout.addWidget(QLabel('', self), row_index,0); row_index+=1
 
         self.preprocess_lbl = QLabel('TIME COMPRESSION', self)
         self.preprocess_lbl.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold) )
         self.preprocess_lbl.setStyleSheet('color: blue')
         layout.addWidget(self.preprocess_lbl, row_index, 0); row_index+=1
+
+        self.button12 = QPushButton('Convert to LFP (XX Khz-> 1Khz)')
+        self.button12.setMaximumWidth(250)
+        self.button12.clicked.connect(self.subsample_data)
+        layout.addWidget(self.button12, row_index, 0)
+        
+        #self.subsample_factor = QLineEdit('25');                  #parent.end_time = self.end_time
+        #self.subsample_factor.setMaximumWidth(50)
+        #self.subsample_factor_lbl = QLabel('Compress Factor (multiples of 25): ', self)
+        #layout.addWidget(self.subsample_factor_lbl, row_index, 1)
+        #layout.addWidget(self.subsample_factor, row_index, 2); 
+        row_index+=1
+
         
         self.button1 = QPushButton('Time compress (1Khz) .tsf')
         self.button1.setMaximumWidth(250)
@@ -197,6 +200,7 @@ class TrackWideTools(QtGui.QWidget):
         
         print out_files[0]
         
+        self.file_list = out_files[0]
         if '.txt' in out_files[0]:
             with open(out_files[0]) as f: 
                 self.tsf_files = [line.rstrip('\n') for line in f]
@@ -246,6 +250,12 @@ class TrackWideTools(QtGui.QWidget):
         self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
         subsample_channels_tsf(self)
         
+        
+    def subsample_data(self):
+        print "...subsampling data (converting 25Khz->1Khz LFP data)..."
+        self.tsf_file = QtGui.QFileDialog.getOpenFileName(self, "TSF (*.tsf)", self.root_dir,"TSF (*.tsf)")
+        subsample_lfp(self) 
+
         
     def comp_lfp(self):
         print "... selecting single lfp recording ..."

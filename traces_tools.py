@@ -13,23 +13,24 @@ class TracesTools(QtGui.QWidget):
         layout = QtGui.QGridLayout()
 
         self.parent = parent
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/tim/cat/2016_05_27_gcamp/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
         
 #***************************** Cat DATA *************************************
-        #ptc21 tr5c 
-        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
-        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/recordings/61-tr5c-blankscreen/61-tr5c-blankscreen_alltrack_lfp.tsf'
+        ##ptc21 tr5c 
+        self.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/synch_sort/61-tr5c-blankscreen_alltrack.ptcs'
+        self.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/synch_sort/61-tr5c-blankscreen_alltrack_lfp_50compressed.ptcs'
+        self.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/synch_sort/61-tr5c-blankscreen_alltrack_lfp.tsf'
 
 
         #***************************** MOUSE DATA *************************************
         #2017-02_03 VISUAL
-        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
-        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
         ##self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
-        self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
@@ -95,17 +96,17 @@ class TracesTools(QtGui.QWidget):
         layout.addWidget(self.button_select_recording, row_index, 0)
         
         #self.parent.selected_recording  = os.getcwd()
-        self.selected_recording  = self.parent.root_dir
+        self.selected_recording  = self.root_dir
         self.select_recording_lbl = QLabel(self.selected_recording, self)
         layout.addWidget(self.select_recording_lbl, row_index,1)
         
         #Rec length
-        self.parent.rec_length = QLabel('0', self)
-        self.parent.rec_length.setMaximumWidth(100)
-        self.parent.rec_length_lbl = QLabel('Rec Length:', self)
-        self.parent.rec_length_lbl.setMaximumWidth(100)
-        layout.addWidget(self.parent.rec_length_lbl, row_index, 3)
-        layout.addWidget(self.parent.rec_length, row_index, 4); row_index+=1
+        self.rec_length = QLabel('0', self)
+        self.rec_length.setMaximumWidth(100)
+        self.rec_length_lbl = QLabel('Rec Length:', self)
+        self.rec_length_lbl.setMaximumWidth(100)
+        layout.addWidget(self.rec_length_lbl, row_index, 3)
+        layout.addWidget(self.rec_length, row_index, 4); row_index+=1
 
         #Select recording
         self.button_select_sort = QPushButton('Select Event File')
@@ -113,7 +114,7 @@ class TracesTools(QtGui.QWidget):
         self.button_select_sort.clicked.connect(self.slct_event_file)
         layout.addWidget(self.button_select_sort, row_index, 0)
         
-        self.selected_sort  = self.parent.root_dir
+        self.selected_sort  = self.root_dir
         self.select_sort_lbl = QLabel(self.selected_sort, self)
         layout.addWidget(self.select_sort_lbl, row_index,1)
     
@@ -207,16 +208,18 @@ class TracesTools(QtGui.QWidget):
 
 
     def slct_recording(self):
-        self.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, 'Load File', self.selected_recording)
+        #self.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, 'Load File', self.selected_recording)
+        self.selected_recording =  QtGui.QFileDialog.getOpenFileName(self, ".tsf", self.selected_recording,"*.tsf")
+
         path_name, file_name = os.path.split(self.selected_recording)
 
         self.select_recording_lbl.setText(file_name)
 
-        self.tsf = Tsf_file(self.selected_recording)
-        self.tsf.read_ec_traces()
+        #self.tsf = Tsf_file(self.selected_recording)
+        #self.tsf.read_ec_traces()
         
-        print "...len rec: ", self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)
-        self.parent.rec_length.setText(str(self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)))
+        #print "...len rec: ", self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)
+        #self.rec_length.setText(str(self.tsf.n_vd_samples/float(self.tsf.SampleFrequency)))
    
    
     def vw_traces(self):

@@ -135,7 +135,8 @@ def save_tsf_single(tsf, file_name):
     for i in range(tsf.n_electrodes):
         fout.write(struct.pack('h', tsf.Siteloc[i*2]))
         fout.write(struct.pack('h', tsf.Siteloc[i*2+1]))
-        fout.write(struct.pack('i', i+1))
+        #fout.write(struct.pack('i', i+1))
+        fout.write(struct.pack('i', tsf.Readloc[i]))
 
     for i in range(tsf.n_electrodes):
         np.int16(tsf.ec_traces[tsf.layout[i]]).tofile(fout)  #Save ec_traces for each channel while converting to int16; the channel order comes from probe
@@ -3217,28 +3218,7 @@ def view_video_stm_all(self):
         np.save(filename.replace('tif_files', 'video_files').replace(self.selected_session+'/','')+'_all.npy', vid_array_save)
 
     plt.show()
-
-    #quit() 
-    
-
-
-    #im.append([])
-    #im[k] = plt.imshow(vid_array[k][0], cmap=plt.get_cmap('jet'), vmin=-Ev_max, vmax=Ev_max, interpolation='none')#, vmin=0, vmax=v_max)
-    ##im[k] = plt.imshow(vid_array[k][0], cmap=blue_red1, vmin=v_min, vmax=v_max, interpolation='none')#, vmin=0, vmax=v_max)
-
-    ##function to update figure
-    #def updatefig(j):
-        #print j,
-        #plt.suptitle(animal.ptcsName.replace(animal.home_dir,'') +"\nFrame: "+str(j)+"  " +str(round((float(j)/img_rate+start_time),2))+"sec")
-
-        ## set the data in the axesimage object
-        #for k in range(len(vid_array)):
-            #im[k].set_array(vid_array[k][j])
-
-        ## return the artists set
-        #return im
-        
-        
+       
             
 
 def view_video_stm(self):
@@ -3269,6 +3249,9 @@ def view_video_stm(self):
     
     #Apply Generic Mask 
     print "...selected trial for stm: ", self.selected_trial
+    
+    vid_array_save = temp_array
+
     vid_array = quick_mask(self, temp_array)
 
    
@@ -3283,7 +3266,8 @@ def view_video_stm(self):
     
     #print motion_mask
     vid_array = vid_array * motion_mask
-    
+    vid_array_save = vid_array_save * motion_mask
+
 
     #***********GENERATE ANIMATIONS
     Writer = animation.writers['ffmpeg']
@@ -3321,7 +3305,10 @@ def view_video_stm(self):
 
     if True:
     #if save_animation:
-        ani.save(filename.replace('tif_files', 'video_files').replace(self.selected_session,'')+'_.mp4', writer=writer)
+        ani.save(filename.replace('tif_files', 'video_files')+'_.mp4', writer=writer)
+
+        #Save the animation as a numpy array also for analysis;
+        np.save(filename.replace('tif_files', 'video_files')+'_.npy', vid_array_save)
 
     plt.show()
 
@@ -3619,14 +3606,13 @@ def filter_ephys(self):
     for ch in range(0, tsf.n_electrodes):
         print "...filtering ch: ", ch
         trace_temp = tsf.ec_traces[ch] #[int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
-        
         #trace_temp = butter_highpass_filter(trace_temp, float(self.low_cutoff.text()), tsf.SampleFrequency, 5)
-        
         tsf.ec_traces[ch] = butter_lowpass_filter(trace_temp, float(self.high_cutoff.text()), tsf.SampleFrequency, 5)
     
 
     tsf.file_names=[]; tsf.n_samples=[]; tsf.n_digital_chs=[]; tsf.digital_chs=[]
     tsf.layout = np.arange(tsf.n_electrodes)
+    #tsf.layout = tsf.Readloc
 
     save_tsf_single(tsf, self.tsf_filename[:-4]+"_low"+self.low_cutoff.text()+"_high"+self.high_cutoff.text()+".tsf")
     
@@ -3647,7 +3633,8 @@ def notch_ephys(self):
             data = Notch_Filter_specific(data, notch)   #THIS ONLY WORKS FOR 1KHZ sample rate
 
         #tsf.ec_traces[ch] = Notch_Filter_specific(tsf.ec_traces[ch], 66)
-
+    
+        tsf.ec_traces[ch] = data
     tsf.file_names=[]; tsf.n_samples=[]; tsf.n_digital_chs=[]; tsf.digital_chs=[]
     tsf.layout = np.arange(tsf.n_electrodes)
   
@@ -3714,6 +3701,7 @@ def Plot_rasters(self):
         y.append(x)
         
         offset=offset-1.0
+
 
     ##Plot LFP spike
     #offset = offset -10.
@@ -3925,7 +3913,8 @@ def concatenate_tsf(self):
         
     print "...saving alltrack .tsf..."
     
-    file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
+    #file_name = self.tsf_files[0][:-4]+"_alltrack.tsf"
+    file_name = self.file_list[:-4]+"_alltrack.tsf"
     
     print tsf.file_names
 
@@ -4191,6 +4180,37 @@ def subsample_channels_tsf(self):
     f_name = self.tsf_file[:-4]+"_reduced_"+"topch_"+str(top_channel)+ "_bottomch"+self.bottom_channel.text()+"_"+str(tsf.n_electrodes)+"chs.tsf"
     save_tsf_single(tsf, f_name)
     
+
+def subsample_lfp(self):
+    print "...subsampling data ..."
+    
+    print self.tsf_file
+    #subsample_factor = int(self.subsample_factor.text())
+    
+    tsf = TSF.TSF(self.tsf_file)
+    subsample_factor = int(tsf.SampleFrequency/1000)
+    print "...subsample factor: ", subsample_factor
+
+    tsf.read_footer()
+    tsf.read_ec_traces()
+    tsf.layout = tsf.Readloc-1
+    
+    #*********** SAVE COMPRESSED LOW PASS .TSF FILE *********
+    #Save compression file name
+    file_out = self.tsf_file[:-4]+'_'+str(subsample_factor)+'subsampled.tsf'
+    print "Saving LFP : ", file_out
+    
+    #DON"T USE SUBSAMPLING - CAUSES PROBLEMS LATER
+    traces_out = []
+    for k in range(len(tsf.ec_traces)):
+        traces_out.append(tsf.ec_traces[k][::int(subsample_factor)])      
+    tsf.ec_traces = np.array(traces_out)
+
+    tsf.SampleFrequency = 1000
+    tsf.subsample = subsample_factor
+    tsf.n_vd_samples = len(tsf.ec_traces[0])
+    #tsf.n_vd_samples = len(tsf.ec_traces[0])
+    tsf.save_tsf(file_out)
     
 def compress_lfp(self):
     
@@ -4218,13 +4238,6 @@ def compress_lfp(self):
     #Save compression file name
     file_out = self.tsf_file[:-4]+'_'+str(compression_factor)+'compressed.tsf'
     print "Saving LFP : ", file_out
-    
-    #DON"T USE SUBSAMPLING - CAUSES PROBLEMS LATER
-    #traces_out = []
-    #for k in range(len(tsf.ec_traces)):
-    #    #traces_out.append(tsf.ec_traces[k][::int(compression_factor/25)])      
-    #    traces_out.append(tsf.ec_traces[k])
-    #tsf.ec_traces = np.array(traces_out)
 
     tsf.SampleFrequency = compression_factor*tsf.SampleFrequency     
     tsf.subsample = 1.0
@@ -5070,7 +5083,7 @@ def view_traces(self):
     """ Display raw traces
     """
     
-    colors=['gray']
+    #colors=['gray']
     colors=['blue', 'red', 'green', 'brown', 'pink', 'magenta', 'orange', 'black', 'cyan']
 
 
@@ -5078,10 +5091,10 @@ def view_traces(self):
     #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
     #self.parent.lfp_tsf_file
     
-    sua_sort = PTCS.PTCS(self.parent.sua_file)
-    tsf=TSF.TSF(self.parent.lfp_tsf_file)
-    
-    mua
+    #sua_sort = PTCS.PTCS(self.parent.sua_file)
+    self.tsf=TSF.TSF(self.lfp_tsf_file)
+    self.tsf.read_ec_traces()
+    #mua
         
     compression_factor = 50
     font_size = 30
@@ -6122,7 +6135,6 @@ def convert_lfp_to_csd(self):
 
 def view_csd_period(self):
     
-    
     electrode_rarifier = int(1./float(self.n_electrodes.text()))
     voltage_scaling = float(self.voltage_scale.text())
 
@@ -6146,7 +6158,6 @@ def view_csd_period(self):
             for k in range(0, tsf.n_electrodes, electrode_rarifier):
                 print "...filtering ch: ", k
                 tsf.ec_traces[k] = butter_bandpass_filter(tsf.ec_traces[k], float(self.low_cutoff.text()), 240., fs=1000, order = 2)
-        
             np.save(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut', tsf.ec_traces)
         else: 
             tsf.ec_traces = np.load(self.selected_recording+'_'+self.low_cutoff.text()+'lowcut.npy')
@@ -6175,7 +6186,8 @@ def view_csd_period(self):
         lfp_ave = lfp_ave[::2]      #Limit analysis to just one column of Neuronexus probe
         scaling = 1.
     else:      
-        scaling = 1800./tsf.Siteloc[-1]
+        #scaling = 1800./tsf.Siteloc[-1]
+        scaling = 1800./np.max(tsf.Siteloc)
 
     print lfp_ave.shape
     print n_samples
@@ -6189,12 +6201,11 @@ def view_csd_period(self):
     lfp_ave_dif2 = lfp_ave_dif2[0]*1E2      #***************CONVERSION TO CSD UNITS; matched from Gatue's CSD function
     
     lfp_ave_dif2 = -1. * lfp_ave_dif2     #Need to invert the currenst; matched from Gaute's CSD function
-   
     print lfp_ave_dif2.shape
     
     #lfp_ave_dif2 = lfp_ave
     
-    lfp_ave_dif2 = lfp_ave_dif2[int(self.start_ch.text())/2:int(self.end_ch.text())/2]      #Exclude channels that are not in issue
+    lfp_ave_dif2 = lfp_ave_dif2[int(self.top_channel.text())/2:int(self.bottom_channel.text())/2]      #Exclude channels that are not in issue
     print lfp_ave_dif2.shape
 
     #np.save(self.selected_recording[:-4]+"_lfp"+str(unit)+"_csd", lfp_ave_dif2)
@@ -6210,6 +6221,9 @@ def view_csd_period(self):
 
     cax = ax.imshow(lfp_ave_dif2, vmin=vmin, vmax=vmax, aspect='auto',cmap='viridis_r', interpolation='sinc')
     
+    
+    np.save(self.selected_recording[:-4]+"_csd",lfp_ave_dif2)
+        
     #old_xlabel = np.linspace(0, len(lfp_ave[0]), 5)
     #new_xlabel = np.int32(np.linspace(-n_samples, n_samples, 5))
     #plt.xticks(old_xlabel, new_xlabel, fontsize=15)
@@ -6226,11 +6240,12 @@ def view_csd_period(self):
         plt.ylim(21*scaling-0.5, -0.5)
     
     else:
-        new_ylabel = np.arange(0,1801,200)
-        old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
-        plt.yticks(old_ylabel, new_ylabel, fontsize=15)
-    
-        plt.ylim(10*scaling-0.5, -0.5)
+        if False:
+            new_ylabel = np.arange(0,1801,200)
+            old_ylabel = np.linspace(-0.5, len(lfp_ave)*scaling-0.5,len(new_ylabel))
+            plt.yticks(old_ylabel, new_ylabel, fontsize=15)
+        
+            plt.ylim(10*scaling-0.5, -0.5)
 
     
     plt.title(os.path.split(self.selected_recording)[0].replace(self.parent.root_dir,''), fontsize=10)
@@ -6497,7 +6512,7 @@ def view_csd(self):
 
 
 
-def Multitaper_specgram(time_series, sampfreq):
+def Multitaper_specgram(time_series, sampfreq, f0=0.1, f1=100):
     
     plotting=False
     if plotting:
@@ -6513,9 +6528,9 @@ def Multitaper_specgram(time_series, sampfreq):
     #Plot multi taper specgram
 
     #General parametrs
-    f0=0.1
-    f1=100
-    sampfreq=1000
+    #f0=0.1
+    #f1=100
+    #sampfreq=1000
 
     #time parameters
     t0 = None
@@ -6555,7 +6570,8 @@ def Multitaper_specgram(time_series, sampfreq):
     extent = t0, t1, f0, f1
 
     lo = 0
-    hi = int(float(N)/1000. * f1)
+    #hi = int(float(N)/1000. * f1)
+    hi = int(float(N)/sampfreq * f1)
     print lo, hi
 
     spec = spec[lo:hi]
@@ -6636,7 +6652,7 @@ def plot_all_rasters(self):
         ymin+=offset+0.5
         ymax+=offset-0.5
 
-        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=3, color='black') #colors[mod(counter,7)])
+        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=5, color='black') #colors[mod(counter,7)])
 
         y.append(x)
         
@@ -6651,98 +6667,106 @@ def plot_all_rasters(self):
         
         mua_bin_width = 0.020
         mua = np.array(mua)
-
+        scale_mua = 2
         mua_plot=np.histogram(mua, bins = np.arange(0, float(self.time_end.text()) - float(self.time_start.text()),mua_bin_width))
-        plt.plot(mua_plot[1][0:-1],mua_plot[0]*.5+offset-40, linewidth=5, color='brown', alpha=1)
+        plt.plot(mua_plot[1][0:-1],mua_plot[0]*scale_mua+offset-40, linewidth=5, color='brown', alpha=1)
    
 
     #******************** PLOT LFP TRACES ******************************
     #First load LFP events:
-    lfp_events = []
-    for i in range(Sort_lfp.n_units):
-        lfp_events.extend(np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50*tsf.SampleFrequency)
+    if True: 
+        lfp_events = []
+        for i in range(Sort_lfp.n_units):
+            lfp_events.extend(np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50*tsf.SampleFrequency)
 
-    #save only lfp events that occur within window
-    lfp_events = np.hstack(lfp_events)
-    print lfp_events
-    lfp_events = lfp_events[np.where(np.logical_and(lfp_events>=float(self.time_start.text())*tsf.SampleFrequency, lfp_events<=float(self.time_end.text())*tsf.SampleFrequency))[0]]
-    print lfp_events, float(self.time_start.text())*tsf.SampleFrequency, float(self.time_end.text())*tsf.SampleFrequency
-        
-        
-    offset = offset - 100
-    t = np.arange(0, float(self.time_end.text())-float(self.time_start.text()), 1./tsf.SampleFrequency)
-    
-    lfp_events = np.append(lfp_events, 82380)
-    lfp_events = np.append(lfp_events, 82950)
-    lfp_events = np.append(lfp_events, 83750)
-    
-    lfp_events = np.sort(lfp_events)
-    
-    colors = ['red','blue','blue','red','blue','blue']
-    for ch in range(0, tsf.n_electrodes, 4):
-        if ch<top_channel: continue
-        print ch
-        trace_temp = tsf.ec_traces[ch][int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
-        
-        #trace_temp = butter_highpass_filter(trace_temp, 2.0, 1000, 5)
-        #trace_temp = butter_lowpass_filter(trace_temp, 100.0, 1000, 5)
-        
-        plt.plot(t,trace_temp/150.-1+offset, linewidth = 2, color='black', alpha=1)
-        
-
-        #Plot events centred on LFP events already sorted
-        if False:
-            plot_width = 100
-
-            for ctr, lfp_event in enumerate(np.int32(lfp_events)):
-                t_temp = np.arange(lfp_event - int(self.time_start.text())*tsf.SampleFrequency-plot_width, lfp_event - int(self.time_start.text())*tsf.SampleFrequency+plot_width,1)
-                x_temp = trace_temp[lfp_event- int(self.time_start.text())*tsf.SampleFrequency-plot_width: lfp_event - int(self.time_start.text())*tsf.SampleFrequency+plot_width]/150.-1+offset
-                t_temp = t_temp/float(tsf.SampleFrequency)
-
-                #t_temp = t_temp[::5]
-                #x_temp = x_temp[::5]
-
-                #plt.plot(t_temp, x_temp, linewidth = 3, color=colors[ctr], alpha=1)
-                plt.plot(t_temp, x_temp, linewidth = 3, color='black', alpha=1)
-                #plt.scatter(t_temp, x_temp, s=4, color='black', alpha=1)
+        #save only lfp events that occur within window
+        lfp_events = np.hstack(lfp_events)
+        #print lfp_events
+        lfp_events = lfp_events[np.where(np.logical_and(lfp_events>=float(self.time_start.text())*tsf.SampleFrequency, lfp_events<=float(self.time_end.text())*tsf.SampleFrequency))[0]]
+        #print lfp_events, float(self.time_start.text())*tsf.SampleFrequency, float(self.time_end.text())*tsf.SampleFrequency
             
-        offset=offset-50
+            
+        offset = offset - 100
+        t = np.arange(0, float(self.time_end.text())-float(self.time_start.text()), 1./tsf.SampleFrequency)
         
+        #IF MISSING EVENGS ADD BY HAND
+        #lfp_events = np.append(lfp_events, 82380)
+        #lfp_events = np.append(lfp_events, 82950)
+        #lfp_events = np.append(lfp_events, 83750)
+        
+        #lfp_events = np.sort(lfp_events)
+        
+        #colors = ['red','blue','blue','red','blue','blue']
+        colors = ['orange','orange','magenta','magenta','magenta','blue']
+        scale_lfp = 10
+        #for ch in range(0, tsf.n_electrodes, 4):
+        for ch in range(0, tsf.n_electrodes, 1):
+            if ch<top_channel: continue
+            print ch
+            trace_temp = tsf.ec_traces[ch][int(float(self.time_start.text())*tsf.SampleFrequency): int(float(self.time_end.text())*tsf.SampleFrequency)] 
+            
+            trace_temp = butter_highpass_filter(trace_temp, 2.0, 1000, 5)
+            #trace_temp = butter_lowpass_filter(trace_temp, 100.0, 1000, 5)
+            
+            #plt.plot(t,trace_temp/scale_lfp-1+offset, linewidth = 5, color='black', alpha=1)
+            plt.plot(t,trace_temp/scale_lfp-1+offset, linewidth = 3, color='grey', alpha=1)
+            
+
+            #Plot events centred on LFP events already sorted
+            if True:
+                plot_width = 100
+
+                for ctr, lfp_event in enumerate(np.int32(lfp_events)):
+                    t_temp = np.arange(lfp_event - float(self.time_start.text())*tsf.SampleFrequency-plot_width, lfp_event - float(self.time_start.text())*tsf.SampleFrequency+plot_width,1)
+                    x_temp = trace_temp[lfp_event- float(self.time_start.text())*tsf.SampleFrequency-plot_width: lfp_event - float(self.time_start.text())*tsf.SampleFrequency+plot_width]/scale_lfp-1+offset
+                    t_temp = t_temp/float(tsf.SampleFrequency)
+                    
+                    if len(x_temp)!=len(t_temp): continue
+
+                    #t_temp = t_temp[::5]
+                    #x_temp = x_temp[::5]
+
+                    plt.plot(t_temp, x_temp, linewidth = 5, color=colors[ctr], alpha=1)
+                    #plt.plot(t_temp, x_temp, linewidth = 5, color='black', alpha=1)
+                    #plt.scatter(t_temp, x_temp, s=4, color='black', alpha=1)
+                
+            offset=offset-50
+            
         
     ##**************************** PLOT LFP RASTERS *************************
     ##Load LFP Sort
-    print "...loading lfp sort..."
-    Sort_lfp = PTCS.PTCS(self.selected_sort_lfp) #Auto load flag for Nick's data
+    if True:
+        print "...loading lfp sort..."
+        Sort_lfp = PTCS.PTCS(self.selected_sort_lfp) #Auto load flag for Nick's data
 
-    #Save rasters to csv files for test 
-    for k in range(Sort_lfp.n_units):
-        np.savetxt(self.selected_sort_lfp[:-4]+"_"+str(k), np.float32(Sort_lfp.units[k])*50.*1E-6)
+        #Save rasters to csv files for test 
+        for k in range(Sort_lfp.n_units):
+            np.savetxt(self.selected_sort_lfp[:-4]+"_"+str(k), np.float32(Sort_lfp.units[k])*50.*1E-6)
 
-    offset = offset - 2.
-    y = []
+        offset = offset - 2.
+        y = []
 
+            
+        for i in range(len(Sort_lfp.units)):
+            spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
+            print "... unit: ", i, " colour: ", colors[i%9], "  # events: ", len(spikes)
+            if len(spikes)<100: continue
+
+            x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
+
+            ymin=np.zeros(len(x))
+            ymax=np.zeros(len(x))
+
+            ymin+=offset
+            ymax+=offset-5
+
+            plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=5, color=colors[i%9]) #colors[mod(counter,7)])
         
-    for i in range(len(Sort_lfp.units)):
-        spikes = np.array(Sort_lfp.units[i],dtype=np.float32)*1E-6*50
-        print "... unit: ", i, " colour: ", colors[i%9], "  # events: ", len(spikes)
-        if len(spikes)<100: continue
-
-        x = spikes[np.where(np.logical_and(spikes>=float(self.time_start.text()), spikes<=float(self.time_end.text())))[0]]
-
-        ymin=np.zeros(len(x))
-        ymax=np.zeros(len(x))
-
-        ymin+=offset
-        ymax+=offset-50
-
-        plt.vlines(x-float(self.time_start.text()), ymin, ymax, linewidth=2, color=colors[i%9]) #colors[mod(counter,7)])
-    
-        offset=offset-5
-        
+            offset=offset-5
+            
     
     #******************** LABELING ********************
 
-   
     #old_ylabel = [sync_0, sync_0/2, sync_1, 0, f1/2, f1]
     #new_ylabel = [0, 0.7, 1, 0, f1/2, f1]
     #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
@@ -6759,15 +6783,13 @@ def plot_all_rasters(self):
     plt.xlabel("Time (sec)", fontsize = font_size , weight = 'bold')        
     #plt.xlabel("Day 1  Day 2 (min)", fontsize = font_size , weight = 'bold')        
 
-
     plt.ylabel(' Multi-Laminar LFP   ', fontsize=font_size, weight = 'bold')           
 
-    plt.ylim(-800, +10)
+    #plt.ylim(-800, +10)
+    plt.ylim(-700, -50)
+    #plt.ylim(-40, -10)
 
     plt.show()
-    
-
-
     
 
 def Specgram_syncindex_tfr(self):
@@ -6945,7 +6967,7 @@ def zero_out_desynch_periods(self):
     lfpwidth=15     #Width of FFT window in seconds
     lfptres=7.5     #Sliding window overlap in seconds
     si, t, sync_periods = synchrony_index(tsf.ec_traces[channel], samp_freq, si_limit, lfpwidth, lfptres)    #Time resolution: bin width for analysis in seconds)
-    
+    t_sync = t
     tot_time = 0
     for k in range(len(sync_periods)):
         tot_time+= (sync_periods[k][1]-sync_periods[k][0])
@@ -6954,8 +6976,11 @@ def zero_out_desynch_periods(self):
     
     np.savetxt(os.path.split(os.path.split(self.selected_recording)[0])[0]+"/sync_rec_len.txt", [tot_time])
     
-    print "...returning early<------------- remove this to generate sync file..."
-    return
+    #print "...returning early<------------- remove this to generate sync file..."
+    #return
+    
+    print "...sync periods: ", sync_periods
+    print "... t: ", t
     
     #************ SMOOTH OUT FUNCTION ****************
     def smooth(y, box_pts):
@@ -6996,22 +7021,26 @@ def zero_out_desynch_periods(self):
 
     t_sync_indexes = np.loadtxt(self.selected_recording[:-4]+"_synctimes_" + self.sync_limit.text()+"si.txt")
 
-    print t_sync_indexes
+    #print t_sync_indexes
     
     tsf_sync = np.zeros((tsf.n_electrodes,tsf.n_vd_samples), dtype=np.int16)
     for channel in range(tsf.n_electrodes):
-        for s in range(len(t_sync_indexes)):
+        #Only a single Sync window #********************** CAREFUL THIS IS NOT CODED RIGHT<--- Skips 2 x 2 t-sync-indexes matrices, i.e. 2 sync periods; FIX THIS!!!!!
+        if len(np.ravel(t_sync_indexes))==2:
+            tsf_sync[channel][int(t_sync_indexes[0]*tsf.SampleFrequency):int(t_sync_indexes[1]*tsf.SampleFrequency)] = \
+                tsf.ec_traces[channel][int(t_sync_indexes[0]*tsf.SampleFrequency):int(t_sync_indexes[1]*tsf.SampleFrequency)]
+        else:
+            for s in range(len(t_sync_indexes)):
+                tsf_sync[channel][int(t_sync_indexes[s][0]*tsf.SampleFrequency):int(t_sync_indexes[s][1]*tsf.SampleFrequency)] = \
+                    tsf.ec_traces[channel][int(t_sync_indexes[s][0]*tsf.SampleFrequency):int(t_sync_indexes[s][1]*tsf.SampleFrequency)]
             
-            tsf_sync[channel][int(t_sync_indexes[s][0]*tsf.SampleFrequency):int(t_sync_indexes[s][1]*tsf.SampleFrequency)] = \
-                tsf.ec_traces[channel][int(t_sync_indexes[s][0]*tsf.SampleFrequency):int(t_sync_indexes[s][1]*tsf.SampleFrequency)]
-    
     tsf.ec_traces = tsf_sync
     tsf.file_names=[]; tsf.n_samples=[]; tsf.n_digital_chs=[]; tsf.digital_chs=[]       #Meta data not required here.
     tsf.layout = np.arange(tsf.n_electrodes)
 
     save_tsf_single(tsf, self.selected_recording[:-4]+"_desynch_zeroed_"+self.sync_limit.text()+"si.tsf")
     
-    return
+    #return
 
     ax = plt.subplot(1,1,1)
     font_size = 30
@@ -7023,8 +7052,9 @@ def zero_out_desynch_periods(self):
     sync_1 = -10
     sync_scale = 20
 
-    for k in range(len(t_sync)):
-        plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
+#    for k in range(len(t_sync)):
+#        #plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
+#        plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
 
     plt.plot(t, si*sync_scale+sync_0, linewidth=5, color='green', alpha=0.8)
 
@@ -7037,11 +7067,11 @@ def zero_out_desynch_periods(self):
     #plt.xticks(xx, x_label, fontsize=20)
        
     #ax.set_xlim((0,P.shape[1]/2))    
-    ax.set_ylim((sync_0-1,f1))    
+    #ax.set_ylim((sync_0-1,f1))    
     
-    old_ylabel = [sync_0, sync_0*si_limit, sync_1, 0, f1/2, f1]
-    new_ylabel = [0, si_limit, 1, 0, f1/2, f1]
-    plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
+    #old_ylabel = [sync_0, sync_0*si_limit, sync_1, 0, f1/2, f1]
+    #new_ylabel = [0, si_limit, 1, 0, f1/2, f1]
+    #plt.yticks(old_ylabel, new_ylabel, fontsize=font_size)
     
     ax.tick_params(axis='both', which='both', labelsize=font_size)
 
@@ -7090,6 +7120,9 @@ def Spectrum(self):
     t = np.arange(0,1,Ts) # time vector
     
     data = tsf.ec_traces[::tsf.SampleFrequency/Fs]
+    print data.shape
+    
+    data = tsf.ec_traces[int(self.time_start.text())*tsf.SampleFrequency: int(self.time_end.text())*tsf.SampleFrequency]
     
     #Load 
     notches = np.loadtxt(os.path.split(self.selected_recording)[0]+"/notch.txt" , dtype=np.float32)    
@@ -7108,13 +7141,16 @@ def Spectrum(self):
          frq = k/T # two sides frequency range
          frq = frq[range(n/2)] # one side frequency range
 
+         print "...computing fft..."
          Y = fft(y)/n # fft computing and normalization
          Y = Y[range(n/2)]
          
+         print "... plotting ..."
          plt.plot(frq,abs(Y)) # plotting the spectrum
          plt.xlabel('Freq (Hz)')
          plt.ylabel('|Y(freq)|')
 
+         plt.show()
 
     #ff = 5;   # frequency of the signal
     #y = sin(2*pi*ff*t)
@@ -7126,8 +7162,6 @@ def Spectrum(self):
     #plt.ylabel('Amplitude')
     #plt.subplot(2,1,2)
     plotSpectrum(y,Fs)
-
-    plt.show()
     
     
 def Specgram_syncindex(self):
@@ -7157,21 +7191,25 @@ def Specgram_syncindex(self):
     width_plots = 35 #int(max(20, int(math.ceil(len(SUA_sort.sec_len)*3)))*1.16)
 
     #Compute Specgram
-    data_in = tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:int(self.time_end.text())*tsf.SampleFrequency][::int(tsf.SampleFrequency/1000)]
+    data = tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:int(self.time_end.text())*tsf.SampleFrequency][::int(tsf.SampleFrequency/1000)]
     samp_freq = 1000
-    print "... computing notch filter..."
+    print "... computing notch filters..."
     #data_in = Notch_Filter(data_in)  
-    print "filtering 66Hz"
-    data_in = Notch_Filter_specific(data_in, 66)  
-    print "filtering 60Hz"
-    data_in = Notch_Filter_specific(data_in, 60)  
+    #print "filtering 66Hz"
+    #data_in = Notch_Filter_specific(data_in, 66)  
+    #print "filtering 60Hz"
+    #data_in = Notch_Filter_specific(data_in, 60)  
     #data_in = Notch_Filter_specific(data_in, 180)  
     #data_in = Notch_Filter_specific(data_in, 200)  
     #data_in = Notch_Filter_specific(data_in, 300)  
+    #Load 
+    notches = np.loadtxt(os.path.split(self.selected_recording)[0]+"/notch.txt" , dtype=np.float32)    
+    for notch in notches:
+        data = Notch_Filter_specific(data, notch)   #THIS ONLY WORKS FOR 1KHZ sample rate
 
+    data_in = data
 
-
-    f0 = 0.1; f1 = 1000
+    f0 = 0.1; f1 = 100
     p0 = float(self.specgram_db_clip.text())
     temp_file = self.selected_recording[:-4]+"_ch"+str(channel)+"specgram"
     #if os.path.exists(temp_file+'.npz'):
@@ -7186,8 +7224,8 @@ def Specgram_syncindex(self):
 
     #Compute sync index
     si_limit=0.5
-    lfpwidth=15     #Width of FFT window in seconds
-    lfptres=7.5     #Sliding window overlap in seconds
+    lfpwidth=5    #Width of FFT window in seconds
+    lfptres=2.5     #Sliding window overlap in seconds
     print "...computing sync periods..."
     si, t, sync_periods = synchrony_index(tsf.ec_traces[channel][int(self.time_start.text())*tsf.SampleFrequency:(int(self.time_end.text())+10)*tsf.SampleFrequency], 
                         samp_freq, si_limit, lfpwidth, lfptres)    #Time resolution: bin width for analysis in seconds)
@@ -7211,44 +7249,42 @@ def Specgram_syncindex(self):
     
     
     ##************ COMPUTE SYNC PERIODS ***************
-    t_sync = np.zeros(len(t),dtype=np.float32)
-    si_sync = np.zeros(len(si),dtype=np.float32)
-    for k in range(len(si)-1): 
-        if si[k]>si_limit:
-            si_sync[k] = si[k]
-            t_sync[k] = t[k]
+    if False: 
+        t_sync = np.zeros(len(t),dtype=np.float32)
+        si_sync = np.zeros(len(si),dtype=np.float32)
+        for k in range(len(si)-1): 
+            if si[k]>si_limit:
+                si_sync[k] = si[k]
+                t_sync[k] = t[k]
 
+        #search for periods of at least 60 seconds of sync state:
+        t_sync = []
+        si_sync = []
+        in_sync = False
+        for k in range(len(t)):
+            if si[k]>=si_limit:
+                #Beginning of in_sync period
+                if not in_sync:
+                    in_sync=True
+                    in_sync_index = k
+            else:
+                #End of in_sync period
+                if in_sync:
+                    in_sync=False
+                    print k+1, in_sync_index
+                    print (k+1-in_sync_index)*lfptres
+                    if ((k-in_sync_index)*lfptres)>=60:
+                        t_sync.append(t[in_sync_index: k+1])
+                        si_sync.append(si[in_sync_index:k+1])
 
-    #search for periods of at least 60 seconds of sync state:
-    t_sync = []
-    si_sync = []
-    in_sync = False
-    for k in range(len(t)):
-        if si[k]>=si_limit:
-            #Beginning of in_sync period
-            if not in_sync:
-                in_sync=True
-                in_sync_index = k
-        else:
-            #End of in_sync period
-            if in_sync:
-                in_sync=False
-                print k+1, in_sync_index
-                print (k+1-in_sync_index)*lfptres
-                if ((k-in_sync_index)*lfptres)>=60:
-                    t_sync.append(t[in_sync_index: k+1])
-                    si_sync.append(si[in_sync_index:k+1])
+        #close period if still in sync state;
+        if in_sync:
+            if ((k-in_sync_index)*lfptres)>=60:
+                t_sync.append(t[in_sync_index: k+1])
+                si_sync.append(si[in_sync_index:k+1])
 
-    #close period if still in sync state;
-    if in_sync:
-        if ((k-in_sync_index)*lfptres)>=60:
-            t_sync.append(t[in_sync_index: k+1])
-            si_sync.append(si[in_sync_index:k+1])
-
-
-
-    for k in range(len(t_sync)):
-        plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
+        for k in range(len(t_sync)):
+            plt.plot(t_sync[k], np.float32(si_sync[k])*sync_scale+sync_0, linewidth=10, color='blue', alpha=0.8)
 
     
     #plt.plot(t, si*sync_scale+sync_0, linewidth=5, color='green', alpha=0.8)
@@ -7287,6 +7323,9 @@ def Compute_specgram_signal(data, SampleFrequency, f0=0.1, f1=110, p0=-40):
     chanis=-1
     width=1
     tres=.25
+    #width=0.1
+    #tres=.025
+    
     cm=None
     colorbar=False
     title=True
@@ -7303,7 +7342,8 @@ def Compute_specgram_signal(data, SampleFrequency, f0=0.1, f1=110, p0=-40):
     length = len(data)
 
     ts = np.arange(0,len(data),1.0)/sampfreq
-
+    print f0, f1
+    
     if t0 == None:
         t0, t1 = ts[0], ts[-1] # full duration
     #if t1 == None:
@@ -11948,8 +11988,7 @@ def compute_msl_single_lfpevent(self):
         
     def runningMeanFast(x, N):
         return np.convolve(x, np.ones((N,))/N)[(N-1):]
-    
-    
+        
     unit = starting_cell
     ax = plt.subplot(1,1,1)
 
@@ -11973,7 +12012,6 @@ def compute_msl_single_lfpevent(self):
     running_mean = runningMeanFast(np.array(diff_array1)*1E3, 10)
     plt.plot(recomputed_array1, running_mean, color='blue', linewidth=5, alpha=0.5)
     
-
     #Compute average lfp lock time for each LFP event:
     ave_lfp_lock = []
     x = []
@@ -12015,7 +12053,6 @@ def compute_msl_single_lfpevent(self):
     
     ax.tick_params(axis='both', which='both', labelsize=15)
 
-
     old_ylabel = [-150,-125,-100,-75, -50,-25,  0, 50]
     new_ylabel = [-50,  -25,   0,-25,   0,-25,  0, 50]
     plt.yticks(old_ylabel, new_ylabel, fontsize=15)
@@ -12023,9 +12060,249 @@ def compute_msl_single_lfpevent(self):
     plt.plot([0,t[-1]], [0,0], 'r--', color='black', alpha=0.7)
     plt.plot([0,t[-1]], [-50,-50], 'r--', color='black', alpha=0.7)
     plt.plot([0,t[-1]], [-100,-100], 'r--', color='black', alpha=0.7)
-            
+    
     plt.show()
     
+    
+def Compute_MSL_chunks_epochs(self):
+    
+    '''Align msl latencies and also show by depth 
+    '''
+    
+    #self.parent.animal.ptcsName = self.parent.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    
+    min_spikes = float(self.min_spikes.text())
+    epochs_selected = np.int16(self.multiple_units.text().split(","))
+    
+    print self.parent.sua_file 
+    print self.parent.lfp_event_file
+
+    top_channel = np.loadtxt(os.path.split(os.path.split(self.parent.sua_file)[0])[0]+"/top_channel.txt") - 1      #Load top channel for track; convert to 0-based ichannel values.
+
+    colors=['blue','red','blue','magenta','red','pink','orange', 'brown', 'yellow']
+    #colors=['blue','red', 'green','violet','lightseagreen','lightsalmon','indianred','pink','darkolivegreen','cyan']
+    
+    si_limit = 0.7
+    window=1000000  # window width in usec
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+    
+    lock_window_start = int(self.parent.lock_window_start.text())
+    lock_window_end = int(self.parent.lock_window_end.text())
+    
+    #UPDATE PARAMS FROM CURRENT WIDGET TEXTBOXES
+    #self.parent.name = self.animal_name.text()
+    #self.parent.recName = self.root_dir+self.animal.name+'/rhd_files/'+self.rec_name.text()
+    
+    #Load SUA Sort
+    #sua_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_hp.ptcs'
+    Sort_sua = PTCS.PTCS(self.parent.sua_file) #Auto load flag for Nick's data
+    total_units = len(Sort_sua.units)
+    n_units_incortex = len(np.where(Sort_sua.maxchan>=top_channel)[0])                                          #Number of units that are in tissue, i.e. below the top_channel.txt (see file)
+    
+    
+    #Load LFP Sort
+    #lfp_file = self.animal.recName.replace('rhd_files','tsf_files').replace('.rhd','')+'_lp_compressed.ptcs'
+    Sort_lfp = PTCS.PTCS(self.parent.lfp_event_file) #Auto load flag for Nick's data
+    
+    #start_lfp = min(int(self.parent.start_lfp.text()),len(Sort_lfp.units)-1)
+    #end_lfp = min(int(self.parent.end_lfp.text()),len(Sort_lfp.units)-1)
+    lfp_cluster = int(self.parent.lfp_cluster.text())
+    
+    #Load pop events during synch periods (secs)
+    compress_factor = 50
+    print "... compress_factor is hardcoded to: ", compress_factor
+    
+    starting_cell = int(self.starting_cell.text()); ending_cell = int(self.ending_cell.text())
+    
+    #Load LFP Cluster events                       #*******************ENSURE THAT NO DUPLICATE POP SPIKES MAKE IT THROUGH
+    #print Sort_lfp.units[lfp_cluster]
+    pop_spikes = np.uint64(Sort_lfp.units[lfp_cluster])*compress_factor
+    original_n_popspikes = len(pop_spikes)
+    pop_spikes=np.sort(np.unique(pop_spikes))*1E-6 
+    print " ... # LFP events: ", len(pop_spikes)
+    print pop_spikes[:10]
+    
+    #**************************************************************************
+    #********* CHUNK UP TIME - 3 OPTIONS: TIME, # SPIKES, # EVENTS ************
+    #**************************************************************************
+    
+    #OPTION 2: Divide into chunks of epochs
+    #temp_filename = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/file_list_lfp.txt'
+    #temp_filename = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/stimulus/60-67/file_list_lfp.txt'
+    temp_filename = os.path.split(os.path.split(self.parent.sua_file)[0])[0]+"/file_list_lfp.txt"      #Load top channel for track; convert to 0-based ichannel values.
+    print temp_filename
+    
+    filenames = np.loadtxt(temp_filename, dtype=str)
+    epochs = []
+    epoch_distributions = []
+    for ctr, filename in enumerate(filenames):
+        epoch_distributions.append([])
+        tsf = TSF.TSF(filename)
+        epochs.append(tsf.n_vd_samples*1E-3)    #Convert epoch times to seconds
+        for k in range(Sort_sua.n_units):
+            epoch_distributions[ctr].append([])
+        
+    time_chunks = []
+    time_chunks.append([0,epochs[0]])
+    for k in range(1, len(epochs), 1):
+        time_chunks.append([time_chunks[k-1][1], time_chunks[k-1][1]+epochs[k]])
+    
+    print time_chunks
+    
+    #Load cell rasters from file
+    if 'ptcs2' in self.parent.sua_file:
+        cell_rasters_filename = self.parent.sua_file.replace('.ptcs2','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    else:
+        cell_rasters_filename = self.parent.sua_file.replace('.ptcs','')+"_cell_rasters_lfp"+str(lfp_cluster)
+    
+    cell_rasters = np.load(cell_rasters_filename+".npy")
+
+    #********************************************* START OVER LOADING DATA FROM DISK *****************************************
+    
+    f1 = plt.figure()
+    img_means = []
+    inds_array = [] #Holds order for each epoch
+    times_array = [] #Holds exact lock times from each epoch
+    sig = float(self.sigma_width.text())
+    
+    unit_list = np.arange(total_units)      #For MSL plots only; remove some of the units that dont' fire during ane epoch;
+    temp = self.delete_units.text()
+    if len(temp)>0: 
+        del_units = np.int16(temp.split(","))
+        unit_list = np.delete (unit_list, del_units)
+    print unit_list
+
+    time_chunks = np.array(time_chunks)[epochs_selected]
+    
+    for ctr, t in enumerate(time_chunks):                      #LOOP OVER ALL CHUNKS
+    ##for ctr in range(1):                                    #COMPUTE ONLY FIRST CHUNK
+        
+        time_chunk = time_chunks[ctr]
+        
+        print time_chunk
+        fit_sum = np.zeros((total_units, 2000), dtype=np.float32)
+
+        temp3 = np.where(np.logical_and(pop_spikes>=time_chunk[0], pop_spikes<=time_chunk[1]))[0]       #Pick LEC events within epoch
+        
+        #for unit in range(total_units):
+        for unit in unit_list:
+            if Sort_sua.maxchan[unit]<top_channel: continue             #If unit is above cortex exclude it
+            if len(Sort_sua.units[unit])<min_spikes: continue           #If unit has less than min # spikes overall
+            #if len(cell_rasters[unit])==0: continue                     
+
+            locked_spikes = np.hstack(np.array(cell_rasters[unit])[temp3])              #Unit Spikes locked to LEC events during epoch
+            #locked_spikes = np.unique(np.sort(locked_spikes))                          #Is Unique necessary here? 
+            locked_spikes = np.sort(locked_spikes)                                      #Is Unique necessary here? 
+            if len(locked_spikes)<min_spikes: 
+                print "... unit: ", unit, " insufficient # spikes in epoch: ", ctr
+                #epoch_distributions[ctr].append([])
+                epoch_distributions[ctr][unit]=[]
+                continue               
+            
+            #epoch_distributions[ctr].append(locked_spikes)
+            epoch_distributions[ctr][unit] = locked_spikes
+
+            #NEW METHOD: JUST COMPUTE GAUSSIAN ONCE THEN TRANSLATE THE ARRAY
+            if len(locked_spikes)>0: 
+                x = np.linspace(-1000, 1000, 2000)    #Make an array from -1000ms .. +1000ms with ms precision
+                sig_gaussian = np.float32(gaussian(x, 0, sig))
+                for g in range(len(locked_spikes)):
+                    mu = int(locked_spikes[g]*1E-3)
+                    fit_sum[unit] += np.roll(sig_gaussian, mu)
+        
+        img=[]
+        lock_time=[]
+        #Add each cell histogram normalized to itself.
+        for unit in range(total_units):
+            if np.max(fit_sum[unit][1000+lock_window_start:1000+lock_window_end])>0:
+                lock_time.append(np.argmax(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
+                img.append(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]/max(fit_sum[unit][1000+lock_window_start:1000+lock_window_end]))
+            else:
+                lock_time.append(lock_window_end*4)
+                img.append(np.zeros(lock_window_end-lock_window_start, dtype=np.float32))
+        
+        #**************** PLOT MSL - BY ORDER **********************
+        ax = plt.subplot(1, len(time_chunks), ctr+1)
+
+        #ORDER MSL IMG BY LOCK TIME OF FIRST EPOCH
+        #first compute order for current epoch:
+        temp_inds = np.array(lock_time).argsort()
+        inds_array.append(temp_inds)        #Save order in each epoch
+
+        if (ctr==0): 
+            inds = np.array(lock_time).argsort()    #Save order by first epoch
+            print "...master order: "
+            for ctr3, k in enumerate(unit_list): 
+                print k, inds[ctr3]
+
+        times_array.append(lock_time)
+
+        img_ordered=np.array(img)[inds]
+        temp_img = []
+        for i in range(len(img_ordered)):
+            #if np.max(img[i])!=0:
+                temp_img.append(img_ordered[i])
+        img_ordered=np.array(temp_img)
+        img_ordered = img_ordered[unit_list]
+        
+        im = ax.imshow(img_ordered, origin='upper', extent=[0,(lock_window_end-lock_window_start), len(img),0], cmap=self.cmap.text(), aspect='auto', interpolation='none')
+
+        #**************************************************
+        #******************* LABELS ***********************
+        #**************************************************
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        if ctr ==0:
+            xx = np.arange(0,(lock_window_end-lock_window_start)+1,(lock_window_end-lock_window_start)/2.)
+            x_label = np.arange(lock_window_start,lock_window_end+1,(lock_window_end-lock_window_start)/2.)
+            plt.xticks(xx,x_label, fontsize=25)
+            plt.xlabel("Time (ms)", fontsize=30, fontweight='bold')
+
+            yy = np.arange(0,len(img),20)
+            y_label = np.arange(0,len(img),20)
+            plt.yticks(yy, y_label, fontsize=30)
+
+            plt.ylabel("Cell #", fontsize=30, fontweight='bold')
+
+        plt.title("Latency Order", fontsize=15)
+        plt.title(os.path.split(filenames[ctr])[1][:20]+"  "+str((time_chunk[1]-time_chunk[0])/60.)+"mins.", fontsize=7)
+
+        plt.ylim(len(img_ordered),0)
+    
+        plt.plot([-lock_window_start,-lock_window_start],[0,total_units], 'r--', linewidth=4, color='white')
+        ax.tick_params(axis='both', which='both', labelsize=25)
+        ax.xaxis.labelpad = 0
+
+        img_means.append(np.mean(img, axis=0))
+
+    plt.suptitle("LEC "+self.parent.lfp_cluster.text(), fontsize=30, fontweight='bold')
+
+    ##*******************PLOT EXAMPLE CELL HISTOGRAM ************************
+    f2 = plt.figure()
+    plt.plot(img[starting_cell], linewidth = 15, color = colors[lfp_cluster])
+    
+    plt.plot([window/2.*1E-3,window/2.*1E-3], [0,1], 'r--', linewidth=3, color='black')
+    
+    plt.xlabel("Time (ms)", fontsize = 30, fontweight='bold')
+    plt.xlim(0,lock_window_end*2)
+    plt.ylim(bottom=0)
+     
+    np.save(self.parent.lfp_event_file[:-5]+"_epoch_order", inds_array)
+    np.save(self.parent.lfp_event_file[:-5]+"_epoch_times", times_array)
+    np.save(self.parent.lfp_event_file[:-5]+"_epoch_distributions", epoch_distributions)
+    
+    print epochs
+    epochs=np.array(epochs)
+    print epochs
+    for k in range(1, len(epochs),1):
+        epochs[k] = epochs[k]+epochs[k-1]
+        print k, int(epochs[k]/60.)
+    #print np.int(epochs/60.)
+#    print ((epochs[1:]-epochs[:-1])/60.)[np.array(epochs_selected)-1]
+    
+    plt.show()
+
     
 def Compute_MSL_depth(self):
     

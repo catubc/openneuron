@@ -12,8 +12,8 @@ class MSL(QtGui.QWidget):
         super(MSL, self).__init__(parent)
         self.parent = parent
         
-        self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
-        #self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/'
+        #self.parent.root_dir = '/media/cat/12TB/in_vivo/tim/cat/'
+        self.parent.root_dir = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/stimulus/'
         #self.parent.root_dir = '/media/cat/2TB/in_vivo/nick/ptc21_tr5c/tsf_files/'
         #self.parent.root_dir = '/media/cat/All.Data.3TB/in_vivo/nick/ptc21/tr5c/'
 
@@ -68,7 +68,7 @@ class MSL(QtGui.QWidget):
 
 
         #*************** PTC21 *******************
-        #ptc21 tr1 - 1755um electrode 
+        ##ptc21 tr1 - 1755um electrode 
         #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_alltrack.ptcs'
         #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_50compressed.ptcs'
         #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr1/sort_alltrack/01-tr1-csd_lp_alltrack_notch_50compressed.tsf'
@@ -78,10 +78,10 @@ class MSL(QtGui.QWidget):
         #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr2/sort_alltrack/13-tr2-spontaneous_lp_alltrack_notch_50compressed.ptcs'
         #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr2/sort_alltrack/13-tr2-spontaneous_lp_alltrack_notch_50compressed.tsf'
 
-        #ptc21 tr5c  - 1755um electrode 
-        #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_alltrack.ptcs'
-        #self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.ptcs'
-        #self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.tsf'
+        ##ptc21 tr5c  - 1755um electrode 
+        self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_alltrack.ptcs'
+        self.parent.lfp_event_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.ptcs'
+        self.parent.lfp_tsf_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr5c/sort_alltrack/55-tr5c-csd_lp_alltrack_notch_50compressed.tsf'
 
         #ptc21 tr6b - 1755um electrode 
         #self.parent.sua_file = '/media/cat/8TB/in_vivo/nick/lfp_clustering/ptc21/tr6b/sort_alltrack/80-t6b-csd_binocular_alltrack.ptcs'
@@ -118,16 +118,15 @@ class MSL(QtGui.QWidget):
         '''
         #************************************************************************************************************************************************************
         #************************************************************************************************************************************************************
-        #***************************************************************** MOUSE DATA ***********************************************************
+        #***************************************************************** MOUSE DATA *******************************************************************************   
         #************************************************************************************************************************************************************
         #************************************************************************************************************************************************************
         '''
         
         #2017-02_03 VISUAL
-        self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
-        self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
-        ###self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed.ptcs'
-        self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
+        #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_hp_butter_alltrack.ptcs'
+        #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack_50compressed_4.0threshold_3clusters.ptcs'
+        #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/2017_02_03_visual_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170203_172405_lfp_250hz_alltrack.tsf'
 
         #2017-01_31 BARREL
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/2017_01_31_barrel_ephys_ophys/sort_alltrack_spontaneous/track_1_spontaneous_1_170131_164034_hp_butter_alltrack.ptcs'
@@ -185,13 +184,12 @@ class MSL(QtGui.QWidget):
         #self.parent.sua_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_hp_butter_alltrack_epoch_1.ptcs2.npz'
         #self.parent.lfp_event_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack_notch_50compressed_epoch_1.ptcs2.npz'
         #self.parent.lfp_tsf_file = '/media/cat/12TB/in_vivo/tim/cat/Mouse_42/sorted_11_12_iso/spontaneous_42_iso_170311_103957_lfp_250hz_alltrack.tsf'
-
         
-
+        
+        
         layout = QtGui.QGridLayout()
-
         row_index=0
-
+        
         #**************************************************************************************
         #*********************************** LOAD FILES  **************************************
         #**************************************************************************************
@@ -327,12 +325,19 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.sliding_window_step_lbl,row_index,2)
         layout.addWidget(self.sliding_window_step,row_index,3)
 
+
         self.multiple_units = QLineEdit('0, 1, 2');               
         self.multiple_units.setMaximumWidth(50)
-        self.multiple_units_lbl = QLabel('Selected Units', self)
+        self.multiple_units_lbl = QLabel('Selected Units/Epochs', self)
         layout.addWidget(self.multiple_units_lbl,row_index,4)
-        layout.addWidget(self.multiple_units,row_index,5); row_index+=1
-
+        layout.addWidget(self.multiple_units,row_index,5)
+        
+        
+        self.delete_units = QLineEdit('');               
+        self.delete_units.setMaximumWidth(50)
+        self.delete_units_lbl = QLabel('Delete Units', self)
+        layout.addWidget(self.delete_units_lbl,row_index,6)
+        layout.addWidget(self.delete_units,row_index,7); row_index+=1
 
 
         #************* PREPROCESSING: Rasters and Histograms ****************************
@@ -365,31 +370,41 @@ class MSL(QtGui.QWidget):
         self.button_msl_depth.clicked.connect(self.compute_msl_depth)
         layout.addWidget(self.button_msl_depth, row_index, 0)
 
+
         self.button_msl = QPushButton('Compute MSL Chunks')
         self.button_msl.setMaximumWidth(200)
         self.button_msl.clicked.connect(self.compute_msl_chunks)
         layout.addWidget(self.button_msl, row_index, 1)
-        
+
+
         self.button_MSL_drift = QPushButton('Single Cell MSL Drift')
         self.button_MSL_drift.setMaximumWidth(200)
         self.button_MSL_drift.clicked.connect(self.view_msl_drift)
         layout.addWidget(self.button_MSL_drift, row_index, 2)
+
         
         self.button_allcell_drift = QPushButton('All Cell MSL Stats')
         self.button_allcell_drift.setMaximumWidth(200)
         self.button_allcell_drift.clicked.connect(self.view_allcell_drift)
         layout.addWidget(self.button_allcell_drift, row_index, 4)
+
         
         self.button_drift_trends = QPushButton('MSL Drift Trends')
         self.button_drift_trends.setMaximumWidth(200)
         self.button_drift_trends.clicked.connect(self.view_drift_trends)
         layout.addWidget(self.button_drift_trends, row_index, 5)
 
+
         self.button_drift_movie = QPushButton('MSL Drift Movies')
         self.button_drift_movie.setMaximumWidth(200)
         self.button_drift_movie.clicked.connect(self.view_drift_movie)
         layout.addWidget(self.button_drift_movie, row_index, 6); row_index+=1
 
+
+        self.button_msl_epochs = QPushButton('Compute MSL Chunks Epochs')               #NEW ONE
+        self.button_msl_epochs.setMaximumWidth(200)
+        self.button_msl_epochs.clicked.connect(self.compute_msl_chunks_epochs)
+        layout.addWidget(self.button_msl_epochs, row_index, 0); row_index+=1
 
         
         #************** SINGLE CELL MSL FUNCTIONS ***********
@@ -398,7 +413,8 @@ class MSL(QtGui.QWidget):
         self.button_msl_continuous.setMaximumWidth(200)
         self.button_msl_continuous.clicked.connect(self.view_msl_continuous)
         layout.addWidget(self.button_msl_continuous, row_index, 0)
-        
+
+
         self.button_msl_continuous_single = QPushButton('MSL Sliding Single Cell')
         self.button_msl_continuous_single.setMaximumWidth(200)
         self.button_msl_continuous_single.clicked.connect(self.compute_msl_continuous_single)
@@ -409,6 +425,7 @@ class MSL(QtGui.QWidget):
         self.button_msl_discrete_single.setMaximumWidth(200)
         self.button_msl_discrete_single.clicked.connect(self.view_msl_discrete_single)
         layout.addWidget(self.button_msl_discrete_single, row_index,0)
+
 
         self.button_msl_continuous_single = QPushButton('MSL Sliding Win - Single Unit')
         self.button_msl_continuous_single.setMaximumWidth(200)
@@ -426,8 +443,7 @@ class MSL(QtGui.QWidget):
         self.button_msl_single_lfpevent.setMaximumWidth(200)
         self.button_msl_single_lfpevent.clicked.connect(self.view_msl_single_lfpevent)
         layout.addWidget(self.button_msl_single_lfpevent, row_index, 3); 
-        
-        
+                
                 
         self.max_error = QLineEdit('10');               
         self.max_error.setMaximumWidth(50)
@@ -435,8 +451,7 @@ class MSL(QtGui.QWidget):
         layout.addWidget(self.max_error_lbl,row_index,4)
         layout.addWidget(self.max_error, row_index,5)
         
-        
-        
+                
         self.ylim_bottom = QLineEdit('-40');               
         self.ylim_bottom.setMaximumWidth(50)
         self.ylim_bottom_lbl = QLabel('Ylim (bottom)', self)
@@ -461,7 +476,6 @@ class MSL(QtGui.QWidget):
         self.button_window_pval.setMaximumWidth(200)
         self.button_window_pval.clicked.connect(self.view_window_pval)
         layout.addWidget(self.button_window_pval, row_index, 2); row_index+=1
-
         
         
         #**************************************************************************************
@@ -651,10 +665,10 @@ class MSL(QtGui.QWidget):
         self.button_set_lfp_event_file_lbl.setText(self.parent.lfp_event_file.replace(os.path.dirname(self.parent.lfp_event_file),''))
         #self.parent.setWindowTitle(self.parent.button_set_sua_file_lbl.replace(self.parent.root_dir,''))
     
+    
     def set_lfp_tsf_file(self):
         self.parent.lfp_tsf_file  = QtGui.QFileDialog.getOpenFileName(self, "tsf (*.tsf)", self.parent.sua_file,"*.tsf")
         self.button_set_lfp_tsf_lbl.setText(self.parent.lfp_tsf_file.replace(os.path.dirname(self.parent.lfp_tsf_file),''))
-    
     
     
     def set_recording(self):
@@ -699,7 +713,11 @@ class MSL(QtGui.QWidget):
         
     def compute_msl_chunks(self, main_widget):
         Compute_MSL_chunks(self)                    #MSL CHUNKS!!!
-    
+
+
+    def compute_msl_chunks_epochs(self, main_widget):
+        Compute_MSL_chunks_epochs(self)                    #MSL CHUNKs - EPOCH VERSION ----------------
+
 
     def compute_msl_depth(self, main_widget):
         Compute_MSL_depth(self)                     #MSL DEPTH

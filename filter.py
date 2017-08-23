@@ -64,7 +64,6 @@ class Filter(QtGui.QWidget):
         self.button1.clicked.connect(self.fltr_ephys)
         layout.addWidget(self.button1, 6, 2)
 
-
         self.setLayout(layout)
    
     def fltr_ephys(self):
